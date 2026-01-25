@@ -104,7 +104,7 @@ button, input, select{font:inherit}
 }
 
 .logo img{
-  width: clamp(220px, 18vw, 300px); /* encore plus grand */
+  width: clamp(240px, 20vw, 380px); /* encore plus grand */
   height: auto;
   display: block;
   filter: drop-shadow(0 18px 44px rgba(0,0,0,.45));
