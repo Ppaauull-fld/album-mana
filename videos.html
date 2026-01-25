@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vidéos — album-mana</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page">
+  <header class="topbar">
+    <div class="container inner">
+      <a class="back" href="index.html"><span>‹</span> Retour</a>
+      <div class="brand-mini">
+        <div class="mini-logo"><div style="font-weight:900">80</div></div>
+        <div class="title">album-mana</div>
+      </div>
+      <div style="width:72px"></div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h1 class="h1">Vidéos</h1>
+
+      <div class="actions">
+        <input id="videoInput" type="file" accept="video/*" hidden />
+        <button id="addVideoBtn" class="btn">＋ Ajouter</button>
+      </div>
+
+      <div id="videosGrid" class="grid"></div>
+    </div>
+  </main>
+
+  <script type="module" src="assets/js/pages/videos.js"></script>
+</body>
+</html>

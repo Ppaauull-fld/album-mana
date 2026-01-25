@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Photos animées — album-mana</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page">
+  <header class="topbar">
+    <div class="container inner">
+      <a class="back" href="index.html"><span>‹</span> Retour</a>
+      <div class="brand-mini">
+        <div class="mini-logo"><div style="font-weight:900">80</div></div>
+        <div class="title">album-mana</div>
+      </div>
+      <div style="width:72px"></div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h1 class="h1">Photos animées</h1>
+
+      <div class="actions">
+        <input id="animatedInput" type="file" accept="video/mp4,video/*" hidden />
+        <button id="addAnimatedBtn" class="btn">＋ Ajouter une photo animée</button>
+      </div>
+
+      <div id="animatedGrid" class="grid"></div>
+    </div>
+  </main>
+
+  <script type="module" src="assets/js/pages/photos-animees.js"></script>
+</body>
+</html>

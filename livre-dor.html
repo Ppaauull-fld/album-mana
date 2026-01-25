@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Livre d’or — album-mana</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page">
+  <header class="topbar">
+    <div class="container inner">
+      <a class="back" href="index.html"><span>‹</span> Retour</a>
+      <div class="brand-mini">
+        <div class="mini-logo"><div style="font-weight:900">80</div></div>
+        <div class="title">album-mana</div>
+      </div>
+      <div style="width:72px"></div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h1 class="h1">Livre d’or</h1>
+
+      <div class="guest-wrap">
+        <div class="guest-toolbar">
+          <div class="field">
+            <label>Outil</label>
+            <select id="tool">
+              <option value="text">Texte</option>
+              <option value="pen">Dessin</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Texte</label>
+            <input id="textValue" type="text" placeholder="Écris un mot… puis clique pour placer" />
+          </div>
+
+          <div class="field">
+            <label>Police</label>
+            <select id="font">
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Times New Roman, serif">Times New Roman</option>
+              <option value="Comic Sans MS, cursive">Comic Sans</option>
+              <option value="Courier New, monospace">Courier</option>
+              <option value="system-ui, sans-serif">System</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Taille</label>
+            <input id="size" type="number" min="12" max="96" value="28" style="width:72px"/>
+          </div>
+
+          <div class="field">
+            <label>Couleur</label>
+            <input id="color" type="color" value="#111111"/>
+          </div>
+
+          <div class="field">
+            <label>Trait</label>
+            <input id="penSize" type="number" min="1" max="30" value="6" style="width:64px"/>
+          </div>
+
+          <button id="undo" class="btn">Annuler</button>
+          <button id="clear" class="btn">Effacer</button>
+          <button id="exportCanvasPng" class="btn primary">Exporter PNG</button>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="guestCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="assets/js/pages/livre-dor.js"></script>
+</body>
+</html>

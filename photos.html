@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Photos — album-mana</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page">
+  <header class="topbar">
+    <div class="container inner">
+      <a class="back" href="index.html"><span>‹</span> Retour</a>
+      <div class="brand-mini">
+        <div class="mini-logo"><div style="font-weight:900">80</div></div>
+        <div class="title">album-mana</div>
+      </div>
+      <div style="width:72px"></div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h1 class="h1">Photos</h1>
+
+      <div class="actions">
+        <input id="photoInput" type="file" accept="image/*" multiple hidden />
+        <button id="addPhotoBtn" class="btn">＋ Ajouter une photo</button>
+        <button id="startSlideshowBtn" class="btn primary">▶ Lancer un diaporama</button>
+      </div>
+
+      <div id="photosGrid" class="grid"></div>
+    </div>
+  </main>
+
+  <!-- Slideshow -->
+  <div id="slideshow" class="modal" aria-hidden="true">
+    <div class="box">
+      <div class="top">
+        <div id="slideCounter">—</div>
+        <div class="controls">
+          <button id="prevSlide" class="iconbtn" title="Précédent">‹</button>
+          <button id="togglePlay" class="iconbtn" title="Pause">⏸</button>
+          <button id="nextSlide" class="iconbtn" title="Suivant">›</button>
+          <button id="closeShow" class="iconbtn" title="Fermer">✕</button>
+        </div>
+      </div>
+      <div class="imgwrap">
+        <img id="slideImg" alt="diaporama" />
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/pages/photos.js"></script>
+</body>
+</html>
