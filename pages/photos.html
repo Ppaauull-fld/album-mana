@@ -34,6 +34,37 @@
     </div>
   </main>
 
+  <!-- Upload modal -->
+  <div id="uploadModal" class="modal" aria-hidden="true">
+    <div class="box">
+      <div class="top">
+        <div class="upload-title">
+          <strong>Prévisualisation</strong>
+          <div id="uploadCount" class="upload-sub">0 fichier</div>
+        </div>
+        <div class="controls">
+          <button id="uploadCancelBtn" class="iconbtn" title="Annuler">✕</button>
+        </div>
+      </div>
+
+      <div class="upload-body">
+        <div id="uploadPreviewGrid" class="upload-grid"></div>
+
+        <div class="upload-progress">
+          <div class="upload-progress-row">
+            <progress id="uploadProgressBar" value="0" max="100"></progress>
+            <div id="uploadProgressText" class="upload-progress-text">0 / 0</div>
+          </div>
+          <div id="uploadProgressDetail" class="upload-progress-detail">—</div>
+        </div>
+
+        <div class="upload-actions">
+          <button id="uploadStartBtn" class="btn primary" type="button">Envoyer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Slideshow -->
   <div id="slideshow" class="modal" aria-hidden="true">
     <div class="box">

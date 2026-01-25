@@ -10,6 +10,16 @@ const input = document.getElementById("photoInput");
 const addBtn = document.getElementById("addPhotoBtn");
 const showBtn = document.getElementById("startSlideshowBtn");
 
+// Upload UI
+const uploadModal = document.getElementById("uploadModal");
+const uploadPreviewGrid = document.getElementById("uploadPreviewGrid");
+const uploadStartBtn = document.getElementById("uploadStartBtn");
+const uploadCancelBtn = document.getElementById("uploadCancelBtn");
+const uploadProgressBar = document.getElementById("uploadProgressBar");
+const uploadProgressText = document.getElementById("uploadProgressText");
+const uploadProgressDetail = document.getElementById("uploadProgressDetail");
+const uploadCount = document.getElementById("uploadCount");
+
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
 const slideCounter = document.getElementById("slideCounter");
@@ -19,6 +29,9 @@ let queue = [];
 let idx = 0;
 let playing = true;
 let timer = null;
+
+// sélection en attente (avant envoi)
+let pending = []; // [{file, url}]
 
 function render() {
   grid.innerHTML = "";
@@ -85,18 +98,155 @@ function closeShow() {
   stopAuto();
 }
 
+/* ---------------------------
+   Upload modal
+---------------------------- */
+
+function openUploadModal() {
+  uploadModal.classList.add("open");
+  uploadModal.setAttribute("aria-hidden", "false");
+}
+function closeUploadModal() {
+  uploadModal.classList.remove("open");
+  uploadModal.setAttribute("aria-hidden", "true");
+}
+
+function fmtCount() {
+  const n = pending.length;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : (n === 1 ? "1 fichier" : `${n} fichiers`);
+}
+
+function resetProgressUI() {
+  uploadProgressBar.value = 0;
+  uploadProgressText.textContent = "0 / 0";
+  uploadProgressDetail.textContent = "—";
+}
+
+function setUploadingState(isUploading) {
+  addBtn.disabled = isUploading;
+  showBtn.disabled = isUploading;
+  uploadCancelBtn.disabled = isUploading;
+  uploadStartBtn.disabled = isUploading || pending.length === 0;
+  uploadStartBtn.textContent = isUploading ? "⏳ Envoi…" : "Envoyer";
+}
+
+function renderPending() {
+  uploadPreviewGrid.innerHTML = "";
+  fmtCount();
+
+  if (!pending.length) {
+    const empty = document.createElement("div");
+    empty.className = "upload-empty";
+    empty.textContent = "Sélectionne des images pour les prévisualiser ici.";
+    uploadPreviewGrid.appendChild(empty);
+    uploadStartBtn.disabled = true;
+    return;
+  }
+
+  for (let i = 0; i < pending.length; i++) {
+    const { file, url } = pending[i];
+
+    const item = document.createElement("div");
+    item.className = "upload-item";
+
+    const img = document.createElement("img");
+    img.className = "upload-thumb";
+    img.src = url;
+    img.alt = file.name;
+
+    const meta = document.createElement("div");
+    meta.className = "upload-meta";
+
+    const name = document.createElement("div");
+    name.className = "upload-name";
+    name.textContent = file.name;
+
+    const info = document.createElement("div");
+    info.className = "upload-info";
+    info.textContent = `${Math.round(file.size / 1024)} Ko`;
+
+    meta.appendChild(name);
+    meta.appendChild(info);
+
+    const remove = document.createElement("button");
+    remove.className = "upload-remove";
+    remove.type = "button";
+    remove.title = "Retirer de la sélection";
+    remove.textContent = "Retirer";
+    remove.addEventListener("click", () => {
+      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      pending.splice(i, 1);
+      renderPending();
+      setUploadingState(false);
+    });
+
+    item.appendChild(img);
+    item.appendChild(meta);
+    item.appendChild(remove);
+    uploadPreviewGrid.appendChild(item);
+  }
+
+  uploadStartBtn.disabled = false;
+}
+
 addBtn.addEventListener("click", () => input.click());
 
 input.addEventListener("change", async () => {
   const files = [...(input.files || [])];
+  input.value = ""; // important : permet de re-sélectionner les mêmes fichiers ensuite
   if (!files.length) return;
 
-  addBtn.textContent = "⏳ Upload…";
-  addBtn.disabled = true;
+  // libère anciennes previews
+  for (const p of pending) {
+    try { URL.revokeObjectURL(p.url); } catch {}
+  }
+  pending = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+
+  resetProgressUI();
+  renderPending();
+  setUploadingState(false);
+  openUploadModal();
+});
+
+uploadCancelBtn.addEventListener("click", () => {
+  if (uploadCancelBtn.disabled) return;
+  for (const p of pending) {
+    try { URL.revokeObjectURL(p.url); } catch {}
+  }
+  pending = [];
+  resetProgressUI();
+  closeUploadModal();
+});
+
+uploadStartBtn.addEventListener("click", async () => {
+  if (!pending.length) return;
+
+  setUploadingState(true);
+  resetProgressUI();
+
+  const total = pending.length;
+  let done = 0;
+
+  // une progression "globale" : (done + progressDuFichierCourant) / total
+  const updateOverall = (currentRatio, currentName) => {
+    const overall = Math.max(0, Math.min(1, (done + currentRatio) / total));
+    uploadProgressBar.value = Math.round(overall * 100);
+    uploadProgressText.textContent = `${done} / ${total}`;
+    uploadProgressDetail.textContent = currentName
+      ? `Envoi de ${currentName} — ${Math.round(currentRatio * 100)}%`
+      : "—";
+  };
 
   try {
-    for (const f of files) {
-      const up = await uploadImage(f);
+    for (let i = 0; i < pending.length; i++) {
+      const { file } = pending[i];
+
+      updateOverall(0, file.name);
+
+      const up = await uploadImage(file, {
+        onProgress: (ratio) => updateOverall(ratio, file.name)
+      });
+
       await addDoc(collection(db, "photos"), {
         type: "photo",
         createdAt: Date.now(),
@@ -104,15 +254,34 @@ input.addEventListener("change", async () => {
         url: up.secure_url,
         thumbUrl: up.secure_url
       });
+
+      done++;
+      uploadProgressText.textContent = `${done} / ${total}`;
+      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
+      uploadProgressBar.value = Math.round((done / total) * 100);
     }
+
+    // nettoyage
+    for (const p of pending) {
+      try { URL.revokeObjectURL(p.url); } catch {}
+    }
+    pending = [];
+
+    uploadProgressDetail.textContent = "✅ Terminé !";
+    setTimeout(() => {
+      closeUploadModal();
+      resetProgressUI();
+      setUploadingState(false);
+    }, 450);
   } catch (e) {
-    alert("Erreur upload : " + e.message);
-  } finally {
-    input.value = "";
-    addBtn.textContent = "＋ Ajouter une photo";
-    addBtn.disabled = false;
+    setUploadingState(false);
+    alert("Erreur upload : " + (e?.message || e));
   }
 });
+
+/* ---------------------------
+   Slideshow events
+---------------------------- */
 
 showBtn.addEventListener("click", openShow);
 document.getElementById("closeShow").addEventListener("click", closeShow);
@@ -123,10 +292,13 @@ document.getElementById("togglePlay").addEventListener("click", () => {
   document.getElementById("togglePlay").textContent = playing ? "⏸" : "▶";
 });
 document.addEventListener("keydown", (e) => {
-  if (!slideshow.classList.contains("open")) return;
-  if (e.key === "Escape") closeShow();
-  if (e.key === "ArrowRight") next();
-  if (e.key === "ArrowLeft") prev();
+  if (slideshow.classList.contains("open")) {
+    if (e.key === "Escape") closeShow();
+    if (e.key === "ArrowRight") next();
+    if (e.key === "ArrowLeft") prev();
+  } else if (uploadModal.classList.contains("open")) {
+    if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
+  }
 });
 
 async function main() {
