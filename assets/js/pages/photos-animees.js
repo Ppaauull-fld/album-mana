@@ -1,7 +1,8 @@
-import { ensureAnonAuth, db, onAuth, isAdmin } from "../firebase.js";
-import { uploadVideo, videoThumbUrl } from "../cloudinary.js";
+import { ensureAnonAuth, db } from "../firebase.js";
+import { uploadVideo } from "../cloudinary.js";
+
 import {
-  collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc
+  collection, addDoc, onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const grid = document.getElementById("animatedGrid");
@@ -9,7 +10,6 @@ const input = document.getElementById("animatedInput");
 const addBtn = document.getElementById("addAnimatedBtn");
 
 let items = [];
-let ADMIN = false;
 
 function render() {
   grid.innerHTML = "";
@@ -19,7 +19,7 @@ function render() {
 
     const img = document.createElement("img");
     img.className = "thumb";
-    img.src = it.thumbUrl || "";
+    img.src = it.thumbUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23000'/%3E%3C/svg%3E";
     img.alt = it.title || "photo animée";
 
     const badge = document.createElement("div");
@@ -29,21 +29,8 @@ function render() {
     card.appendChild(img);
     card.appendChild(badge);
 
-    if (ADMIN) {
-      const del = document.createElement("button");
-      del.className = "delbtn";
-      del.type = "button";
-      del.title = "Supprimer";
-      del.textContent = "🗑";
-      del.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        if (!confirm("Supprimer cet élément ?")) return;
-        await deleteDoc(doc(db, "animated", it.id));
-      });
-      card.appendChild(del);
-    }
-
     card.addEventListener("click", () => window.open(it.url, "_blank", "noopener"));
+
     grid.appendChild(card);
   }
 }
@@ -58,21 +45,16 @@ input.addEventListener("change", async () => {
   addBtn.disabled = true;
 
   try {
-    await ensureAnonAuth();
     const up = await uploadVideo(f);
-    const thumb = videoThumbUrl(up.public_id);
-
     await addDoc(collection(db, "animated"), {
       type: "animated",
       createdAt: Date.now(),
       title: f.name,
-      publicId: up.public_id,
       url: up.secure_url,
-      thumbUrl: thumb
+      thumbUrl: ""
     });
   } catch (e) {
-    console.error(e);
-    alert("Erreur upload : " + (e?.message || e));
+    alert("Erreur upload : " + e.message);
   } finally {
     input.value = "";
     addBtn.textContent = "＋ Ajouter une photo animée";
@@ -80,16 +62,13 @@ input.addEventListener("change", async () => {
   }
 });
 
-onAuth(async () => {
-  ADMIN = await isAdmin().catch(() => false);
-  render();
-});
-
-(async function main() {
+async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "animated"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snap) => {
     items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   });
-})();
+}
+
+main();

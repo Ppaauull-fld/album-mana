@@ -24,40 +24,6 @@
     <div class="container">
       <h1 class="h1">Photos</h1>
 
-      <div class="toolbar">
-        <div class="filters">
-          <div class="pill">
-            <label>Trier</label>
-            <select id="sortMode">
-              <option value="desc">Plus récentes</option>
-              <option value="asc">Plus anciennes</option>
-            </select>
-          </div>
-
-          <div class="pill">
-            <label>Personne</label>
-            <select id="personFilter">
-              <option value="">Toutes</option>
-            </select>
-          </div>
-
-          <div class="pill">
-            <label>Date</label>
-            <input id="dateFrom" type="date" />
-          </div>
-
-          <div class="pill">
-            <label>→</label>
-            <input id="dateTo" type="date" />
-          </div>
-        </div>
-
-        <div class="adminbar">
-          <span id="adminBadge" class="badge-admin" style="display:none;">Admin</span>
-          <button id="adminBtn" class="btn" type="button">Admin</button>
-        </div>
-      </div>
-
       <div class="actions">
         <input id="photoInput" type="file" accept="image/*" multiple hidden />
         <button id="addPhotoBtn" class="btn" type="button">＋ Ajouter une photo</button>
@@ -74,30 +40,14 @@
       <div class="top">
         <div id="slideCounter">—</div>
         <div class="controls">
-          <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
-          <button id="togglePlay" class="iconbtn" title="Pause" type="button">⏸</button>
-          <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
-          <button id="closeShow" class="iconbtn" title="Fermer" type="button">✕</button>
+          <button id="prevSlide" class="iconbtn" title="Précédent">‹</button>
+          <button id="togglePlay" class="iconbtn" title="Pause">⏸</button>
+          <button id="nextSlide" class="iconbtn" title="Suivant">›</button>
+          <button id="closeShow" class="iconbtn" title="Fermer">✕</button>
         </div>
       </div>
       <div class="imgwrap">
         <img id="slideImg" alt="diaporama" />
-      </div>
-    </div>
-  </div>
-
-  <!-- Upload preview modal -->
-  <div id="uploader" class="uploader" aria-hidden="true">
-    <div class="panel">
-      <div class="head">
-        <h2>Prévisualisation & envoi</h2>
-        <button id="closeUploader" class="btn" type="button">Fermer</button>
-      </div>
-      <div class="body">
-        <div id="fileList" class="filelist"></div>
-        <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-          <button id="startUpload" class="btn primary" type="button">Envoyer</button>
-        </div>
       </div>
     </div>
   </div>

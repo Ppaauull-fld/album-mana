@@ -1,7 +1,8 @@
-import { ensureAnonAuth, db, onAuth, adminLogin, adminLogout, isAdmin } from "../firebase.js";
-import { uploadVideo, videoThumbUrl } from "../cloudinary.js";
+import { ensureAnonAuth, db } from "../firebase.js";
+import { uploadVideo } from "../cloudinary.js";
+
 import {
-  collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc
+  collection, addDoc, onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const grid = document.getElementById("videosGrid");
@@ -9,7 +10,6 @@ const input = document.getElementById("videoInput");
 const addBtn = document.getElementById("addVideoBtn");
 
 let videos = [];
-let ADMIN = false;
 
 function render() {
   grid.innerHTML = "";
@@ -19,7 +19,7 @@ function render() {
 
     const img = document.createElement("img");
     img.className = "thumb";
-    img.src = v.thumbUrl || "";
+    img.src = v.thumbUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23000'/%3E%3C/svg%3E";
     img.alt = v.title || "vidéo";
 
     const badge = document.createElement("div");
@@ -28,22 +28,8 @@ function render() {
 
     card.appendChild(img);
     card.appendChild(badge);
-
-    if (ADMIN) {
-      const del = document.createElement("button");
-      del.className = "delbtn";
-      del.type = "button";
-      del.title = "Supprimer";
-      del.textContent = "🗑";
-      del.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        if (!confirm("Supprimer cette vidéo ?")) return;
-        await deleteDoc(doc(db, "videos", v.id));
-      });
-      card.appendChild(del);
-    }
-
     card.addEventListener("click", () => window.open(v.url, "_blank", "noopener"));
+
     grid.appendChild(card);
   }
 }
@@ -58,21 +44,16 @@ input.addEventListener("change", async () => {
   addBtn.disabled = true;
 
   try {
-    await ensureAnonAuth();
     const up = await uploadVideo(f);
-    const thumb = videoThumbUrl(up.public_id);
-
     await addDoc(collection(db, "videos"), {
       type: "video",
       createdAt: Date.now(),
       title: f.name,
-      publicId: up.public_id,
       url: up.secure_url,
-      thumbUrl: thumb
+      thumbUrl: "" // on améliorera ensuite avec thumbnail Cloudinary
     });
   } catch (e) {
-    console.error(e);
-    alert("Erreur upload : " + (e?.message || e));
+    alert("Erreur upload : " + e.message);
   } finally {
     input.value = "";
     addBtn.textContent = "＋ Ajouter";
@@ -80,17 +61,13 @@ input.addEventListener("change", async () => {
   }
 });
 
-// Admin login minimal: même bouton que page photos (si tu veux l’ajouter à l’HTML, on le fera)
-onAuth(async () => {
-  ADMIN = await isAdmin().catch(() => false);
-  render();
-});
-
-(async function main() {
+async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snap) => {
     videos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   });
-})();
+}
+
+main();
