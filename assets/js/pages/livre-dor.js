@@ -178,7 +178,7 @@ publishBtn.addEventListener("click", async () => {
   const blob = await new Promise((resolve) => off.toBlob(resolve, "image/png"));
   if (!blob) return;
 
-  publishBtn.textContent = "⏳ Upload…";
+  publishBtn.textContent = "Upload…";
   publishBtn.disabled = true;
 
   try {

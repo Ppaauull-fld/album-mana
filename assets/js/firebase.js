@@ -1,9 +1,18 @@
 // assets/js/firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// ✅ Ta config (inchangée)
 const firebaseConfig = {
   apiKey: "AIzaSyDHnzmQvbNVObRH8YI8nayAXLPvxqPiAqw",
   authDomain: "album-mana.firebaseapp.com",
@@ -16,13 +25,32 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Exports utilisés par tes pages
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// ✅ Connexion anonyme (obligatoire vu tes règles Firestore)
 export async function ensureAnonAuth() {
   if (auth.currentUser) return auth.currentUser;
   const cred = await signInAnonymously(auth);
   return cred.user;
+}
+
+// Admin helpers
+export async function adminLogin(email, password) {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
+}
+
+export async function adminLogout() {
+  await signOut(auth);
+}
+
+export function onAuth(cb) {
+  return onAuthStateChanged(auth, cb);
+}
+
+export async function isAdmin() {
+  const u = auth.currentUser;
+  if (!u) return false;
+  const snap = await getDoc(doc(db, "admins", u.uid));
+  return snap.exists();
 }

@@ -362,3 +362,170 @@ button, input, select{font:inherit}
   display:block;
   background:white;
 }
+
+
+/* ---------- UI Upload preview + filtres ---------- */
+.toolbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  margin: 10px 0 10px;
+}
+
+.filters{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.pill{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.8);
+}
+
+.pill label{
+  font-size: 12px;
+  font-weight: 600;
+  opacity: .7;
+}
+
+.pill select, .pill input{
+  border:none;
+  outline:none;
+  background: transparent;
+  font-size: 13px;
+}
+
+.adminbar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.badge-admin{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.10);
+  opacity: .85;
+}
+
+/* Upload modal */
+.uploader{
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,.60);
+  display:none;
+  z-index:60;
+  padding: 16px;
+}
+.uploader.open{display:flex}
+.uploader .panel{
+  margin:auto;
+  width:min(920px, 100%);
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: 0 20px 60px rgba(0,0,0,.22);
+  overflow:hidden;
+}
+.uploader .head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  background: rgba(0,0,0,.02);
+}
+.uploader .head h2{
+  margin:0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .1px;
+}
+.uploader .body{
+  padding: 14px;
+  display:grid;
+  gap:12px;
+}
+.filelist{
+  display:grid;
+  gap:10px;
+}
+.fileitem{
+  display:grid;
+  grid-template-columns: 72px 1fr;
+  gap:12px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.9);
+}
+.fileitem img{
+  width:72px;height:72px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: rgba(0,0,0,.06);
+}
+.filemeta{
+  display:grid;
+  gap:8px;
+}
+.filemeta .row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.small{
+  font-size: 12px;
+  opacity: .7;
+}
+
+.progress{
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.progress > div{
+  height: 100%;
+  width: 0%;
+  background: rgba(0,0,0,.85);
+  transition: width .15s ease;
+}
+
+/* delete button on cards (admin only) */
+.delbtn{
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:40px;height:40px;
+  border-radius:999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(0,0,0,.45);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.delbtn:hover{ background: rgba(0,0,0,.55); }
+
+/* Mobile fine */
+@media (max-width: 520px){
+  .container{ width: calc(100% - 24px); }
+  .fileitem{ grid-template-columns: 64px 1fr; }
+  .fileitem img{ width:64px;height:64px; }
+  .uploader .body{ padding: 12px; }
+}
