@@ -65,6 +65,24 @@
     </div>
   </div>
 
+  <!-- Photo viewer (plein écran) -->
+  <div id="photoViewer" class="modal" aria-hidden="true">
+    <div class="box viewer-box">
+      <div class="top">
+        <div id="viewerTitle" class="viewer-title">Photo</div>
+        <div class="controls">
+          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>⬇</a>
+          <button id="viewerDelete" class="iconbtn danger" title="Supprimer">🗑</button>
+          <button id="viewerClose" class="iconbtn" title="Fermer">✕</button>
+        </div>
+      </div>
+
+      <div class="viewer-wrap">
+        <img id="viewerImg" alt="photo" />
+      </div>
+    </div>
+  </div>
+
   <!-- Slideshow -->
   <div id="slideshow" class="modal" aria-hidden="true">
     <div class="box">

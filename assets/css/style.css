@@ -473,3 +473,58 @@ button, input, select{font:inherit}
   display:flex;
   justify-content:flex-end;
 }
+
+
+
+/* --- Cartes cliquables --- */
+.card-btn{
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: inherit;
+}
+.card-btn:focus{
+  outline: 2px solid rgba(255,255,255,.35);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+/* --- Viewer plein écran --- */
+.viewer-box{
+  width: min(1100px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+}
+
+.viewer-wrap{
+  padding: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.35);
+}
+
+.viewer-wrap img{
+  max-width: 100%;
+  max-height: calc(100vh - 160px);
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.viewer-title{
+  font-size: 13px;
+  color: rgba(255,255,255,.75);
+}
+
+/* Bouton danger */
+.iconbtn.danger{
+  border: 1px solid rgba(255,80,80,.35);
+}
+.iconbtn.danger:hover{
+  background: rgba(255,80,80,.18);
+}
+
+/* Empêche scroll derrière les modals */
+html.noscroll, body.noscroll{
+  overflow: hidden;
+}

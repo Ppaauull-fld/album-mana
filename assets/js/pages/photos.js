@@ -2,7 +2,7 @@ import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
 
 import {
-  collection, addDoc, onSnapshot, query, orderBy
+  collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const grid = document.getElementById("photosGrid");
@@ -20,6 +20,15 @@ const uploadProgressText = document.getElementById("uploadProgressText");
 const uploadProgressDetail = document.getElementById("uploadProgressDetail");
 const uploadCount = document.getElementById("uploadCount");
 
+// Viewer UI
+const viewer = document.getElementById("photoViewer");
+const viewerImg = document.getElementById("viewerImg");
+const viewerTitle = document.getElementById("viewerTitle");
+const viewerDownload = document.getElementById("viewerDownload");
+const viewerDelete = document.getElementById("viewerDelete");
+const viewerClose = document.getElementById("viewerClose");
+
+// Slideshow UI
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
 const slideCounter = document.getElementById("slideCounter");
@@ -33,19 +42,87 @@ let timer = null;
 // sélection en attente (avant envoi)
 let pending = []; // [{file, url}]
 
+// viewer state
+let currentViewed = null; // {id, url, ...}
+
 function render() {
   grid.innerHTML = "";
   for (const p of photos) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card card-btn";
+    card.title = "Ouvrir en plein écran";
+
     const img = document.createElement("img");
     img.className = "thumb";
     img.src = p.thumbUrl || p.url;
     img.alt = "photo";
+
     card.appendChild(img);
+
+    card.addEventListener("click", () => openViewer(p));
     grid.appendChild(card);
   }
 }
+
+/* ---------------------------
+   Viewer (plein écran)
+---------------------------- */
+
+function openViewer(photo) {
+  currentViewed = photo;
+
+  viewerTitle.textContent = "Photo";
+  viewerImg.src = photo.url;
+
+  // lien de téléchargement
+  viewerDownload.href = photo.url;
+  viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
+
+  viewer.classList.add("open");
+  viewer.setAttribute("aria-hidden", "false");
+
+  // empêche scroll derrière
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closeViewer() {
+  viewer.classList.remove("open");
+  viewer.setAttribute("aria-hidden", "true");
+  currentViewed = null;
+
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+}
+
+viewerClose.addEventListener("click", closeViewer);
+
+// clic hors boîte pour fermer
+viewer.addEventListener("click", (e) => {
+  if (e.target === viewer) closeViewer();
+});
+
+viewerDelete.addEventListener("click", async () => {
+  if (!currentViewed) return;
+
+  const ok = confirm("Supprimer cette photo de la galerie ?");
+  if (!ok) return;
+
+  try {
+    viewerDelete.disabled = true;
+    await deleteDoc(doc(db, "photos", currentViewed.id));
+    closeViewer();
+  } catch (e) {
+    alert("Suppression impossible : " + (e?.message || e));
+  } finally {
+    viewerDelete.disabled = false;
+  }
+});
+
+/* ---------------------------
+   Slideshow
+---------------------------- */
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -85,7 +162,7 @@ function stopAuto() {
 }
 
 function openShow() {
-  if (!photos.length) return alert("Ajoute d'abord quelques photos");
+  if (!photos.length) return alert("Ajoute d'abord quelques photos 🙂");
   buildQueue();
   slideshow.classList.add("open");
   playing = true;
@@ -98,8 +175,17 @@ function closeShow() {
   stopAuto();
 }
 
+showBtn.addEventListener("click", openShow);
+document.getElementById("closeShow").addEventListener("click", closeShow);
+document.getElementById("nextSlide").addEventListener("click", next);
+document.getElementById("prevSlide").addEventListener("click", prev);
+document.getElementById("togglePlay").addEventListener("click", () => {
+  playing = !playing;
+  document.getElementById("togglePlay").textContent = playing ? "⏸" : "▶";
+});
+
 /* ---------------------------
-   Upload modal
+   Upload modal (preview + progression)
 ---------------------------- */
 
 function openUploadModal() {
@@ -193,10 +279,9 @@ addBtn.addEventListener("click", () => input.click());
 
 input.addEventListener("change", async () => {
   const files = [...(input.files || [])];
-  input.value = ""; // important : permet de re-sélectionner les mêmes fichiers ensuite
+  input.value = "";
   if (!files.length) return;
 
-  // libère anciennes previews
   for (const p of pending) {
     try { URL.revokeObjectURL(p.url); } catch {}
   }
@@ -227,7 +312,6 @@ uploadStartBtn.addEventListener("click", async () => {
   const total = pending.length;
   let done = 0;
 
-  // une progression "globale" : (done + progressDuFichierCourant) / total
   const updateOverall = (currentRatio, currentName) => {
     const overall = Math.max(0, Math.min(1, (done + currentRatio) / total));
     uploadProgressBar.value = Math.round(overall * 100);
@@ -261,13 +345,12 @@ uploadStartBtn.addEventListener("click", async () => {
       uploadProgressBar.value = Math.round((done / total) * 100);
     }
 
-    // nettoyage
     for (const p of pending) {
       try { URL.revokeObjectURL(p.url); } catch {}
     }
     pending = [];
 
-    uploadProgressDetail.textContent = "Terminé !";
+    uploadProgressDetail.textContent = "✅ Terminé !";
     setTimeout(() => {
       closeUploadModal();
       resetProgressUI();
@@ -280,23 +363,21 @@ uploadStartBtn.addEventListener("click", async () => {
 });
 
 /* ---------------------------
-   Slideshow events
+   Keyboard shortcuts
 ---------------------------- */
 
-showBtn.addEventListener("click", openShow);
-document.getElementById("closeShow").addEventListener("click", closeShow);
-document.getElementById("nextSlide").addEventListener("click", next);
-document.getElementById("prevSlide").addEventListener("click", prev);
-document.getElementById("togglePlay").addEventListener("click", () => {
-  playing = !playing;
-  document.getElementById("togglePlay").textContent = playing ? "⏸" : "▶";
-});
 document.addEventListener("keydown", (e) => {
+  if (viewer.classList.contains("open")) {
+    if (e.key === "Escape") closeViewer();
+    return;
+  }
   if (slideshow.classList.contains("open")) {
     if (e.key === "Escape") closeShow();
     if (e.key === "ArrowRight") next();
     if (e.key === "ArrowLeft") prev();
-  } else if (uploadModal.classList.contains("open")) {
+    return;
+  }
+  if (uploadModal.classList.contains("open")) {
     if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
   }
 });
