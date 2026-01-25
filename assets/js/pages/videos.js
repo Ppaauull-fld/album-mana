@@ -9,27 +9,45 @@ const grid = document.getElementById("videosGrid");
 const input = document.getElementById("videoInput");
 const addBtn = document.getElementById("addVideoBtn");
 
-let videos = [];
+let vids = [];
+
+function isVideo(file) {
+  return file.type.startsWith("video/") ||
+    /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+}
+
+function cloudinaryVideoPoster(videoUrl) {
+  try {
+    if (!videoUrl.includes("/video/upload/")) return null;
+    const withTransform = videoUrl.replace("/upload/", "/upload/so_0/");
+    return withTransform.replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
+  } catch {
+    return null;
+  }
+}
 
 function render() {
   grid.innerHTML = "";
-  for (const v of videos) {
-    const card = document.createElement("div");
+
+  for (const v of vids) {
+    const card = document.createElement("a");
     card.className = "card";
+    card.href = v.url;
+    card.target = "_blank";
+    card.rel = "noreferrer";
+    card.title = "Ouvrir";
 
     const img = document.createElement("img");
     img.className = "thumb";
-    img.src = v.thumbUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23000'/%3E%3C/svg%3E";
-    img.alt = v.title || "vidéo";
+    img.src = v.thumbUrl || cloudinaryVideoPoster(v.url) || v.url;
+    img.alt = "vidéo";
 
     const badge = document.createElement("div");
     badge.className = "play-badge";
-    badge.innerHTML = "<span>▶</span>";
+    badge.textContent = "▶";
 
     card.appendChild(img);
     card.appendChild(badge);
-    card.addEventListener("click", () => window.open(v.url, "_blank", "noopener"));
-
     grid.appendChild(card);
   }
 }
@@ -37,26 +55,32 @@ function render() {
 addBtn.addEventListener("click", () => input.click());
 
 input.addEventListener("change", async () => {
-  const f = input.files?.[0];
-  if (!f) return;
+  const files = [...(input.files || [])];
+  input.value = "";
+  if (!files.length) return;
 
-  addBtn.textContent = "⏳ Upload…";
   addBtn.disabled = true;
 
   try {
-    const up = await uploadVideo(f);
-    await addDoc(collection(db, "videos"), {
-      type: "video",
-      createdAt: Date.now(),
-      title: f.name,
-      url: up.secure_url,
-      thumbUrl: "" // on améliorera ensuite avec thumbnail Cloudinary
-    });
+    for (const file of files) {
+      if (!isVideo(file)) {
+        alert(`Format non supporté : ${file.name}`);
+        continue;
+      }
+
+      const up = await uploadVideo(file);
+      const thumbUrl = cloudinaryVideoPoster(up.secure_url) || up.secure_url;
+
+      await addDoc(collection(db, "videos"), {
+        createdAt: Date.now(),
+        publicId: up.public_id,
+        url: up.secure_url,
+        thumbUrl
+      });
+    }
   } catch (e) {
-    alert("Erreur upload : " + e.message);
+    alert("Erreur upload : " + (e?.message || e));
   } finally {
-    input.value = "";
-    addBtn.textContent = "＋ Ajouter";
     addBtn.disabled = false;
   }
 });
@@ -65,7 +89,7 @@ async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snap) => {
-    videos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    vids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   });
 }
