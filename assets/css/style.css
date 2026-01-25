@@ -6,7 +6,7 @@
   --muted2:rgba(255,255,255,.5);
   --glass:rgba(255,255,255,.18);
   --glass2:rgba(255,255,255,.10);
-  --border:rgba(255,255,255,.25);
+  --border:rgba(255,255,255,.22);
   --shadow: 0 20px 60px rgba(0,0,0,.45);
   --radius:22px;
   --radius2:18px;
@@ -51,14 +51,14 @@ button, input, select{font:inherit}
   display:grid;
   grid-template-columns: repeat(4, 1fr);
   gap:0;
-  filter:saturate(1.08) contrast(1.05);
+  filter:saturate(1.06) contrast(1.04);
   transform: translateZ(0);
 }
 
 .hero .strip{
   background-size: cover;
   background-position:center;
-  opacity:.9;
+  opacity:.92;
 }
 
 .hero .strip:nth-child(1){background-image:url("../img/hero-1.jpg")}
@@ -66,17 +66,16 @@ button, input, select{font:inherit}
 .hero .strip:nth-child(3){background-image:url("../img/hero-3.jpg")}
 .hero .strip:nth-child(4){background-image:url("../img/hero-4.jpg")}
 
-
-/* voile */
+/* voile (moins prononcé) */
 .hero::after{
   content:"";
   position:absolute;
   inset:0;
   background:
-    radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.10), rgba(0,0,0,.55)),
-    linear-gradient(to bottom, rgba(0,0,0,.18), rgba(0,0,0,.62));
+    radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.06), rgba(0,0,0,.40)),
+    linear-gradient(to bottom, rgba(0,0,0,.10), rgba(0,0,0,.45));
+  pointer-events:none;
 }
-
 
 .hero .center{
   position:relative;
@@ -86,13 +85,13 @@ button, input, select{font:inherit}
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding: 48px 16px;
+  padding: 56px 16px 120px; /* on réserve de la place en bas pour la nav */
   color:white;
   text-align:center;
 }
 
+/* LOGO : plus grand, pas de cadre */
 .logo{
-  /* plus de “carte” */
   background: transparent;
   border: none;
   box-shadow: none;
@@ -105,10 +104,10 @@ button, input, select{font:inherit}
 }
 
 .logo img{
-  width: clamp(120px, 10vw, 180px); /* plus grand */
+  width: clamp(160px, 14vw, 240px); /* plus grand */
   height: auto;
   display: block;
-  filter: drop-shadow(0 10px 30px rgba(0,0,0,.35)); /* joli sans cadre */
+  filter: drop-shadow(0 14px 34px rgba(0,0,0,.38));
 }
 
 .hero h1{
@@ -126,39 +125,63 @@ button, input, select{font:inherit}
   font-size: 16px;
 }
 
-/* menu glass */
+/* menu glass (plus bas + texte plus fin) */
 .nav-glass{
-  margin-top: 26px;
+  position:absolute;
+  left:50%;
+  transform: translateX(-50%);
+  bottom: 56px;                 /* plus bas */
+  z-index:3;
+
   display:flex;
-  gap:8px;
-  padding:8px;
+  gap:10px;
+  padding:10px 14px;
   border-radius: 999px;
+
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--glass), var(--glass2));
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255,255,255,.12);
+  box-shadow: 0 18px 50px rgba(0,0,0,.40);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .nav-glass a{
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 999px;
-  color: rgba(255,255,255,.9);
-  font-weight: 600;
+  color: rgba(255,255,255,.86);
+  font-weight: 300;             /* plus fin */
   font-size: 14px;
-  letter-spacing:.2px;
+  letter-spacing:.15px;
   transition: transform .15s ease, background .15s ease, color .15s ease;
   white-space:nowrap;
 }
 
 .nav-glass a:hover{
   transform: translateY(-1px);
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.14);
+  color: rgba(255,255,255,.95);
 }
 
 .nav-glass a.active{
-  background: rgba(255,255,255,.22);
+  background: rgba(255,255,255,.20);
   color:white;
+}
+
+/* mobile : nav plus près du bas + wrap propre */
+@media (max-width: 720px){
+  .hero .center{ padding-bottom: 132px; }
+  .nav-glass{
+    bottom: 28px;
+    gap:8px;
+    padding:10px 12px;
+    flex-wrap:wrap;
+    justify-content:center;
+    max-width: calc(100% - 24px);
+  }
+  .nav-glass a{
+    font-size: 13px;
+    padding: 10px 12px;
+  }
 }
 
 /* ---------- Top bar (pages internes) ---------- */
