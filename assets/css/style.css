@@ -61,10 +61,11 @@ button, input, select{font:inherit}
   opacity:.9;
 }
 
-.hero .strip:nth-child(1){background-image:url("assets/img/hero-1.jpg")}
-.hero .strip:nth-child(2){background-image:url("assets/img/hero-2.jpg")}
-.hero .strip:nth-child(3){background-image:url("assets/img/hero-3.jpg")}
-.hero .strip:nth-child(4){background-image:url("assets/img/hero-4.jpg")}
+.hero .strip:nth-child(1){background-image:url("../img/hero-1.jpg")}
+.hero .strip:nth-child(2){background-image:url("../img/hero-2.jpg")}
+.hero .strip:nth-child(3){background-image:url("../img/hero-3.jpg")}
+.hero .strip:nth-child(4){background-image:url("../img/hero-4.jpg")}
+
 
 /* voile */
 .hero::after{
@@ -72,9 +73,10 @@ button, input, select{font:inherit}
   position:absolute;
   inset:0;
   background:
-    radial-gradient(1000px 600px at 50% 35%, rgba(0,0,0,.25), rgba(0,0,0,.65)),
-    linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,.75));
+    radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.10), rgba(0,0,0,.55)),
+    linear-gradient(to bottom, rgba(0,0,0,.18), rgba(0,0,0,.62));
 }
+
 
 .hero .center{
   position:relative;
