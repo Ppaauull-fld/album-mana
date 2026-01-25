@@ -524,3 +524,19 @@ html.noscroll, body.noscroll{
   height: 100%;
   object-fit: contain;
 }
+
+
+/* Preview vidéo dans la grille d'upload */
+.upload-thumb-video{
+  object-fit: cover;
+}
+
+/* Vidéo dans le viewer */
+.viewer-wrap video{
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100vh - 160px);
+  border-radius: 22px;
+  background: #000;
+  box-shadow: 0 30px 80px rgba(0,0,0,.55);
+}

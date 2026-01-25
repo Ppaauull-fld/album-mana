@@ -25,16 +25,63 @@
       <h1 class="h1">Photos animées</h1>
 
       <div class="actions">
-        <!-- ✅ Accepte mp4/webm/mov + gif -->
-        <input id="animatedInput" type="file"
-               accept="video/mp4,video/webm,video/quicktime,image/gif"
-               multiple hidden />
+        <input id="animatedInput" type="file" accept="video/*,image/gif" multiple hidden />
         <button id="addAnimatedBtn" class="btn" type="button">＋ Ajouter</button>
       </div>
 
       <div id="animatedGrid" class="grid"></div>
     </div>
   </main>
+
+  <!-- Upload modal -->
+  <div id="uploadModal" class="modal" aria-hidden="true">
+    <div class="box">
+      <div class="top">
+        <div class="upload-title">
+          <strong>Prévisualisation</strong>
+          <div id="uploadCount" class="upload-sub">0 fichier</div>
+        </div>
+        <div class="controls">
+          <button id="uploadCancelBtn" class="iconbtn" title="Annuler">✕</button>
+        </div>
+      </div>
+
+      <div class="upload-body">
+        <div id="uploadPreviewGrid" class="upload-grid"></div>
+
+        <div class="upload-progress">
+          <div class="upload-progress-row">
+            <progress id="uploadProgressBar" value="0" max="100"></progress>
+            <div id="uploadProgressText" class="upload-progress-text">0 / 0</div>
+          </div>
+          <div id="uploadProgressDetail" class="upload-progress-detail">—</div>
+        </div>
+
+        <div class="upload-actions">
+          <button id="uploadStartBtn" class="btn primary" type="button">Envoyer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer (gif ou vidéo) -->
+  <div id="animatedViewer" class="modal" aria-hidden="true">
+    <div class="box viewer-box">
+      <div class="top">
+        <div class="viewer-title">Animation</div>
+        <div class="controls">
+          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>⬇</a>
+          <button id="viewerDelete" class="iconbtn danger" title="Supprimer">🗑</button>
+          <button id="viewerClose" class="iconbtn" title="Fermer">✕</button>
+        </div>
+      </div>
+
+      <div class="viewer-wrap">
+        <img id="viewerGif" alt="gif" style="display:none" />
+        <video id="viewerVideo" controls playsinline style="display:none"></video>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="../assets/js/pages/photos-animees.js"></script>
 </body>
