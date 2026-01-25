@@ -498,3 +498,29 @@ html.noscroll, body.noscroll{
   font-size: 13px;
   color: rgba(255,255,255,.70);
 }
+
+
+
+/* ===== Slideshow en plein écran ===== */
+#slideshow.modal{
+  padding: 0; /* plus de marge autour */
+}
+
+#slideshow.modal .box{
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+#slideshow.modal .imgwrap{
+  height: calc(100vh - 64px); /* retire la hauteur de la topbar du modal */
+  background: rgba(0,0,0,.35);
+}
+
+#slideshow.modal img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
