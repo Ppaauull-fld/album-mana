@@ -66,14 +66,14 @@ button, input, select{font:inherit}
 .hero .strip:nth-child(3){background-image:url("../img/hero-3.jpg")}
 .hero .strip:nth-child(4){background-image:url("../img/hero-4.jpg")}
 
-/* voile (moins prononcé) */
+/* voile (un peu plus renforcé) */
 .hero::after{
   content:"";
   position:absolute;
   inset:0;
   background:
-    radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.06), rgba(0,0,0,.40)),
-    linear-gradient(to bottom, rgba(0,0,0,.10), rgba(0,0,0,.45));
+    radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.10), rgba(0,0,0,.48)),
+    linear-gradient(to bottom, rgba(0,0,0,.16), rgba(0,0,0,.55));
   pointer-events:none;
 }
 
@@ -85,12 +85,12 @@ button, input, select{font:inherit}
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding: 56px 16px 120px; /* on réserve de la place en bas pour la nav */
+  padding: 56px 16px 140px; /* un peu plus de place pour la nav plus haute */
   color:white;
   text-align:center;
 }
 
-/* LOGO : plus grand, pas de cadre */
+/* LOGO : encore plus grand, pas de cadre */
 .logo{
   background: transparent;
   border: none;
@@ -104,10 +104,10 @@ button, input, select{font:inherit}
 }
 
 .logo img{
-  width: clamp(160px, 14vw, 240px); /* plus grand */
+  width: clamp(220px, 18vw, 300px); /* encore plus grand */
   height: auto;
   display: block;
-  filter: drop-shadow(0 14px 34px rgba(0,0,0,.38));
+  filter: drop-shadow(0 18px 44px rgba(0,0,0,.45));
 }
 
 .hero h1{
@@ -125,12 +125,12 @@ button, input, select{font:inherit}
   font-size: 16px;
 }
 
-/* menu glass (plus bas + texte plus fin) */
+/* menu glass (légèrement plus haut + texte plus fin) */
 .nav-glass{
   position:absolute;
   left:50%;
   transform: translateX(-50%);
-  bottom: 56px;                 /* plus bas */
+  bottom: 72px;                 /* plus haut */
   z-index:3;
 
   display:flex;
@@ -167,11 +167,11 @@ button, input, select{font:inherit}
   color:white;
 }
 
-/* mobile : nav plus près du bas + wrap propre */
+/* mobile : nav un peu plus haute + wrap propre */
 @media (max-width: 720px){
-  .hero .center{ padding-bottom: 132px; }
+  .hero .center{ padding-bottom: 140px; }
   .nav-glass{
-    bottom: 28px;
+    bottom: 44px;
     gap:8px;
     padding:10px 12px;
     flex-wrap:wrap;
