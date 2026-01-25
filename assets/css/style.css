@@ -42,8 +42,7 @@ button, input, select{font:inherit}
 }
 
 /* =========================================================
-   HERO (Accueil) — laissé ici pour compat, mais non modifié
-   (tu as demandé “pas accueil”, donc rien de spécial ici)
+   HERO (Accueil) — laissé ici pour compat, inchangé
    ========================================================= */
 .hero{position:relative;min-height:100vh;background:var(--bg);overflow:hidden}
 .hero .strips{position:absolute;inset:-40px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;filter:saturate(1.06) contrast(1.04);transform:translateZ(0)}
@@ -91,6 +90,7 @@ button, input, select{font:inherit}
   gap:14px;
 }
 
+/* bouton retour */
 .back{
   display:flex;
   align-items:center;
@@ -105,27 +105,23 @@ button, input, select{font:inherit}
 .back:hover{ background: var(--chip); }
 .back span{font-size:18px; line-height:1}
 
-/* remplace le “80 album-mana” par un logo svg noir dans ton HTML,
-   mais côté CSS on prépare un header très clean */
+/* zone logo centrée */
 .brand-mini{
+  flex: 1;
   display:flex;
   align-items:center;
   justify-content:center;
   gap:10px;
 }
-.brand-mini .mini-logo{
-  width: 88px;
-  height: 28px;
-  display:grid;
-  place-items:center;
-}
-.brand-mini .mini-logo img{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+
+/* ✅ IMPORTANT : limite la taille du logo (sinon il devient géant) */
+.topbar-logo{
+  height: 22px;          /* ajuste ici : 20-28px selon ton goût */
+  width: auto;
+  max-width: 220px;
   display:block;
+  opacity: .95;
 }
-.brand-mini .title{ display:none; } /* on enlève le texte */
 
 /* ---------- Contenu ---------- */
 .section{
@@ -139,7 +135,7 @@ button, input, select{font:inherit}
   font-weight: 720;
 }
 
-/* zone boutons (moins gros, moins gras, plus chic) */
+/* zone boutons */
 .actions{
   display:flex;
   gap:10px;
@@ -196,14 +192,15 @@ button, input, select{font:inherit}
 }
 @media (max-width: 740px){
   .grid{grid-template-columns: repeat(2, 1fr)}
-  .actions{margin-top: 10px; justify-content:flex-start}
+  .actions{margin-top: 10px; justify-content:flex-start; flex-wrap:wrap}
   .h1{font-size: 34px}
+  .topbar-logo{height: 20px;}
 }
 @media (max-width: 430px){
   .grid{grid-template-columns: 1fr}
 }
 
-/* cartes photo/vidéo : plus “Apple-like”, bord plus discret */
+/* cartes */
 .card{
   border-radius: 18px;
   overflow:hidden;
@@ -226,7 +223,6 @@ button, input, select{font:inherit}
   display:block;
 }
 
-/* badge play plus fin */
 .play-badge{
   position:absolute;
   inset:auto 12px 12px auto;
