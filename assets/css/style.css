@@ -104,11 +104,12 @@ button, input, select{font:inherit}
 }
 
 .logo img{
-  width: clamp(240px, 20vw, 380px); /* encore plus grand */
+  width: clamp(320px, 28vw, 480px);
   height: auto;
   display: block;
-  filter: drop-shadow(0 18px 44px rgba(0,0,0,.45));
+  filter: drop-shadow(0 22px 60px rgba(0,0,0,.5));
 }
+
 
 .hero h1{
   margin:0;
