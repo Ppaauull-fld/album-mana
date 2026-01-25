@@ -114,7 +114,7 @@ canvas.addEventListener("pointerdown", (e) => {
     redraw();
   } else {
     const txt = textValue.value.trim();
-    if (!txt) return alert("Tape ton message, puis clique pour le placer 🙂");
+    if (!txt) return alert("Tape ton message, puis clique pour le placer");
     const p = posFromEvent(e);
     addDoc(collection(db, "guestbook"), {
       createdAt: Date.now(),

@@ -85,7 +85,7 @@ function stopAuto() {
 }
 
 function openShow() {
-  if (!photos.length) return alert("Ajoute d'abord quelques photos 🙂");
+  if (!photos.length) return alert("Ajoute d'abord quelques photos");
   buildQueue();
   slideshow.classList.add("open");
   playing = true;
@@ -267,7 +267,7 @@ uploadStartBtn.addEventListener("click", async () => {
     }
     pending = [];
 
-    uploadProgressDetail.textContent = "✅ Terminé !";
+    uploadProgressDetail.textContent = "Terminé !";
     setTimeout(() => {
       closeUploadModal();
       resetProgressUI();
