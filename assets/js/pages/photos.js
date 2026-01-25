@@ -2,7 +2,14 @@ import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
 
 import {
-  collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const grid = document.getElementById("photosGrid");
@@ -27,6 +34,7 @@ const viewerTitle = document.getElementById("viewerTitle");
 const viewerDownload = document.getElementById("viewerDownload");
 const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
+const viewerRotate = document.getElementById("viewerRotate"); // ✅ nécessite le bouton dans photos.html
 
 // Slideshow UI
 const slideshow = document.getElementById("slideshow");
@@ -43,7 +51,35 @@ let timer = null;
 let pending = []; // [{file, url}]
 
 // viewer state
-let currentViewed = null; // {id, url, ...}
+let currentViewed = null; // {id, url, rotation?, ...}
+
+function clampRotation(deg) {
+  const allowed = [0, 90, 180, 270];
+  return allowed.includes(deg) ? deg : 0;
+}
+
+function applyRotation(imgEl, deg) {
+  const rot = clampRotation(deg || 0);
+  imgEl.style.transform = `rotate(${rot}deg)`;
+  imgEl.style.transformOrigin = "center center";
+}
+
+/**
+ * Améliore un peu le rendu en galerie si rotation 90/270 :
+ * on passe en "contain" pour éviter un crop trop violent.
+ */
+function applyRotationThumb(imgEl, deg) {
+  const rot = clampRotation(deg || 0);
+  imgEl.style.transform = `rotate(${rot}deg)`;
+  imgEl.style.transformOrigin = "center center";
+  if (rot === 90 || rot === 270) {
+    imgEl.style.objectFit = "contain";
+    imgEl.style.background = "#000";
+  } else {
+    imgEl.style.objectFit = "";
+    imgEl.style.background = "";
+  }
+}
 
 function render() {
   grid.innerHTML = "";
@@ -58,8 +94,9 @@ function render() {
     img.src = p.thumbUrl || p.url;
     img.alt = "photo";
 
-    card.appendChild(img);
+    if (p.rotation) applyRotationThumb(img, p.rotation);
 
+    card.appendChild(img);
     card.addEventListener("click", () => openViewer(p));
     grid.appendChild(card);
   }
@@ -70,19 +107,21 @@ function render() {
 ---------------------------- */
 
 function openViewer(photo) {
-  currentViewed = photo;
+  currentViewed = { ...photo }; // copie locale
 
   viewerTitle.textContent = "Photo";
   viewerImg.src = photo.url;
 
-  // lien de téléchargement
+  // Rotation persistante
+  applyRotation(viewerImg, photo.rotation || 0);
+
+  // lien de téléchargement (original)
   viewerDownload.href = photo.url;
   viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
 
   viewer.classList.add("open");
   viewer.setAttribute("aria-hidden", "false");
 
-  // empêche scroll derrière
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 }
@@ -96,14 +135,13 @@ function closeViewer() {
   document.body.classList.remove("noscroll");
 }
 
-viewerClose.addEventListener("click", closeViewer);
+viewerClose?.addEventListener("click", closeViewer);
 
-// clic hors boîte pour fermer
 viewer.addEventListener("click", (e) => {
   if (e.target === viewer) closeViewer();
 });
 
-viewerDelete.addEventListener("click", async () => {
+viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
 
   const ok = confirm("Supprimer cette photo de la galerie ?");
@@ -120,6 +158,27 @@ viewerDelete.addEventListener("click", async () => {
   }
 });
 
+// ✅ ROTATION : persiste dans Firestore + s'applique au viewer + galerie + diaporama
+viewerRotate?.addEventListener("click", async () => {
+  if (!currentViewed) return;
+
+  const cur = clampRotation(currentViewed.rotation || 0);
+  const newRot = (cur + 90) % 360;
+  currentViewed.rotation = newRot;
+
+  // Applique visuellement immédiatement
+  applyRotation(viewerImg, newRot);
+
+  try {
+    await updateDoc(doc(db, "photos", currentViewed.id), { rotation: newRot });
+    // pas besoin de mettre à jour manuellement la galerie :
+    // onSnapshot va réémettre, et render() appliquera la rotation.
+  } catch (e) {
+    console.error("Rotation non sauvegardée", e);
+    alert("Impossible de sauvegarder la rotation (règles Firestore ?).");
+  }
+});
+
 /* ---------------------------
    Slideshow
 ---------------------------- */
@@ -132,14 +191,22 @@ function shuffle(arr) {
   }
   return a;
 }
-function buildQueue() { queue = shuffle(photos); idx = 0; }
+function buildQueue() {
+  queue = shuffle(photos);
+  idx = 0;
+}
 
 function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
+
   slideImg.src = s.url;
   slideCounter.textContent = `${idx + 1} / ${queue.length}`;
+
+  // Rotation dans le diaporama
+  applyRotation(slideImg, s.rotation || 0);
 }
+
 function next() {
   if (!queue.length) return;
   idx++;
@@ -154,7 +221,9 @@ function prev() {
 }
 function startAuto() {
   stopAuto();
-  timer = setInterval(() => { if (playing) next(); }, 3500);
+  timer = setInterval(() => {
+    if (playing) next();
+  }, 3500);
 }
 function stopAuto() {
   if (timer) clearInterval(timer);
@@ -199,7 +268,8 @@ function closeUploadModal() {
 
 function fmtCount() {
   const n = pending.length;
-  uploadCount.textContent = n === 0 ? "Aucun fichier" : (n === 1 ? "1 fichier" : `${n} fichiers`);
+  uploadCount.textContent =
+    n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
 }
 
 function resetProgressUI() {
@@ -260,7 +330,9 @@ function renderPending() {
     remove.title = "Retirer de la sélection";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      try {
+        URL.revokeObjectURL(pending[i].url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -283,9 +355,11 @@ input.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
-  pending = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+  pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
 
   resetProgressUI();
   renderPending();
@@ -296,7 +370,9 @@ input.addEventListener("change", async () => {
 uploadCancelBtn.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -328,7 +404,7 @@ uploadStartBtn.addEventListener("click", async () => {
       updateOverall(0, file.name);
 
       const up = await uploadImage(file, {
-        onProgress: (ratio) => updateOverall(ratio, file.name)
+        onProgress: (ratio) => updateOverall(ratio, file.name),
       });
 
       await addDoc(collection(db, "photos"), {
@@ -336,7 +412,8 @@ uploadStartBtn.addEventListener("click", async () => {
         createdAt: Date.now(),
         publicId: up.public_id,
         url: up.secure_url,
-        thumbUrl: up.secure_url
+        thumbUrl: up.secure_url,
+        rotation: 0, // ✅ champ prêt pour rotation
       });
 
       done++;
@@ -346,7 +423,9 @@ uploadStartBtn.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try { URL.revokeObjectURL(p.url); } catch {}
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
     }
     pending = [];
 
@@ -386,7 +465,7 @@ async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "photos"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snap) => {
-    photos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     render();
   });
 }

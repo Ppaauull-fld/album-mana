@@ -237,25 +237,36 @@ button, input, select{font:inherit}
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* ---------- Slideshow modal ---------- */
+/* ---------- Slideshow + Modals (unifié) ---------- */
 .modal{
   position:fixed;
   inset:0;
-  background: rgba(0,0,0,.74);
   display:none;
   z-index:50;
   padding: 16px;
+
+  /* plus doux + cohérent */
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .modal.open{display:flex}
 
 .modal .box{
   margin:auto;
   width:min(980px, 100%);
-  background: rgba(10,10,10,.92);
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 22px;
+  border-radius: 24px;
   overflow:hidden;
-  box-shadow: 0 22px 70px rgba(0,0,0,.55);
+
+  background: linear-gradient(
+    180deg,
+    rgba(20,20,20,.92),
+    rgba(10,10,10,.92)
+  );
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow:
+    0 22px 70px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 .modal .top{
@@ -264,7 +275,7 @@ button, input, select{font:inherit}
   justify-content:space-between;
   padding: 12px 14px;
   color: rgba(255,255,255,.85);
-  border-bottom: 1px solid rgba(255,255,255,.12);
+  border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
 .modal .top .controls{
@@ -277,92 +288,51 @@ button, input, select{font:inherit}
   display:grid;
   place-items:center;
   height: 70vh;
-  background:#000;
+  background: rgba(0,0,0,.35);
 }
 
 .modal img{
   max-width:100%;
   max-height:100%;
   object-fit:contain;
+  transition: transform .18s ease;
 }
 
+/* ✅ Icon buttons : centrage parfait */
 .iconbtn{
-  width:40px;height:40px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.10);
-  color:white;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border-radius:999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.88);
+  font-size:16px;
+  line-height:1;
   cursor:pointer;
-  transition: background .12s ease, transform .12s ease;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
 .iconbtn:hover{
-  background: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
   transform: translateY(-1px);
 }
-
-/* ---------- Livre d’or ---------- */
-.guest-wrap{
-  margin-top: 18px;
-  border-radius: 22px;
-  overflow:hidden;
-  border:1px solid rgba(0,0,0,.08);
-  box-shadow: 0 16px 40px rgba(0,0,0,.08);
-  background:#fff;
+.iconbtn:active{
+  transform: translateY(0px);
+}
+.iconbtn.danger{
+  border-color: rgba(255,80,80,.35);
+}
+.iconbtn.danger:hover{
+  background: rgba(255,80,80,.16);
 }
 
-.guest-toolbar{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  align-items:center;
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(0,0,0,.08);
-  background: rgba(0,0,0,.02);
+/* Empêche scroll derrière les modals */
+html.noscroll, body.noscroll{
+  overflow: hidden;
 }
-
-.field{
-  display:flex;
-  gap:8px;
-  align-items:center;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border:1px solid rgba(0,0,0,.10);
-  background:#fff;
-}
-
-.field label{
-  font-weight: 600;
-  font-size: 12px;
-  opacity:.7;
-}
-
-.field input[type="text"]{
-  border:none;
-  outline:none;
-  width: 220px;
-}
-
-.field select,
-.field input[type="color"],
-.field input[type="number"]{
-  border:none;
-  outline:none;
-  background:transparent;
-}
-
-.canvas-wrap{
-  position:relative;
-  height: 72vh;
-  background:white;
-}
-
-#guestCanvas{
-  width:100%;
-  height:100%;
-  display:block;
-  background:white;
-}
-
 
 /* --- Upload modal (prévisualisation + progression) --- */
 .upload-body{
@@ -377,34 +347,46 @@ button, input, select{font:inherit}
 }
 .upload-sub{
   font-size:12px;
-  color: rgba(255,255,255,.7);
+  color: rgba(255,255,255,.70);
 }
 
 .upload-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .upload-item{
   display:grid;
-  grid-template-rows: 140px auto auto;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 16px;
+  grid-template-rows: 150px auto auto;
+  border-radius: 22px;
   overflow:hidden;
+
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 10px 30px rgba(0,0,0,.25);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.upload-item:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 16px 40px rgba(0,0,0,.34);
 }
 
 .upload-thumb{
   width:100%;
-  height:140px;
+  height:150px;
   object-fit:cover;
   display:block;
   background:#000;
+  border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
 .upload-meta{
-  padding: 10px 10px 0 10px;
+  padding: 10px 12px 0 12px;
 }
 .upload-name{
   font-size: 13px;
@@ -414,27 +396,29 @@ button, input, select{font:inherit}
 }
 .upload-info{
   font-size: 12px;
-  color: rgba(255,255,255,.7);
+  color: rgba(255,255,255,.70);
   margin-top: 4px;
 }
 
 .upload-remove{
-  margin: 10px;
-  border-radius: 12px;
-  padding: 10px 10px;
+  margin: 10px 12px 12px 12px;
+  border-radius: 999px;
+  padding: 9px 14px;
   border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.07);
   color: rgba(255,255,255,.9);
   cursor:pointer;
+  transition: background .12s ease, transform .12s ease;
 }
 .upload-remove:hover{
   background: rgba(255,255,255,.12);
+  transform: translateY(-1px);
 }
 
 .upload-empty{
   padding: 16px;
   border: 1px dashed rgba(255,255,255,.22);
-  border-radius: 16px;
+  border-radius: 18px;
   color: rgba(255,255,255,.72);
 }
 
@@ -474,8 +458,6 @@ button, input, select{font:inherit}
   justify-content:flex-end;
 }
 
-
-
 /* --- Cartes cliquables --- */
 .card-btn{
   border: none;
@@ -485,46 +467,34 @@ button, input, select{font:inherit}
   text-align: inherit;
 }
 .card-btn:focus{
-  outline: 2px solid rgba(255,255,255,.35);
+  outline: 2px solid rgba(0,0,0,.25);
   outline-offset: 4px;
-  border-radius: 16px;
+  border-radius: 18px;
 }
 
-/* --- Viewer plein écran --- */
+/* --- Viewer plein écran (plus doux) --- */
 .viewer-box{
   width: min(1100px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
 }
 
 .viewer-wrap{
-  padding: 12px;
+  padding: 20px;
   display:flex;
   align-items:center;
   justify-content:center;
-  background: rgba(0,0,0,.35);
+  background: rgba(0,0,0,.25);
 }
 
 .viewer-wrap img{
   max-width: 100%;
   max-height: calc(100vh - 160px);
   object-fit: contain;
-  border-radius: 14px;
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.55);
 }
 
 .viewer-title{
   font-size: 13px;
-  color: rgba(255,255,255,.75);
-}
-
-/* Bouton danger */
-.iconbtn.danger{
-  border: 1px solid rgba(255,80,80,.35);
-}
-.iconbtn.danger:hover{
-  background: rgba(255,80,80,.18);
-}
-
-/* Empêche scroll derrière les modals */
-html.noscroll, body.noscroll{
-  overflow: hidden;
+  color: rgba(255,255,255,.70);
 }
