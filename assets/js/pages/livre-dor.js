@@ -1,7 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
 import { setBtnLoading } from "../ui.js";
-import { jsPDF } from "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js";
 
 import {
   collection,
@@ -16,10 +15,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 /* =========================
-   DOM
+   Safe DOM getters
    ========================= */
 const canvas = document.getElementById("guestCanvas");
-const ctx = canvas.getContext("2d");
+if (!canvas) {
+  console.error("[livre-dor] canvas #guestCanvas introuvable");
+}
+const ctx = canvas?.getContext?.("2d");
 
 const toolTextBtn = document.getElementById("toolText");
 const toolDrawBtn = document.getElementById("toolDraw");
@@ -42,11 +44,10 @@ const undoBtn = document.getElementById("undo");
 const redoBtn = document.getElementById("redo");
 const deleteBtn = document.getElementById("deleteSelected");
 
-// Nouveau: bouton download unique + menu
 const exportMenuBtn = document.getElementById("exportCanvasBtn");
-const downloadMenu = document.getElementById("downloadMenu");
 const exportPngBtn = document.getElementById("exportCanvasPng");
 const exportPdfBtn = document.getElementById("exportCanvasPdf");
+const downloadMenu = document.getElementById("downloadMenu");
 
 const hint = document.getElementById("hint");
 
@@ -95,11 +96,9 @@ function clamp(n, a, b) {
 function applyActive(btn, on) {
   btn?.classList.toggle("active", !!on);
 }
-
 function editorOpen() {
   return editorShell && editorShell.style.display === "block";
 }
-
 function getSelectedItem() {
   return items.find((i) => i.id === selectedId) || null;
 }
@@ -125,6 +124,7 @@ function buildFontCss(it) {
 }
 
 function measureTextBox(it) {
+  if (!ctx) return { w: 240, h: 120 };
   ctx.save();
   ctx.font = buildFontCss(it);
   const m = ctx.measureText(it.text || "");
@@ -138,6 +138,8 @@ function measureTextBox(it) {
    Canvas sizing (DPR safe)
    ========================= */
 function dprResize() {
+  if (!canvas || !ctx) return;
+
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
 
@@ -153,39 +155,6 @@ function posFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
-
-/* =========================
-   Download menu (PNG/PDF)
-   ========================= */
-function closeDownloadMenu() {
-  if (!downloadMenu) return;
-  downloadMenu.setAttribute("hidden", "");
-}
-
-function toggleDownloadMenu(e) {
-  if (!downloadMenu) return;
-  e?.stopPropagation?.();
-  const isOpen = !downloadMenu.hasAttribute("hidden");
-  if (isOpen) closeDownloadMenu();
-  else downloadMenu.removeAttribute("hidden");
-}
-
-exportMenuBtn?.addEventListener("click", toggleDownloadMenu);
-
-// clic hors menu => fermer
-document.addEventListener("click", (e) => {
-  if (!downloadMenu) return;
-  if (downloadMenu.hasAttribute("hidden")) return;
-
-  // si clic dans le wrapper/menu, on ne ferme pas ici (les handlers internes gèrent)
-  const t = e.target;
-  if (t && (downloadMenu.contains(t) || exportMenuBtn?.contains(t))) return;
-
-  closeDownloadMenu();
-});
-
-// empêcher le clic dans le menu de remonter et fermer
-downloadMenu?.addEventListener("click", (e) => e.stopPropagation());
 
 /* =========================
    Mode UI
@@ -214,6 +183,8 @@ function setMode(next) {
 }
 
 function updateButtons() {
+  if (!undoBtn || !redoBtn || !deleteBtn || !publishBtn) return;
+
   if (mode === "draw") {
     const canUndoLocal = strokes.length > 0;
     const canRedoLocal = redoStrokes.length > 0;
@@ -225,7 +196,6 @@ function updateButtons() {
   } else {
     undoBtn.disabled = undoStack.length === 0;
     redoBtn.disabled = redoStack.length === 0;
-
     publishBtn.disabled = true;
   }
 
@@ -236,13 +206,14 @@ function updateButtons() {
    Drawing (canvas)
    ========================= */
 function drawBackground() {
+  if (!ctx || !canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawStroke(s) {
-  if (!s?.points?.length) return;
+  if (!ctx || !s?.points?.length) return;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = s.color;
@@ -254,6 +225,7 @@ function drawStroke(s) {
 }
 
 function drawText(it) {
+  if (!ctx) return;
   ctx.save();
   ctx.fillStyle = it.color || "#111";
   ctx.font = buildFontCss(it);
@@ -287,7 +259,7 @@ async function getImage(url) {
 }
 
 async function drawDrawing(it) {
-  if (!it.imageUrl) return;
+  if (!ctx || !it.imageUrl) return;
   try {
     const img = await getImage(it.imageUrl);
     ctx.drawImage(img, it.x, it.y, it.w, it.h);
@@ -295,6 +267,7 @@ async function drawDrawing(it) {
 }
 
 function drawSelectionBox(it) {
+  if (!ctx) return;
   ctx.save();
   ctx.strokeStyle = "rgba(0,0,0,.35)";
   ctx.lineWidth = 1;
@@ -321,6 +294,7 @@ function drawSelectionBox(it) {
 }
 
 async function redraw() {
+  if (!ctx) return;
   drawBackground();
 
   for (const it of items) {
@@ -367,6 +341,8 @@ function itemHit(x, y) {
    Editor (texte)
    ========================= */
 function showEditor(x, y, initial, state) {
+  if (!editorShell || !floatingEditor || !canvas) return;
+
   editorState = { ...state, x, y };
 
   editorShell.style.display = "block";
@@ -384,19 +360,19 @@ function showEditor(x, y, initial, state) {
 }
 
 function hideEditor() {
+  if (!editorShell || !canvas) return;
   editorShell.style.display = "none";
   editorState = null;
   canvas.classList.remove("canvas-disabled");
 }
 
-editorCancel.addEventListener("click", hideEditor);
-
+editorCancel?.addEventListener("click", hideEditor);
 ["pointerdown", "pointermove", "pointerup"].forEach((evt) => {
-  editorShell.addEventListener(evt, (e) => e.stopPropagation());
+  editorShell?.addEventListener(evt, (e) => e.stopPropagation());
 });
 
 /* =========================
-   Undo/Redo Firestore (solide)
+   Undo/Redo Firestore
    ========================= */
 async function applyInverse(action) {
   if (action.type === "create") {
@@ -440,7 +416,6 @@ async function undo() {
     redraw();
     return;
   }
-
   const a = undoStack.pop();
   if (!a) return;
 
@@ -456,7 +431,6 @@ async function redo() {
     redraw();
     return;
   }
-
   const a = redoStack.pop();
   if (!a) return;
 
@@ -465,16 +439,16 @@ async function redo() {
   redraw();
 }
 
-undoBtn.addEventListener("click", undo);
-redoBtn.addEventListener("click", redo);
+undoBtn?.addEventListener("click", undo);
+redoBtn?.addEventListener("click", redo);
 
 /* =========================
    Create/Edit text
    ========================= */
-editorOk.addEventListener("click", async () => {
+editorOk?.addEventListener("click", async () => {
   if (!editorState) return;
 
-  const txt = (floatingEditor.value || "").trim();
+  const txt = (floatingEditor?.value || "").trim();
   if (!txt) {
     hideEditor();
     return;
@@ -559,7 +533,6 @@ async function updateSelectedTextStyle() {
     w: beforeDoc.w,
     h: beforeDoc.h,
   };
-
   const after = { ...style, w, h };
 
   await updateDoc(ref, after);
@@ -569,27 +542,28 @@ async function updateSelectedTextStyle() {
   redraw();
 }
 
-boldBtn.addEventListener("click", async () => {
+boldBtn?.addEventListener("click", async () => {
   applyActive(boldBtn, !boldBtn.classList.contains("active"));
   await updateSelectedTextStyle();
 });
-italicBtn.addEventListener("click", async () => {
+italicBtn?.addEventListener("click", async () => {
   applyActive(italicBtn, !italicBtn.classList.contains("active"));
   await updateSelectedTextStyle();
 });
-underlineBtn.addEventListener("click", async () => {
+underlineBtn?.addEventListener("click", async () => {
   applyActive(underlineBtn, !underlineBtn.classList.contains("active"));
   await updateSelectedTextStyle();
 });
 
-fontSel.addEventListener("change", updateSelectedTextStyle);
-sizeInput.addEventListener("change", updateSelectedTextStyle);
-colorInput.addEventListener("change", updateSelectedTextStyle);
+fontSel?.addEventListener("change", updateSelectedTextStyle);
+sizeInput?.addEventListener("change", updateSelectedTextStyle);
+colorInput?.addEventListener("change", updateSelectedTextStyle);
 
 /* =========================
    Pointer interactions
    ========================= */
 async function onPointerDown(e) {
+  if (!canvas) return;
   if (editorOpen()) return;
   if (e.button != null && e.button !== 0) return;
 
@@ -621,8 +595,8 @@ async function onPointerDown(e) {
   if (mode === "draw") {
     isDrawing = true;
     currentStroke = {
-      color: penColorInput.value,
-      width: Number(penSizeInput.value || 6),
+      color: penColorInput?.value || "#111111",
+      width: Number(penSizeInput?.value || 6),
       points: [{ x, y }],
     };
     redoStrokes = [];
@@ -682,6 +656,7 @@ async function onPointerMove(e) {
 }
 
 async function onPointerUp(e) {
+  if (!canvas) return;
   if (editorOpen()) return;
 
   try {
@@ -724,12 +699,12 @@ async function onPointerUp(e) {
   redraw();
 }
 
-canvas.addEventListener("pointerdown", onPointerDown);
-canvas.addEventListener("pointermove", onPointerMove);
-canvas.addEventListener("pointerup", onPointerUp);
-canvas.addEventListener("pointercancel", onPointerUp);
+canvas?.addEventListener("pointerdown", onPointerDown);
+canvas?.addEventListener("pointermove", onPointerMove);
+canvas?.addEventListener("pointerup", onPointerUp);
+canvas?.addEventListener("pointercancel", onPointerUp);
 
-canvas.addEventListener("dblclick", (e) => {
+canvas?.addEventListener("dblclick", (e) => {
   if (editorOpen()) return;
 
   const { x, y } = posFromEvent(e);
@@ -744,7 +719,7 @@ canvas.addEventListener("dblclick", (e) => {
 /* =========================
    Delete selected
    ========================= */
-deleteBtn.addEventListener("click", async () => {
+deleteBtn?.addEventListener("click", async () => {
   if (!selectedId) return;
   if (!confirm("Supprimer cet élément ?")) return;
 
@@ -769,18 +744,15 @@ deleteBtn.addEventListener("click", async () => {
 });
 
 /* =========================
-   Publish drawing (strokes -> image -> Firestore item)
+   Publish drawing
    ========================= */
-publishBtn.addEventListener("click", async () => {
+publishBtn?.addEventListener("click", async () => {
   if (mode !== "draw" || strokes.length === 0) return;
 
   setBtnLoading(publishBtn, true, { label: "Publication…" });
 
   try {
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     for (const s of strokes) {
       for (const p of s.points) {
@@ -861,74 +833,122 @@ publishBtn.addEventListener("click", async () => {
 });
 
 /* =========================
-   Export PNG / PDF (via menu)
+   Export helpers
    ========================= */
-exportPngBtn?.addEventListener("click", async () => {
-  closeDownloadMenu();
+async function exportPng() {
   await redraw();
-
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = `livre-dor-${Date.now()}.png`;
   a.click();
-});
+}
 
-exportPdfBtn?.addEventListener("click", async () => {
-  closeDownloadMenu();
-  await redraw();
+async function loadJsPdf() {
+  // jsPDF UMD
+  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
 
-  const imgData = canvas.toDataURL("image/png");
-
-  // taille en CSS pixels (pas en DPR)
-  const rect = canvas.getBoundingClientRect();
-  const imgW = rect.width || 1;
-  const imgH = rect.height || 1;
-
-  const landscape = imgW >= imgH;
-
-  const pdf = new jsPDF({
-    orientation: landscape ? "landscape" : "portrait",
-    unit: "mm",
-    format: "a4",
+  await new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
   });
 
+  return window.jspdf?.jsPDF;
+}
+
+async function exportPdf() {
+  await redraw();
+
+  const jsPDF = await loadJsPdf();
+  if (!jsPDF) {
+    alert("Impossible de charger le module PDF.");
+    return;
+  }
+
+  // image du canvas
+  const dataUrl = canvas.toDataURL("image/png");
+
+  // PDF A4 portrait (simple)
+  const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
-  const margin = 10;
-  const maxW = pageW - margin * 2;
-  const maxH = pageH - margin * 2;
+  // dimensions image pour contenir dans la page en gardant ratio
+  const img = new Image();
+  await new Promise((res, rej) => {
+    img.onload = res;
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
 
-  const ratio = Math.min(maxW / imgW, maxH / imgH);
-  const drawW = imgW * ratio;
-  const drawH = imgH * ratio;
+  const ratio = Math.min(pageW / img.width, pageH / img.height);
+  const w = img.width * ratio;
+  const h = img.height * ratio;
+  const x = (pageW - w) / 2;
+  const y = (pageH - h) / 2;
 
-  const x = (pageW - drawW) / 2;
-  const y = (pageH - drawH) / 2;
-
-  pdf.addImage(imgData, "PNG", x, y, drawW, drawH);
+  pdf.addImage(dataUrl, "PNG", x, y, w, h);
   pdf.save(`livre-dor-${Date.now()}.pdf`);
+}
+
+/* =========================
+   Download menu (PNG/PDF)
+   ========================= */
+function closeDownloadMenu() {
+  if (!downloadMenu) return;
+  downloadMenu.hidden = true;
+}
+
+function toggleDownloadMenu() {
+  if (!downloadMenu) return;
+  downloadMenu.hidden = !downloadMenu.hidden;
+}
+
+exportMenuBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleDownloadMenu();
+});
+
+exportPngBtn?.addEventListener("click", async (e) => {
+  e.preventDefault();
+  closeDownloadMenu();
+  await exportPng();
+});
+
+exportPdfBtn?.addEventListener("click", async (e) => {
+  e.preventDefault();
+  closeDownloadMenu();
+  await exportPdf();
+});
+
+// fermer menu au clic ailleurs + ESC
+document.addEventListener("click", (e) => {
+  if (!downloadMenu || downloadMenu.hidden) return;
+  const wrap = downloadMenu.parentElement;
+  if (wrap && !wrap.contains(e.target)) closeDownloadMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeDownloadMenu();
 });
 
 /* =========================
    Tool buttons
    ========================= */
-toolTextBtn.addEventListener("click", () => setMode("text"));
-toolDrawBtn.addEventListener("click", () => setMode("draw"));
+toolTextBtn?.addEventListener("click", () => setMode("text"));
+toolDrawBtn?.addEventListener("click", () => setMode("draw"));
 
 /* =========================
    Keyboard (Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
-  if (!downloadMenu?.hasAttribute("hidden")) {
-    if (e.key === "Escape") closeDownloadMenu();
-  }
-
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      editorOk.click();
+      editorOk?.click();
     }
     return;
   }
@@ -944,47 +964,52 @@ document.addEventListener("keydown", (e) => {
    Firestore realtime
    ========================= */
 async function main() {
-  await ensureAnonAuth();
+  try {
+    await ensureAnonAuth();
 
-  hideEditor();
+    hideEditor();
 
-  const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
+    const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
 
-  onSnapshot(q, (snap) => {
-    items = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .map((it) => {
-        if (typeof it.x !== "number") it.x = 40;
-        if (typeof it.y !== "number") it.y = 40;
+    onSnapshot(q, (snap) => {
+      items = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((it) => {
+          if (typeof it.x !== "number") it.x = 40;
+          if (typeof it.y !== "number") it.y = 40;
 
-        if (it.kind === "text") {
-          it.bold = !!it.bold;
-          it.italic = !!it.italic;
-          it.underline = !!it.underline;
+          if (it.kind === "text") {
+            it.bold = !!it.bold;
+            it.italic = !!it.italic;
+            it.underline = !!it.underline;
 
-          if (typeof it.w !== "number" || typeof it.h !== "number") {
-            const b = measureTextBox(it);
-            it.w = b.w;
-            it.h = b.h;
+            if (typeof it.w !== "number" || typeof it.h !== "number") {
+              const b = measureTextBox(it);
+              it.w = b.w;
+              it.h = b.h;
+            }
           }
-        }
 
-        if (it.kind === "drawing") {
-          if (typeof it.w !== "number") it.w = 240;
-          if (typeof it.h !== "number") it.h = 160;
-        }
+          if (it.kind === "drawing") {
+            if (typeof it.w !== "number") it.w = 240;
+            if (typeof it.h !== "number") it.h = 160;
+          }
 
-        return it;
-      });
+          return it;
+        });
 
-    if (selectedId && !items.some((i) => i.id === selectedId)) selectedId = null;
-    redraw();
-  });
+      if (selectedId && !items.some((i) => i.id === selectedId)) selectedId = null;
+      redraw();
+    });
 
-  dprResize();
-  window.addEventListener("resize", dprResize);
+    dprResize();
+    window.addEventListener("resize", dprResize);
 
-  setMode("text");
+    setMode("text");
+  } catch (e) {
+    console.error("[livre-dor] init error", e);
+    alert("Erreur d'initialisation du livre d’or. Ouvre la console pour voir le détail.");
+  }
 }
 
-main();
+if (canvas && ctx) main();
