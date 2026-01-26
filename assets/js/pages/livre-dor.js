@@ -21,6 +21,8 @@ const canvas = document.getElementById("guestCanvas");
 if (!canvas) console.error("[livre-dor] canvas #guestCanvas introuvable");
 const ctx = canvas?.getContext?.("2d");
 
+const toolCursorBtn = document.getElementById("toolCursor");
+const toolMoveBtn = document.getElementById("toolMove");
 const toolTextBtn = document.getElementById("toolText");
 const toolDrawBtn = document.getElementById("toolDraw");
 
@@ -34,7 +36,7 @@ const boldBtn = document.getElementById("boldBtn");
 const italicBtn = document.getElementById("italicBtn");
 const underlineBtn = document.getElementById("underlineBtn");
 
-// Align buttons (doivent exister dans ton HTML)
+// Align buttons
 const alignLeftBtn = document.getElementById("alignLeftBtn");
 const alignCenterBtn = document.getElementById("alignCenterBtn");
 const alignRightBtn = document.getElementById("alignRightBtn");
@@ -49,7 +51,6 @@ const redoBtn = document.getElementById("redo");
 const deleteBtn = document.getElementById("deleteSelected");
 
 const exportMenuBtn = document.getElementById("exportCanvasBtn");
-// Nouveau select (doit exister dans ton HTML)
 const exportFormatSel = document.getElementById("exportFormat");
 
 const hint = document.getElementById("hint");
@@ -63,7 +64,7 @@ const editorCancel = document.getElementById("editorCancel");
 /* =========================
    State
    ========================= */
-let mode = "text";
+let mode = "cursor"; // cursor | move | text | draw
 let items = [];
 const imageCache = new Map();
 
@@ -93,7 +94,6 @@ let editorState = null;
 let camX = 0;
 let camY = 0;
 
-let spaceDown = false;
 let isPanning = false;
 let panStart = null;
 
@@ -210,8 +210,13 @@ function posFromEvent(e) {
 function setMode(next) {
   mode = next;
 
+  toolCursorBtn?.classList.toggle("active", mode === "cursor");
+  toolMoveBtn?.classList.toggle("active", mode === "move");
   toolTextBtn?.classList.toggle("active", mode === "text");
   toolDrawBtn?.classList.toggle("active", mode === "draw");
+
+  toolCursorBtn?.setAttribute("aria-selected", mode === "cursor" ? "true" : "false");
+  toolMoveBtn?.setAttribute("aria-selected", mode === "move" ? "true" : "false");
   toolTextBtn?.setAttribute("aria-selected", mode === "text" ? "true" : "false");
   toolDrawBtn?.setAttribute("aria-selected", mode === "draw" ? "true" : "false");
 
@@ -220,10 +225,23 @@ function setMode(next) {
 
   hideEditor();
 
+  // nettoyage des états transitoires
+  isPanning = false;
+  panStart = null;
+
+  if (mode !== "draw") {
+    isDrawing = false;
+    currentStroke = null;
+  }
+
   setHint(
-    mode === "text"
-      ? "Texte : clique pour ajouter • Double clic pour éditer • Espace+glisser = déplacer la vue"
-      : "Dessin : dessine • Annuler/Rétablir = traits • Publier pour ajouter • Espace+glisser = déplacer la vue"
+    mode === "cursor"
+      ? "Curseur : sélectionner • déplacer • redimensionner"
+      : mode === "move"
+      ? "Déplacement : glisse pour te déplacer dans la page"
+      : mode === "text"
+      ? "Texte : clique pour ajouter • Double clic pour éditer"
+      : "Dessin : dessine • Publier pour ajouter"
   );
 
   updateButtons();
@@ -233,18 +251,16 @@ function setMode(next) {
 function updateButtons() {
   if (!undoBtn || !redoBtn || !deleteBtn || !publishBtn) return;
 
+  publishBtn.disabled = !(mode === "draw" && strokes.length > 0);
+
   if (mode === "draw") {
     const canUndoLocal = strokes.length > 0;
     const canRedoLocal = redoStrokes.length > 0;
-
     undoBtn.disabled = !(canUndoLocal || undoStack.length > 0);
     redoBtn.disabled = !(canRedoLocal || redoStack.length > 0);
-
-    publishBtn.disabled = strokes.length === 0;
   } else {
     undoBtn.disabled = undoStack.length === 0;
     redoBtn.disabled = redoStack.length === 0;
-    publishBtn.disabled = true;
   }
 
   deleteBtn.disabled = !selectedId;
@@ -299,7 +315,6 @@ function drawText(it, camOffX = camX, camOffY = camY) {
   ctx.font = buildFontCss(it);
   ctx.textBaseline = "top";
 
-  // Canvas: justify non support natif. On fait un "pseudo-justify" ligne par ligne.
   if (align === "center") ctx.textAlign = "center";
   else if (align === "right") ctx.textAlign = "right";
   else ctx.textAlign = "left";
@@ -316,7 +331,6 @@ function drawText(it, camOffX = camX, camOffY = camY) {
     const y = sy + i * lineH;
 
     if (align === "justify" && i < lines.length - 1) {
-      // Justify: répartir l'espace entre mots pour atteindre boxW
       const words = line.trim().split(/\s+/).filter(Boolean);
       if (words.length <= 1) {
         ctx.textAlign = "left";
@@ -324,7 +338,7 @@ function drawText(it, camOffX = camX, camOffY = camY) {
       } else {
         const spaceWidth = ctx.measureText(" ").width;
         const wordsWidth = words.reduce((acc, w) => acc + ctx.measureText(w).width, 0);
-        const target = Math.max(0, boxW - 12); // petite marge
+        const target = Math.max(0, boxW - 12);
         const gaps = words.length - 1;
         const base = spaceWidth;
         const extra = clamp((target - wordsWidth - base * gaps) / gaps, 0, 40);
@@ -345,7 +359,6 @@ function drawText(it, camOffX = camX, camOffY = camY) {
       const m = ctx.measureText(line);
       const yLine = y + size * 1.08;
 
-      // underline start/end selon align courant (sauf justify où on souligne toute la ligne visible)
       let ux0 = rx;
       let ux1 = rx + m.width;
 
@@ -429,13 +442,11 @@ async function redraw() {
   if (!ctx) return;
   drawBackground();
 
-  // items (monde -> écran via cam)
   for (const it of items) {
     if (it.kind === "text") drawText(it, camX, camY);
     if (it.kind === "drawing") await drawDrawing(it, camX, camY);
   }
 
-  // strokes locaux (déjà en coords monde)
   for (const s of strokes) drawStroke(s, camX, camY);
   if (currentStroke) drawStroke(currentStroke, camX, camY);
 
@@ -477,7 +488,6 @@ function itemHit(x, y) {
 function showEditor(screenX, screenY, initial, state) {
   if (!editorShell || !floatingEditor || !canvas) return;
 
-  // store monde coords (si fournies) sinon déduites de la camera
   const wx = typeof state.worldX === "number" ? state.worldX : screenX + camX;
   const wy = typeof state.worldY === "number" ? state.worldY : screenY + camY;
 
@@ -721,18 +731,18 @@ colorInput?.addEventListener("change", updateSelectedTextStyle);
 async function onPointerDown(e) {
   if (!canvas) return;
   if (editorOpen()) return;
+  if (e.button != null && e.button !== 0) return;
 
-  // PAN (Space + clic gauche)
-  if (spaceDown && (e.button === 0)) {
+  // MOVE tool => pan uniquement
+  if (mode === "move") {
     isPanning = true;
-    const sp = posFromEvent(e);
-    panStart = { sx: sp.x, sy: sp.y, camX, camY };
+    const sp0 = posFromEvent(e);
+    panStart = { sx: sp0.x, sy: sp0.y, camX, camY };
     canvas.setPointerCapture?.(e.pointerId);
     redraw();
     return;
   }
 
-  if (e.button != null && e.button !== 0) return;
   canvas.setPointerCapture?.(e.pointerId);
 
   const sp = posFromEvent(e);
@@ -740,6 +750,7 @@ async function onPointerDown(e) {
   const x = wp.x;
   const y = wp.y;
 
+  // hit test toujours actif (même en text/draw)
   const hit = itemHit(x, y);
   if (hit) {
     selectedId = hit.id;
@@ -755,6 +766,9 @@ async function onPointerDown(e) {
 
   selectedId = null;
   redraw();
+
+  // CURSOR => pas de création
+  if (mode === "cursor") return;
 
   if (mode === "text") {
     showEditor(sp.x, sp.y, "", { mode: "create", worldX: x, worldY: y });
@@ -778,7 +792,6 @@ async function onPointerMove(e) {
 
   const sp = posFromEvent(e);
 
-  // PAN
   if (isPanning && panStart) {
     camX = panStart.camX + (panStart.sx - sp.x);
     camY = panStart.camY + (panStart.sy - sp.y);
@@ -905,13 +918,19 @@ canvas?.addEventListener("dblclick", (e) => {
   redraw();
 
   const hp = worldToScreen({ x: hit.x, y: hit.y });
-  showEditor(hp.x, hp.y, hit.text || "", { mode: "edit", id: hit.id, worldX: hit.x, worldY: hit.y });
+  showEditor(hp.x, hp.y, hit.text || "", {
+    mode: "edit",
+    id: hit.id,
+    worldX: hit.x,
+    worldY: hit.y,
+  });
 });
 
-// Pan au scroll (trackpad / molette)
+// Pan au scroll (trackpad / molette) => seulement en mode move
 canvas?.addEventListener(
   "wheel",
   (e) => {
+    if (mode !== "move") return;
     camX += e.deltaX;
     camY += e.deltaY;
     e.preventDefault();
@@ -1044,7 +1063,6 @@ publishBtn?.addEventListener("click", async () => {
    Export helpers (inclure tous les textes/dessins)
    ========================= */
 function computeContentBounds() {
-  // union: items + strokes (et currentStroke)
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
@@ -1058,7 +1076,12 @@ function computeContentBounds() {
   };
 
   for (const it of items) {
-    if (typeof it.x === "number" && typeof it.y === "number" && typeof it.w === "number" && typeof it.h === "number") {
+    if (
+      typeof it.x === "number" &&
+      typeof it.y === "number" &&
+      typeof it.w === "number" &&
+      typeof it.h === "number"
+    ) {
       takeRect(it.x, it.y, it.w, it.h);
     }
   }
@@ -1092,11 +1115,8 @@ function computeContentBounds() {
 }
 
 async function renderAllContentToCanvas() {
-  // Retourne { canvas: HTMLCanvasElement, w, h }
-  // Rend tout le contenu (items + strokes) dans un offscreen canvas (coords monde -> (0,0))
   const bounds = computeContentBounds();
 
-  // Si rien, export la vue actuelle
   if (!bounds || !ctx || !canvas) {
     await redraw();
     const off = document.createElement("canvas");
@@ -1118,13 +1138,6 @@ async function renderAllContentToCanvas() {
   octx.fillStyle = "#fff";
   octx.fillRect(0, 0, off.width, off.height);
 
-  // On rend dans le offscreen en "caméra" fixée sur bounds.minX/minY
-  // => monde (bounds.minX, bounds.minY) devient écran (0,0)
-  const savedCtx = ctx;
-  const savedTransform = savedCtx.getTransform();
-
-  // Hack simple: on dessine en réutilisant les mêmes fonctions mais en redirigeant ctx temporairement.
-  // (on ne peut pas "reassign" const ctx, donc on dessine directement ici avec octx)
   const drawStrokeTo = (s) => {
     if (!s?.points?.length) return;
     octx.save();
@@ -1234,16 +1247,12 @@ async function renderAllContentToCanvas() {
     } catch {}
   };
 
-  // Important: d'abord drawings (images) ou texte ? on garde l'ordre des items.
   for (const it of items) {
     if (it.kind === "drawing") await drawDrawingTo(it);
     if (it.kind === "text") drawTextTo(it);
   }
   for (const s of strokes) drawStrokeTo(s);
   if (currentStroke) drawStrokeTo(currentStroke);
-
-  // restaure (pas strictement nécessaire ici)
-  savedCtx.setTransform(savedTransform);
 
   return { canvas: off, w: off.width, h: off.height };
 }
@@ -1257,7 +1266,6 @@ async function exportPng() {
 }
 
 async function loadJsPdf() {
-  // jsPDF UMD
   if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
 
   await new Promise((res, rej) => {
@@ -1281,12 +1289,10 @@ async function exportPdf() {
     return;
   }
 
-  // A4 portrait
   const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
-  // On fit à la largeur, puis on "slice" en plusieurs pages si nécessaire
   const imgW = rendered.w;
   const imgH = rendered.h;
 
@@ -1299,8 +1305,7 @@ async function exportPdf() {
     return;
   }
 
-  // multi-pages: découpe en tranches
-  const sliceHpx = Math.floor(pageH / ratio); // hauteur en pixels correspondant à une page
+  const sliceHpx = Math.floor(pageH / ratio);
   let y = 0;
   let pageIndex = 0;
 
@@ -1315,7 +1320,6 @@ async function exportPdf() {
     sctx.fillStyle = "#fff";
     sctx.fillRect(0, 0, slice.width, slice.height);
 
-    // draw portion
     sctx.drawImage(rendered.canvas, 0, y, imgW, hpx, 0, 0, imgW, hpx);
 
     const sliceData = slice.toDataURL("image/png");
@@ -1344,18 +1348,15 @@ exportMenuBtn?.addEventListener("click", async (e) => {
 /* =========================
    Tool buttons
    ========================= */
+toolCursorBtn?.addEventListener("click", () => setMode("cursor"));
+toolMoveBtn?.addEventListener("click", () => setMode("move"));
 toolTextBtn?.addEventListener("click", () => setMode("text"));
 toolDrawBtn?.addEventListener("click", () => setMode("draw"));
 
 /* =========================
-   Keyboard (Space pan + Ctrl+Z / Ctrl+Shift+Z)
+   Keyboard (Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
-  // Space = pan
-  if (e.code === "Space") {
-    spaceDown = true;
-  }
-
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1370,10 +1371,6 @@ document.addEventListener("keydown", (e) => {
     if (e.shiftKey) redo();
     else undo();
   }
-});
-
-document.addEventListener("keyup", (e) => {
-  if (e.code === "Space") spaceDown = false;
 });
 
 /* =========================
@@ -1422,9 +1419,8 @@ async function main() {
     dprResize();
     window.addEventListener("resize", dprResize);
 
-    // UI defaults
     setAlignUI("left");
-    setMode("text");
+    setMode("cursor");
   } catch (e) {
     console.error("[livre-dor] init error", e);
     alert("Erreur d'initialisation du livre d’or. Ouvre la console pour voir le détail.");
