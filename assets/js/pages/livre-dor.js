@@ -820,31 +820,88 @@ async function onPointerMove(e) {
   if (drag.type === "move") {
     it.x = drag.orig.x + dx;
     it.y = drag.orig.y + dy;
-  } else {
-    let nx = drag.orig.x,
-      ny = drag.orig.y,
-      nw = drag.orig.w,
-      nh = drag.orig.h;
+} else {
+  // RESIZE
+  const orig = drag.orig;
 
-    if (drag.handle.includes("e")) nw = drag.orig.w + dx;
-    if (drag.handle.includes("s")) nh = drag.orig.h + dy;
-    if (drag.handle.includes("w")) {
-      nw = drag.orig.w - dx;
-      nx = drag.orig.x + dx;
-    }
-    if (drag.handle.includes("n")) {
-      nh = drag.orig.h - dy;
-      ny = drag.orig.y + dy;
-    }
+  let nx = orig.x,
+    ny = orig.y,
+    nw = orig.w,
+    nh = orig.h;
 
-    nw = clamp(nw, MIN_W, 5000);
-    nh = clamp(nh, MIN_H, 5000);
+  if (drag.handle.includes("e")) nw = orig.w + dx;
+  if (drag.handle.includes("s")) nh = orig.h + dy;
 
+  if (drag.handle.includes("w")) {
+    nw = orig.w - dx;
+    nx = orig.x + dx;
+  }
+  if (drag.handle.includes("n")) {
+    nh = orig.h - dy;
+    ny = orig.y + dy;
+  }
+
+  nw = clamp(nw, MIN_W, 5000);
+  nh = clamp(nh, MIN_H, 5000);
+
+  // CAS DESSIN : on garde le resize w/h classique
+  if (it.kind === "drawing") {
     it.x = nx;
     it.y = ny;
     it.w = nw;
     it.h = nh;
+    redraw();
+    return;
   }
+
+  // CAS TEXTE : on scale la police (sinon "ça ne fait rien" visuellement)
+  if (it.kind === "text") {
+    const ow = Math.max(1, orig.w);
+    const oh = Math.max(1, orig.h);
+
+    // scale "au ressenti" (le plus grand des 2)
+    const scale = Math.max(nw / ow, nh / oh);
+
+    const newSize = clamp(Math.round((Number(orig.size || 32) * scale)), 10, 220);
+    it.size = newSize;
+
+    // on recalcule la vraie boîte selon le texte + police
+    const box = measureTextBox(it);
+
+    // On fixe l'ancrage selon le coin manipulé (opposé reste "fixe")
+    const handle = drag.handle; // "nw" | "ne" | "se" | "sw"
+    if (handle === "se") {
+      it.x = orig.x;
+      it.y = orig.y;
+    } else if (handle === "nw") {
+      it.x = orig.x + orig.w - box.w;
+      it.y = orig.y + orig.h - box.h;
+    } else if (handle === "ne") {
+      it.x = orig.x;
+      it.y = orig.y + orig.h - box.h;
+    } else if (handle === "sw") {
+      it.x = orig.x + orig.w - box.w;
+      it.y = orig.y;
+    } else {
+      // fallback
+      it.x = nx;
+      it.y = ny;
+    }
+
+    it.w = box.w;
+    it.h = box.h;
+
+    redraw();
+    return;
+  }
+
+  // fallback générique
+  it.x = nx;
+  it.y = ny;
+  it.w = nw;
+  it.h = nh;
+}
+
 
   redraw();
 }
@@ -886,12 +943,20 @@ async function onPointerUp(e) {
 
   try {
     const ref = doc(db, "guestbook", it.id);
-    const before = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
-    const after = { x: it.x, y: it.y, w: it.w, h: it.h };
+const before = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
+const after = { x: it.x, y: it.y, w: it.w, h: it.h };
 
-    await updateDoc(ref, after);
+// Si texte : on sauvegarde aussi la taille de police si elle a changé
+if (it.kind === "text") {
+  before.size = Number(orig.size || 32);
+  after.size = Number(it.size || 32);
+}
 
-    undoStack.push({ type: "update", id: it.id, before, after });
+await updateDoc(ref, after);
+
+undoStack.push({ type: "update", id: it.id, before, after });
+redoStack.length = 0;
+
     redoStack.length = 0;
   } catch (e2) {
     alert("Impossible de déplacer/redimensionner : " + (e2?.message || e2));
@@ -1135,7 +1200,6 @@ async function renderAllContentToCanvas() {
   off.height = bounds.h;
 
   const octx = off.getContext("2d");
-  octx.fillStyle = "#fff";
   octx.fillRect(0, 0, off.width, off.height);
 
   const drawStrokeTo = (s) => {
