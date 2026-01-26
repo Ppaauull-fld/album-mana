@@ -2,7 +2,13 @@ import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadVideo } from "../cloudinary.js";
 
 import {
-  collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const grid = document.getElementById("videosGrid");
@@ -30,27 +36,62 @@ let vids = [];
 let pending = []; // [{file, url}]
 let currentViewed = null;
 
+/* =========================
+   Modal helpers
+   ========================= */
 function openModal(el) {
+  if (!el) return;
   el.classList.add("open");
   el.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 }
+
 function closeModal(el) {
+  if (!el) return;
   el.classList.remove("open");
   el.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
 }
 
+/* =========================
+   Upload button state (spinner, no emoji)
+   ========================= */
+function setUploadingState(isUploading) {
+  addBtn.disabled = isUploading;
+  uploadCancelBtn.disabled = isUploading;
+  uploadStartBtn.disabled = isUploading || pending.length === 0;
+
+  if (isUploading) {
+    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
+  } else {
+    uploadStartBtn.textContent = "Envoyer";
+  }
+}
+
+function fmtCount() {
+  const n = pending.length;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
+}
+
+function resetProgressUI() {
+  uploadProgressBar.value = 0;
+  uploadProgressText.textContent = "0 / 0";
+  uploadProgressDetail.textContent = "—";
+}
+
+/* =========================
+   File helpers
+   ========================= */
 function isVideo(file) {
-  return file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+  return file?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
 }
 
 /** Poster Cloudinary (frame jpg) */
 function cloudinaryVideoPoster(videoUrl) {
   try {
-    if (!videoUrl.includes("/video/upload/")) return null;
+    if (!videoUrl || !videoUrl.includes("/video/upload/")) return null;
     const withTransform = videoUrl.replace("/upload/", "/upload/so_0/");
     return withTransform.replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
   } catch {
@@ -58,7 +99,47 @@ function cloudinaryVideoPoster(videoUrl) {
   }
 }
 
+function fallbackPosterDataUri() {
+  return (
+    "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+        <rect width="100%" height="100%" fill="#111"/>
+        <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.04)"/>
+      </svg>
+    `)
+  );
+}
+
+function cleanupPendingUrls() {
+  for (const p of pending) {
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
+  }
+}
+
+/* =========================
+   Play badge (SVG file, no emoji)
+   ========================= */
+function makePlayBadge() {
+  const badge = document.createElement("div");
+  badge.className = "play-badge";
+
+  const icon = document.createElement("img");
+  icon.className = "icon-img";
+  icon.src = "../assets/img/icons/play.svg";
+  icon.alt = "";
+
+  badge.appendChild(icon);
+  return badge;
+}
+
+/* =========================
+   Render grid
+   ========================= */
 function render() {
+  if (!grid) return;
   grid.innerHTML = "";
 
   for (const v of vids) {
@@ -69,27 +150,35 @@ function render() {
 
     const img = document.createElement("img");
     img.className = "thumb";
-    img.src = v.thumbUrl || cloudinaryVideoPoster(v.url) || v.url;
+
+    const poster = v.thumbUrl || cloudinaryVideoPoster(v.url);
+    img.src = poster || fallbackPosterDataUri();
     img.alt = "vidéo";
 
-    const badge = document.createElement("div");
-    badge.className = "play-badge";
-    badge.textContent = "▶";
-
     card.appendChild(img);
-    card.appendChild(badge);
+    card.appendChild(makePlayBadge());
     card.addEventListener("click", () => openViewer(v));
+
     grid.appendChild(card);
   }
 }
 
-/* ---------- Viewer ---------- */
-
+/* =========================
+   Viewer
+   ========================= */
 function openViewer(v) {
   currentViewed = v;
 
-  viewerVideo.pause();
+  // reset propre
+  try {
+    viewerVideo.pause();
+  } catch {}
+  viewerVideo.removeAttribute("src");
+  viewerVideo.load();
+
   viewerVideo.src = v.url;
+  viewerVideo.playsInline = true;
+  viewerVideo.controls = true;
   viewerVideo.load();
 
   viewerDownload.href = v.url;
@@ -97,24 +186,30 @@ function openViewer(v) {
 
   openModal(viewer);
 
-  // auto play doux (si le navigateur autorise)
+  // tentative autoplay (peut être refusée par Safari)
   setTimeout(() => {
     viewerVideo.play().catch(() => {});
-  }, 50);
+  }, 60);
 }
 
 function closeViewer() {
-  viewerVideo.pause();
+  try {
+    viewerVideo.pause();
+  } catch {}
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
+
   currentViewed = null;
   closeModal(viewer);
 }
 
-viewerClose.addEventListener("click", closeViewer);
-viewer.addEventListener("click", (e) => { if (e.target === viewer) closeViewer(); });
+viewerClose?.addEventListener("click", closeViewer);
 
-viewerDelete.addEventListener("click", async () => {
+viewer?.addEventListener("click", (e) => {
+  if (e.target === viewer) closeViewer();
+});
+
+viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
   if (!confirm("Supprimer cette vidéo de la galerie ?")) return;
 
@@ -129,27 +224,14 @@ viewerDelete.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Upload modal ---------- */
-
-function openUpload() { openModal(uploadModal); }
-function closeUpload() { closeModal(uploadModal); }
-
-function fmtCount() {
-  const n = pending.length;
-  uploadCount.textContent = n === 0 ? "Aucun fichier" : (n === 1 ? "1 fichier" : `${n} fichiers`);
+/* =========================
+   Upload modal
+   ========================= */
+function openUpload() {
+  openModal(uploadModal);
 }
-
-function resetProgressUI() {
-  uploadProgressBar.value = 0;
-  uploadProgressText.textContent = "0 / 0";
-  uploadProgressDetail.textContent = "—";
-}
-
-function setUploadingState(isUploading) {
-  addBtn.disabled = isUploading;
-  uploadCancelBtn.disabled = isUploading;
-  uploadStartBtn.disabled = isUploading || pending.length === 0;
-  uploadStartBtn.textContent = isUploading ? "⏳ Envoi…" : "Envoyer";
+function closeUpload() {
+  closeModal(uploadModal);
 }
 
 function renderPending() {
@@ -171,7 +253,6 @@ function renderPending() {
     const item = document.createElement("div");
     item.className = "upload-item";
 
-    // ✅ preview vidéo (dans la carte)
     const vid = document.createElement("video");
     vid.className = "upload-thumb upload-thumb-video";
     vid.src = url;
@@ -179,8 +260,8 @@ function renderPending() {
     vid.playsInline = true;
     vid.loop = true;
     vid.preload = "metadata";
+
     vid.addEventListener("loadeddata", () => {
-      // tente de jouer sans son
       vid.play().catch(() => {});
     });
 
@@ -203,7 +284,9 @@ function renderPending() {
     remove.type = "button";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      try {
+        URL.revokeObjectURL(pending[i].url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -218,15 +301,15 @@ function renderPending() {
   uploadStartBtn.disabled = false;
 }
 
-addBtn.addEventListener("click", () => input.click());
+addBtn?.addEventListener("click", () => input.click());
 
-input.addEventListener("change", () => {
+input?.addEventListener("change", () => {
   const files = [...(input.files || [])];
   input.value = "";
   if (!files.length) return;
 
-  for (const p of pending) { try { URL.revokeObjectURL(p.url); } catch {} }
-  pending = files.filter(isVideo).map(file => ({ file, url: URL.createObjectURL(file) }));
+  cleanupPendingUrls();
+  pending = files.filter(isVideo).map((file) => ({ file, url: URL.createObjectURL(file) }));
 
   resetProgressUI();
   renderPending();
@@ -234,15 +317,16 @@ input.addEventListener("change", () => {
   openUpload();
 });
 
-uploadCancelBtn.addEventListener("click", () => {
+uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
-  for (const p of pending) { try { URL.revokeObjectURL(p.url); } catch {} }
+
+  cleanupPendingUrls();
   pending = [];
   resetProgressUI();
   closeUpload();
 });
 
-uploadStartBtn.addEventListener("click", async () => {
+uploadStartBtn?.addEventListener("click", async () => {
   if (!pending.length) return;
 
   setUploadingState(true);
@@ -280,12 +364,13 @@ uploadStartBtn.addEventListener("click", async () => {
       done++;
       uploadProgressText.textContent = `${done} / ${total}`;
       uploadProgressBar.value = Math.round((done / total) * 100);
+      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
     }
 
-    for (const p of pending) { try { URL.revokeObjectURL(p.url); } catch {} }
+    cleanupPendingUrls();
     pending = [];
 
-    uploadProgressDetail.textContent = "✅ Terminé !";
+    uploadProgressDetail.textContent = "Terminé.";
     setTimeout(() => {
       closeUpload();
       resetProgressUI();
@@ -297,22 +382,28 @@ uploadStartBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Keyboard ---------- */
+/* =========================
+   Keyboard
+   ========================= */
 document.addEventListener("keydown", (e) => {
-  if (viewer.classList.contains("open")) {
+  if (viewer?.classList.contains("open")) {
     if (e.key === "Escape") closeViewer();
     return;
   }
-  if (uploadModal.classList.contains("open")) {
+  if (uploadModal?.classList.contains("open")) {
     if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
   }
 });
 
+/* =========================
+   Firestore realtime
+   ========================= */
 async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
+
   onSnapshot(q, (snap) => {
-    vids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    vids = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     render();
   });
 }

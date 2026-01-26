@@ -8,7 +8,7 @@ import {
   query,
   orderBy,
   deleteDoc,
-  doc
+  doc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 /* =========================
@@ -47,12 +47,15 @@ let currentViewed = null;
    Utils
    ========================= */
 function openModal(el) {
+  if (!el) return;
   el.classList.add("open");
   el.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 }
+
 function closeModal(el) {
+  if (!el) return;
   el.classList.remove("open");
   el.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
@@ -60,28 +63,73 @@ function closeModal(el) {
 }
 
 function isGif(file) {
-  return file.type === "image/gif" || /\.gif$/i.test(file.name);
+  return file?.type === "image/gif" || /\.gif$/i.test(file?.name || "");
 }
 function isVideo(file) {
-  return file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+  return file?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
 }
 
 /* Poster Cloudinary pour vidéos */
 function cloudinaryVideoPoster(url) {
   try {
-    if (!url.includes("/video/upload/")) return null;
-    return url
-      .replace("/upload/", "/upload/so_0/")
-      .replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
+    if (!url || !url.includes("/video/upload/")) return null;
+    return url.replace("/upload/", "/upload/so_0/").replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
   } catch {
     return null;
   }
+}
+
+function cleanupPendingUrls() {
+  for (const p of pending) {
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
+  }
+}
+
+/* Play badge (SVG file, no emoji) */
+function makePlayBadge() {
+  const badge = document.createElement("div");
+  badge.className = "play-badge";
+
+  const icon = document.createElement("img");
+  icon.className = "icon-img";
+  icon.src = "../assets/img/icons/play.svg";
+  icon.alt = "";
+
+  badge.appendChild(icon);
+  return badge;
+}
+
+/* Upload button state (spinner, no emoji) */
+function setUploadingState(uploading) {
+  addBtn.disabled = uploading;
+  uploadCancelBtn.disabled = uploading;
+  uploadStartBtn.disabled = uploading || pending.length === 0;
+
+  if (uploading) {
+    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
+  } else {
+    uploadStartBtn.textContent = "Envoyer";
+  }
+}
+
+function fmtCount() {
+  const n = pending.length;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
+}
+
+function resetProgressUI() {
+  uploadProgressBar.value = 0;
+  uploadProgressText.textContent = "0 / 0";
+  uploadProgressDetail.textContent = "—";
 }
 
 /* =========================
    Render grid
    ========================= */
 function render() {
+  if (!grid) return;
   grid.innerHTML = "";
 
   for (const it of items) {
@@ -94,13 +142,8 @@ function render() {
 
     if (it.kind === "video") {
       img.src = it.thumbUrl || cloudinaryVideoPoster(it.url) || it.url;
-
-      const badge = document.createElement("div");
-      badge.className = "play-badge";
-      badge.textContent = "▶";
-
       card.appendChild(img);
-      card.appendChild(badge);
+      card.appendChild(makePlayBadge());
     } else {
       img.src = it.thumbUrl || it.url;
       card.appendChild(img);
@@ -119,7 +162,10 @@ function openViewer(it) {
 
   viewerGif.style.display = "none";
   viewerVideo.style.display = "none";
-  viewerVideo.pause();
+
+  try {
+    viewerVideo.pause();
+  } catch {}
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
 
@@ -144,19 +190,22 @@ function openViewer(it) {
 }
 
 function closeViewer() {
-  viewerVideo.pause();
+  try {
+    viewerVideo.pause();
+  } catch {}
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
+
   currentViewed = null;
   closeModal(viewer);
 }
 
-viewerClose.addEventListener("click", closeViewer);
-viewer.addEventListener("click", (e) => {
+viewerClose?.addEventListener("click", closeViewer);
+viewer?.addEventListener("click", (e) => {
   if (e.target === viewer) closeViewer();
 });
 
-viewerDelete.addEventListener("click", async () => {
+viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
   if (!confirm("Supprimer cet élément de la galerie ?")) return;
 
@@ -181,25 +230,6 @@ function closeUpload() {
   closeModal(uploadModal);
 }
 
-function fmtCount() {
-  const n = pending.length;
-  uploadCount.textContent =
-    n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
-}
-
-function resetProgressUI() {
-  uploadProgressBar.value = 0;
-  uploadProgressText.textContent = "0 / 0";
-  uploadProgressDetail.textContent = "—";
-}
-
-function setUploadingState(uploading) {
-  addBtn.disabled = uploading;
-  uploadCancelBtn.disabled = uploading;
-  uploadStartBtn.disabled = uploading || pending.length === 0;
-  uploadStartBtn.textContent = uploading ? "Envoi…" : "Envoyer";
-}
-
 function renderPending() {
   uploadPreviewGrid.innerHTML = "";
   fmtCount();
@@ -221,6 +251,7 @@ function renderPending() {
       const img = document.createElement("img");
       img.className = "upload-thumb";
       img.src = p.url;
+      img.alt = p.file.name;
       item.appendChild(img);
     } else {
       const vid = document.createElement("video");
@@ -229,6 +260,7 @@ function renderPending() {
       vid.muted = true;
       vid.loop = true;
       vid.playsInline = true;
+      vid.preload = "metadata";
       vid.addEventListener("loadeddata", () => {
         vid.play().catch(() => {});
       });
@@ -251,9 +283,12 @@ function renderPending() {
 
     const remove = document.createElement("button");
     remove.className = "upload-remove";
+    remove.type = "button";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      URL.revokeObjectURL(p.url);
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -267,16 +302,16 @@ function renderPending() {
   uploadStartBtn.disabled = false;
 }
 
-addBtn.addEventListener("click", () => input.click());
+addBtn?.addEventListener("click", () => input.click());
 
-input.addEventListener("change", () => {
+input?.addEventListener("change", () => {
   const files = [...(input.files || [])];
   input.value = "";
 
-  pending.forEach(p => URL.revokeObjectURL(p.url));
+  cleanupPendingUrls();
   pending = files
-    .filter(f => isGif(f) || isVideo(f))
-    .map(file => ({ file, url: URL.createObjectURL(file) }));
+    .filter((f) => isGif(f) || isVideo(f))
+    .map((file) => ({ file, url: URL.createObjectURL(file) }));
 
   resetProgressUI();
   renderPending();
@@ -284,15 +319,16 @@ input.addEventListener("change", () => {
   openUpload();
 });
 
-uploadCancelBtn.addEventListener("click", () => {
+uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
-  pending.forEach(p => URL.revokeObjectURL(p.url));
+
+  cleanupPendingUrls();
   pending = [];
   resetProgressUI();
   closeUpload();
 });
 
-uploadStartBtn.addEventListener("click", async () => {
+uploadStartBtn?.addEventListener("click", async () => {
   if (!pending.length) return;
 
   setUploadingState(true);
@@ -301,11 +337,22 @@ uploadStartBtn.addEventListener("click", async () => {
   const total = pending.length;
   let done = 0;
 
+  const updateOverall = (ratio, name) => {
+    const overall = Math.max(0, Math.min(1, (done + ratio) / total));
+    uploadProgressBar.value = Math.round(overall * 100);
+    uploadProgressText.textContent = `${done} / ${total}`;
+    uploadProgressDetail.textContent = name
+      ? `Envoi de ${name} — ${Math.round(ratio * 100)}%`
+      : "—";
+  };
+
   try {
     for (const { file } of pending) {
+      updateOverall(0, file.name);
+
       const up = isGif(file)
-        ? await uploadImage(file)
-        : await uploadVideo(file);
+        ? await uploadImage(file, { onProgress: (r) => updateOverall(r, file.name) })
+        : await uploadVideo(file, { onProgress: (r) => updateOverall(r, file.name) });
 
       const kind = isGif(file) ? "gif" : "video";
       const thumbUrl =
@@ -324,14 +371,18 @@ uploadStartBtn.addEventListener("click", async () => {
       done++;
       uploadProgressText.textContent = `${done} / ${total}`;
       uploadProgressBar.value = Math.round((done / total) * 100);
+      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
     }
 
-    pending.forEach(p => URL.revokeObjectURL(p.url));
+    cleanupPendingUrls();
     pending = [];
 
-    closeUpload();
-    resetProgressUI();
-    setUploadingState(false);
+    uploadProgressDetail.textContent = "Terminé.";
+    setTimeout(() => {
+      closeUpload();
+      resetProgressUI();
+      setUploadingState(false);
+    }, 450);
   } catch (e) {
     setUploadingState(false);
     alert("Erreur upload : " + (e?.message || e));
@@ -342,8 +393,8 @@ uploadStartBtn.addEventListener("click", async () => {
    Keyboard
    ========================= */
 document.addEventListener("keydown", (e) => {
-  if (viewer.classList.contains("open") && e.key === "Escape") closeViewer();
-  if (uploadModal.classList.contains("open") && e.key === "Escape" && !uploadCancelBtn.disabled) {
+  if (viewer?.classList.contains("open") && e.key === "Escape") closeViewer();
+  if (uploadModal?.classList.contains("open") && e.key === "Escape" && !uploadCancelBtn.disabled) {
     uploadCancelBtn.click();
   }
 });
@@ -354,8 +405,9 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
   const q = query(collection(db, "animated"), orderBy("createdAt", "desc"));
-  onSnapshot(q, snap => {
-    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  onSnapshot(q, (snap) => {
+    items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     render();
   });
 }

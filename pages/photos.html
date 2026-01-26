@@ -27,7 +27,11 @@
       <div class="actions">
         <input id="photoInput" type="file" accept="image/*" multiple hidden />
         <button id="addPhotoBtn" class="btn" type="button">＋ Ajouter une photo</button>
-        <button id="startSlideshowBtn" class="btn primary" type="button">▶ Lancer un diaporama</button>
+
+        <button id="startSlideshowBtn" class="btn primary" type="button">
+          <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" />
+          Lancer un diaporama
+        </button>
       </div>
 
       <div id="photosGrid" class="grid"></div>
@@ -43,7 +47,7 @@
           <div id="uploadCount" class="upload-sub">0 fichier</div>
         </div>
         <div class="controls">
-          <button id="uploadCancelBtn" class="iconbtn" title="Annuler">✕</button>
+          <button id="uploadCancelBtn" class="iconbtn" title="Annuler" type="button">✕</button>
         </div>
       </div>
 
@@ -72,9 +76,13 @@
         <div id="viewerTitle" class="viewer-title">Photo</div>
         <div class="controls">
           <a id="viewerDownload" class="iconbtn" title="Télécharger" download>⬇</a>
-          <button id="viewerRotate" class="iconbtn" title="Tourner">⟳</button>
-          <button id="viewerDelete" class="iconbtn danger" title="Supprimer">🗑</button>
-          <button id="viewerClose" class="iconbtn" title="Fermer">✕</button>
+          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">⟳</button>
+
+          <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
+            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
+          </button>
+
+          <button id="viewerClose" class="iconbtn" title="Fermer" type="button">✕</button>
         </div>
       </div>
 
@@ -90,10 +98,14 @@
       <div class="top">
         <div id="slideCounter">—</div>
         <div class="controls">
-          <button id="prevSlide" class="iconbtn" title="Précédent">‹</button>
-          <button id="togglePlay" class="iconbtn" title="Pause">⏸</button>
-          <button id="nextSlide" class="iconbtn" title="Suivant">›</button>
-          <button id="closeShow" class="iconbtn" title="Fermer">✕</button>
+          <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
+
+          <button id="togglePlay" class="iconbtn" title="Pause" type="button">
+            <img id="togglePlayIcon" class="icon-img" src="../assets/img/icons/pause.svg" alt="" />
+          </button>
+
+          <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
+          <button id="closeShow" class="iconbtn" title="Fermer" type="button">✕</button>
         </div>
       </div>
       <div class="imgwrap">

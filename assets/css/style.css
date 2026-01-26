@@ -28,7 +28,14 @@ body{
 
 a{color:inherit;text-decoration:none}
 button, input, select{font:inherit}
-button{background:none}
+
+/* important: reset bouton propre (évite padding/border par défaut) */
+button{
+  background:none;
+  border:none;
+  padding:0;
+}
+
 img{max-width:100%;display:block}
 
 /* ---------- Layout global ---------- */
@@ -288,7 +295,8 @@ img{max-width:100%;display:block}
   background: rgba(0,0,0,.35);
 }
 
-.modal img{
+/* IMPORTANT: on évite d'appliquer la transition aux icônes SVG (icon-img) */
+.modal img:not(.icon-img){
   max-width:100%;
   max-height:100%;
   object-fit:contain;
@@ -485,8 +493,9 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 /* =========================================================
-   LIVRE D'OR – EDITOR (unique, sans doublons)
+   LIVRE D'OR – EDITOR (stable + beau + Safari OK)
    ========================================================= */
+
 .guest-wrap{
   border-radius: 22px;
   overflow:hidden;
@@ -495,34 +504,45 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background:#fff;
 }
 
-/* toolbar stable (left | middle | right) */
+/* toolbar stable : left | middle | right */
 .guestbar-grid{
   display:grid;
-  grid-template-columns: 220px 1fr 220px;
-  gap: 12px;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
   align-items:center;
-  padding: 12px;
+  padding: 14px 14px;
   border-bottom: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.02);
 }
+
 .gb-left,.gb-mid,.gb-right{
   min-width:0; /* Safari */
   display:flex;
   align-items:center;
   gap:12px;
 }
-.gb-mid{ justify-content:center; flex-wrap:wrap; }
+
+.gb-left{ justify-content:flex-start; }
+.gb-mid{
+  justify-content:center;
+  flex-wrap:wrap;
+  row-gap:10px;
+}
 .gb-right{ justify-content:flex-end; }
 
-@media (max-width: 980px){
-  .guestbar-grid{ grid-template-columns: 1fr; }
+/* sur mobile : on stack proprement */
+@media (max-width: 860px){
+  .guestbar-grid{
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
   .gb-mid{ justify-content:flex-start; }
-  .gb-right{ width:100%; justify-content:flex-end; }
+  .gb-right{ justify-content:flex-end; }
 }
 
-/* segmented controls */
+/* segmented (pill) */
 .segmented{
-  display:flex;
+  display:inline-flex;
   align-items:center;
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.08);
@@ -530,6 +550,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   padding: 4px;
   gap:4px;
 }
+
 .seg-btn{
   width: 56px;
   height: 40px;
@@ -539,15 +560,32 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   cursor: pointer;
   display:grid;
   place-items:center;
-  font-size: 20px;
+  font-size: 18px;
   color: rgba(0,0,0,.78);
   transition: background .12s ease, transform .12s ease;
 }
 .seg-btn:hover{ background: rgba(0,0,0,.06); }
 .seg-btn.active{ background: rgba(0,0,0,.14); }
-.seg-btn.tiny{ width: 44px; font-size: 16px; }
 
-/* inputs */
+.seg-btn.tiny{
+  width: 44px;
+  font-size: 16px;
+}
+
+/* controls row (texte / dessin) */
+.control-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+@media (max-width: 860px){
+  .control-row{ justify-content:flex-start; }
+}
+
+/* inputs propres (Safari friendly) */
 .mini-select,
 .mini-number,
 .mini-color{
@@ -558,23 +596,17 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   padding: 0 10px;
   -webkit-appearance: none;
   appearance: none;
+  line-height: 40px;
 }
-.mini-number{ width: 86px; }
-.mini-color{ width: 44px; padding: 0; }
 
-/* canvas */
-.canvas-wrap.editor{
-  position:relative;
-  height: 72vh;
-  background:#fff;
-  touch-action: none; /* iOS/Safari */
+.mini-select{ min-width: 170px; }
+.mini-number{ width: 86px; }
+.mini-color{
+  width: 44px;
+  padding: 0;
 }
-#guestCanvas{
-  width:100%;
-  height:100%;
-  display:block;
-  background:#fff;
-}
+
+/* hint */
 .hint{
   position:absolute;
   left: 12px;
@@ -590,17 +622,41 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* canvas zone */
+.canvas-wrap.editor{
+  position:relative;
+  height: 72vh;
+  background:#fff;
+  /* IMPORTANT : NE PAS mettre touch-action:none ici (Safari focus textarea) */
+  touch-action: manipulation;
+}
+
+#guestCanvas{
+  width:100%;
+  height:100%;
+  display:block;
+  background:#fff;
+  /* ici oui : gestures sur le canvas seulement */
+  touch-action: none;
+}
+
 /* editor flottant */
 .editor-shell{
   position:absolute;
   z-index: 10;
-  width: min(360px, calc(100% - 24px));
+  width: min(420px, calc(100% - 24px));
   background:#fff;
   border:1px solid rgba(0,0,0,.14);
   border-radius: 18px;
   box-shadow: 0 18px 50px rgba(0,0,0,.18);
   padding: 10px;
+  touch-action: auto; /* Safari : autorise le focus + clavier */
 }
+
+.editor-shell *{
+  touch-action: auto;
+}
+
 .editor-shell .floating-editor{
   width: 100%;
   min-height: 72px;
@@ -611,6 +667,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   outline: none;
   font: 500 16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
 }
+
 .editor-actions{
   display:flex;
   gap:10px;
@@ -618,5 +675,58 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin-top: 10px;
 }
 
-/* quand l'éditeur est ouvert on désactive le canvas */
+/* quand l'éditeur est ouvert on désactive seulement le canvas */
 .canvas-disabled{ pointer-events: none; }
+
+/* =========================
+   Icons (SVG) + spinner
+   ========================= */
+
+.icon-img{
+  width:18px;
+  height:18px;
+  display:block;
+}
+
+/* Dans les modales (fond sombre), on force les icônes en blanc */
+.modal .iconbtn .icon-img,
+.modal .play-badge .icon-img{
+  filter: brightness(0) invert(1);
+}
+
+/* Icône dans un bouton "btn" (ex: Lancer diaporama) */
+.btn .btn-icon{
+  width:18px;
+  height:18px;
+  display:inline-block;
+  vertical-align:-3px;
+  margin-right:8px;
+}
+
+/* Pour le redo : miroir horizontal */
+.icon-mirror{
+  transform: scaleX(-1);
+}
+
+/* Anneau de chargement (pas d’emoji) */
+.spinner{
+  width:16px;
+  height:16px;
+  border-radius:999px;
+  border:2px solid currentColor;
+  border-top-color: transparent;
+  display:inline-block;
+  vertical-align:-3px;
+  margin-right:8px;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{
+  to{ transform: rotate(360deg); }
+}
+
+/* Play badge: si on met une image dedans */
+.play-badge img{
+  width:18px;
+  height:18px;
+  display:block;
+}

@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
+import { setBtnLoading } from "../ui.js";
 
 import {
   collection,
@@ -34,12 +35,19 @@ const viewerTitle = document.getElementById("viewerTitle");
 const viewerDownload = document.getElementById("viewerDownload");
 const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
-const viewerRotate = document.getElementById("viewerRotate"); // ✅ nécessite le bouton dans photos.html
+const viewerRotate = document.getElementById("viewerRotate");
 
 // Slideshow UI
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
 const slideCounter = document.getElementById("slideCounter");
+
+const togglePlayBtn = document.getElementById("togglePlay");
+const togglePlayIcon = document.getElementById("togglePlayIcon");
+
+const closeShowBtn = document.getElementById("closeShow");
+const nextSlideBtn = document.getElementById("nextSlide");
+const prevSlideBtn = document.getElementById("prevSlide");
 
 let photos = [];
 let queue = [];
@@ -58,16 +66,13 @@ function clampRotation(deg) {
   return allowed.includes(deg) ? deg : 0;
 }
 
-function applyRotation(imgEl, deg) {
+function applyRotation(el, deg) {
   const rot = clampRotation(deg || 0);
-  imgEl.style.transform = `rotate(${rot}deg)`;
-  imgEl.style.transformOrigin = "center center";
+  el.style.transform = `rotate(${rot}deg)`;
+  el.style.transformOrigin = "center center";
 }
 
-/**
- * Améliore un peu le rendu en galerie si rotation 90/270 :
- * on passe en "contain" pour éviter un crop trop violent.
- */
+/** Galerie : si rotation 90/270 => contain pour éviter crop */
 function applyRotationThumb(imgEl, deg) {
   const rot = clampRotation(deg || 0);
   imgEl.style.transform = `rotate(${rot}deg)`;
@@ -87,7 +92,7 @@ function render() {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "card card-btn";
-    card.title = "Ouvrir en plein écran";
+    card.title = "Ouvrir";
 
     const img = document.createElement("img");
     img.className = "thumb";
@@ -107,15 +112,13 @@ function render() {
 ---------------------------- */
 
 function openViewer(photo) {
-  currentViewed = { ...photo }; // copie locale
+  currentViewed = { ...photo };
 
   viewerTitle.textContent = "Photo";
   viewerImg.src = photo.url;
 
-  // Rotation persistante
   applyRotation(viewerImg, photo.rotation || 0);
 
-  // lien de téléchargement (original)
   viewerDownload.href = photo.url;
   viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
 
@@ -158,7 +161,7 @@ viewerDelete?.addEventListener("click", async () => {
   }
 });
 
-// ✅ ROTATION : persiste dans Firestore + s'applique au viewer + galerie + diaporama
+// Rotation persistée Firestore
 viewerRotate?.addEventListener("click", async () => {
   if (!currentViewed) return;
 
@@ -166,16 +169,13 @@ viewerRotate?.addEventListener("click", async () => {
   const newRot = (cur + 90) % 360;
   currentViewed.rotation = newRot;
 
-  // Applique visuellement immédiatement
   applyRotation(viewerImg, newRot);
 
   try {
     await updateDoc(doc(db, "photos", currentViewed.id), { rotation: newRot });
-    // pas besoin de mettre à jour manuellement la galerie :
-    // onSnapshot va réémettre, et render() appliquera la rotation.
   } catch (e) {
     console.error("Rotation non sauvegardée", e);
-    alert("Impossible de sauvegarder la rotation (règles Firestore ?).");
+    alert("Impossible de sauvegarder la rotation.");
   }
 });
 
@@ -191,6 +191,7 @@ function shuffle(arr) {
   }
   return a;
 }
+
 function buildQueue() {
   queue = shuffle(photos);
   idx = 0;
@@ -203,7 +204,6 @@ function showSlide() {
   slideImg.src = s.url;
   slideCounter.textContent = `${idx + 1} / ${queue.length}`;
 
-  // Rotation dans le diaporama
   applyRotation(slideImg, s.rotation || 0);
 }
 
@@ -213,44 +213,59 @@ function next() {
   if (idx >= queue.length) buildQueue();
   showSlide();
 }
+
 function prev() {
   if (!queue.length) return;
   idx--;
   if (idx < 0) idx = 0;
   showSlide();
 }
+
 function startAuto() {
   stopAuto();
   timer = setInterval(() => {
     if (playing) next();
   }, 3500);
 }
+
 function stopAuto() {
   if (timer) clearInterval(timer);
   timer = null;
 }
 
+function syncPlayIcon() {
+  if (!togglePlayIcon) return;
+  togglePlayIcon.src = playing
+    ? "../assets/img/icons/pause.svg"
+    : "../assets/img/icons/play.svg";
+}
+
 function openShow() {
-  if (!photos.length) return alert("Ajoute d'abord quelques photos 🙂");
+  if (!photos.length) {
+    alert("Ajoute d'abord quelques photos.");
+    return;
+  }
   buildQueue();
   slideshow.classList.add("open");
   playing = true;
-  document.getElementById("togglePlay").textContent = "⏸";
+  syncPlayIcon();
   showSlide();
   startAuto();
 }
+
 function closeShow() {
   slideshow.classList.remove("open");
   stopAuto();
 }
 
-showBtn.addEventListener("click", openShow);
-document.getElementById("closeShow").addEventListener("click", closeShow);
-document.getElementById("nextSlide").addEventListener("click", next);
-document.getElementById("prevSlide").addEventListener("click", prev);
-document.getElementById("togglePlay").addEventListener("click", () => {
+showBtn?.addEventListener("click", openShow);
+closeShowBtn?.addEventListener("click", closeShow);
+nextSlideBtn?.addEventListener("click", next);
+prevSlideBtn?.addEventListener("click", prev);
+
+togglePlayBtn?.addEventListener("click", () => {
   playing = !playing;
-  document.getElementById("togglePlay").textContent = playing ? "⏸" : "▶";
+  syncPlayIcon();
 });
 
 /* ---------------------------
@@ -260,10 +275,15 @@ document.getElementById("togglePlay").addEventListener("click", () => {
 function openUploadModal() {
   uploadModal.classList.add("open");
   uploadModal.setAttribute("aria-hidden", "false");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
 }
+
 function closeUploadModal() {
   uploadModal.classList.remove("open");
   uploadModal.setAttribute("aria-hidden", "true");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
 }
 
 function fmtCount() {
@@ -282,8 +302,17 @@ function setUploadingState(isUploading) {
   addBtn.disabled = isUploading;
   showBtn.disabled = isUploading;
   uploadCancelBtn.disabled = isUploading;
+
   uploadStartBtn.disabled = isUploading || pending.length === 0;
-  uploadStartBtn.textContent = isUploading ? "⏳ Envoi…" : "Envoyer";
+
+  // Le helper setBtnLoading met un spinner (si ton ui.js est bien celui du projet),
+  // mais on force aussi un fallback sans emoji.
+  setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
+  if (isUploading) {
+    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
+  } else {
+    uploadStartBtn.textContent = "Envoyer";
+  }
 }
 
 function renderPending() {
@@ -327,7 +356,7 @@ function renderPending() {
     const remove = document.createElement("button");
     remove.className = "upload-remove";
     remove.type = "button";
-    remove.title = "Retirer de la sélection";
+    remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
       try {
@@ -347,9 +376,9 @@ function renderPending() {
   uploadStartBtn.disabled = false;
 }
 
-addBtn.addEventListener("click", () => input.click());
+addBtn?.addEventListener("click", () => input.click());
 
-input.addEventListener("change", async () => {
+input?.addEventListener("change", async () => {
   const files = [...(input.files || [])];
   input.value = "";
   if (!files.length) return;
@@ -359,6 +388,7 @@ input.addEventListener("change", async () => {
       URL.revokeObjectURL(p.url);
     } catch {}
   }
+
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
 
   resetProgressUI();
@@ -367,8 +397,9 @@ input.addEventListener("change", async () => {
   openUploadModal();
 });
 
-uploadCancelBtn.addEventListener("click", () => {
+uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
+
   for (const p of pending) {
     try {
       URL.revokeObjectURL(p.url);
@@ -379,7 +410,7 @@ uploadCancelBtn.addEventListener("click", () => {
   closeUploadModal();
 });
 
-uploadStartBtn.addEventListener("click", async () => {
+uploadStartBtn?.addEventListener("click", async () => {
   if (!pending.length) return;
 
   setUploadingState(true);
@@ -413,7 +444,7 @@ uploadStartBtn.addEventListener("click", async () => {
         publicId: up.public_id,
         url: up.secure_url,
         thumbUrl: up.secure_url,
-        rotation: 0, // ✅ champ prêt pour rotation
+        rotation: 0,
       });
 
       done++;
@@ -429,7 +460,7 @@ uploadStartBtn.addEventListener("click", async () => {
     }
     pending = [];
 
-    uploadProgressDetail.textContent = "✅ Terminé !";
+    uploadProgressDetail.textContent = "Terminé.";
     setTimeout(() => {
       closeUploadModal();
       resetProgressUI();

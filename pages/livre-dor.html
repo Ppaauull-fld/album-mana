@@ -27,8 +27,13 @@
           <!-- LEFT -->
           <div class="gb-left">
             <div class="segmented" role="tablist" aria-label="Outil">
-              <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">T</button>
-              <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">✎</button>
+              <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">
+                <img class="icon-img" src="../assets/img/icons/text.svg" alt="" />
+              </button>
+
+              <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">
+                <img class="icon-img" src="../assets/img/icons/pencil.svg" alt="" />
+              </button>
             </div>
           </div>
 
@@ -68,11 +73,19 @@
           <!-- RIGHT (ne bouge jamais) -->
           <div class="gb-right">
             <div class="segmented" aria-label="Annuler / Rétablir">
-              <button id="undo" class="seg-btn" type="button" title="Annuler">↶</button>
-              <button id="redo" class="seg-btn" type="button" title="Rétablir">↷</button>
+              <button id="undo" class="seg-btn" type="button" title="Annuler">
+                <img class="icon-img" src="../assets/img/icons/undo.svg" alt="" />
+              </button>
+
+              <button id="redo" class="seg-btn" type="button" title="Rétablir">
+                <img class="icon-img icon-mirror" src="../assets/img/icons/undo.svg" alt="" />
+              </button>
             </div>
 
-            <button id="deleteSelected" class="iconbtn danger" type="button" title="Supprimer">🗑</button>
+            <button id="deleteSelected" class="iconbtn danger" type="button" title="Supprimer">
+              <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
+            </button>
+
             <button id="exportCanvasPng" class="iconbtn" type="button" title="Exporter PNG">⬇</button>
           </div>
         </div>

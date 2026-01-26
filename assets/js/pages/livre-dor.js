@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
+import { setBtnLoading } from "../ui.js";
 
 import {
   collection,
@@ -174,12 +175,10 @@ function setMode(next) {
 }
 
 function updateButtons() {
-  // En mode draw: undo/redo d'abord sur les strokes non publiés
   if (mode === "draw") {
     const canUndoLocal = strokes.length > 0;
     const canRedoLocal = redoStrokes.length > 0;
 
-    // si pas de strokes locaux, alors on retombe sur l’historique global
     undoBtn.disabled = !(canUndoLocal || undoStack.length > 0);
     redoBtn.disabled = !(canRedoLocal || redoStack.length > 0);
 
@@ -198,7 +197,7 @@ function updateButtons() {
    Drawing (canvas)
    ========================= */
 function drawBackground() {
-  // ctx est déjà en CSS pixels grâce à setTransform
+  // reset transform safe (dprResize sets it)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -254,9 +253,7 @@ async function drawDrawing(it) {
   try {
     const img = await getImage(it.imageUrl);
     ctx.drawImage(img, it.x, it.y, it.w, it.h);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 function drawSelectionBox(it) {
@@ -274,7 +271,7 @@ function drawSelectionBox(it) {
     ["sw", it.x, it.y + it.h],
   ];
 
-  for (const [k, x, y] of hs) {
+  for (const [, x, y] of hs) {
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "rgba(0,0,0,.35)";
     ctx.beginPath();
@@ -288,17 +285,14 @@ function drawSelectionBox(it) {
 async function redraw() {
   drawBackground();
 
-  // items (Firestore)
   for (const it of items) {
     if (it.kind === "text") drawText(it);
     if (it.kind === "drawing") await drawDrawing(it);
   }
 
-  // strokes locaux (non publiés)
   for (const s of strokes) drawStroke(s);
   if (currentStroke) drawStroke(currentStroke);
 
-  // selection
   const sel = getSelectedItem();
   if (sel) drawSelectionBox(sel);
 
@@ -316,8 +310,8 @@ function handleHit(it, x, y) {
     ["sw", it.x, it.y + it.h],
   ];
   for (const [k, cx, cy] of corners) {
-    const dx = x - cx,
-      dy = y - cy;
+    const dx = x - cx;
+    const dy = y - cy;
     if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_RADIUS) return k;
   }
   return null;
@@ -343,13 +337,11 @@ function showEditor(x, y, initial, state) {
 
   floatingEditor.value = initial || "";
 
-  // Safari/iOS: delay focus = plus fiable
   requestAnimationFrame(() => {
     floatingEditor.focus({ preventScroll: true });
     floatingEditor.setSelectionRange(floatingEditor.value.length, floatingEditor.value.length);
   });
 
-  // désactive seulement le canvas (pas toute la page)
   canvas.classList.add("canvas-disabled");
 }
 
@@ -361,17 +353,12 @@ function hideEditor() {
 
 editorCancel.addEventListener("click", hideEditor);
 
-// Empêche les clics dans l’éditeur de “tomber” sur le canvas (Safari)
 ["pointerdown", "pointermove", "pointerup"].forEach((evt) => {
   editorShell.addEventListener(evt, (e) => e.stopPropagation());
 });
 
 /* =========================
-   Firestore Undo/Redo (solide)
-   Action shape:
-   - create: {type:"create", id, data}
-   - delete: {type:"delete", id, data}
-   - update: {type:"update", id, before, after}
+   Undo/Redo Firestore (solide)
    ========================= */
 async function applyInverse(action) {
   if (action.type === "create") {
@@ -409,7 +396,6 @@ async function applyForward(action) {
 }
 
 async function undo() {
-  // priorité strokes locaux en mode draw
   if (mode === "draw" && strokes.length > 0) {
     const s = strokes.pop();
     redoStrokes.push(s);
@@ -426,7 +412,6 @@ async function undo() {
 }
 
 async function redo() {
-  // priorité redoStrokes locaux en mode draw
   if (mode === "draw" && redoStrokes.length > 0) {
     const s = redoStrokes.pop();
     strokes.push(s);
@@ -479,7 +464,6 @@ editorOk.addEventListener("click", async () => {
 
       undoStack.push({ type: "create", id: idRef.id, data });
       redoStack.length = 0;
-
       selectedId = idRef.id;
     }
 
@@ -565,21 +549,16 @@ sizeInput.addEventListener("change", updateSelectedTextStyle);
 colorInput.addEventListener("change", updateSelectedTextStyle);
 
 /* =========================
-   Pointer interactions (Safari/Chrome OK)
+   Pointer interactions
    ========================= */
 async function onPointerDown(e) {
-  // si l’éditeur est ouvert, on ignore
   if (editorOpen()) return;
-
-  // uniquement bouton principal
   if (e.button != null && e.button !== 0) return;
 
-  // capture pointer = mouvements stables
   canvas.setPointerCapture?.(e.pointerId);
 
   const { x, y } = posFromEvent(e);
 
-  // hit test d'abord
   const hit = itemHit(x, y);
   if (hit) {
     selectedId = hit.id;
@@ -593,25 +572,21 @@ async function onPointerDown(e) {
     return;
   }
 
-  // click vide = désélection
   selectedId = null;
   redraw();
 
   if (mode === "text") {
-    // ouvrir l'éditeur à l’endroit cliqué
     showEditor(x, y, "", { mode: "create" });
     return;
   }
 
   if (mode === "draw") {
-    // dessin local (traits annulables)
     isDrawing = true;
     currentStroke = {
       color: penColorInput.value,
       width: Number(penSizeInput.value || 6),
       points: [{ x, y }],
     };
-    // si on dessine après undo, on reset redoStrokes
     redoStrokes = [];
     redraw();
   }
@@ -622,14 +597,12 @@ async function onPointerMove(e) {
 
   const { x, y } = posFromEvent(e);
 
-  // dessin
   if (mode === "draw" && isDrawing && currentStroke) {
     currentStroke.points.push({ x, y });
     redraw();
     return;
   }
 
-  // drag item
   if (!drag) return;
 
   const it = getSelectedItem();
@@ -677,7 +650,6 @@ async function onPointerUp(e) {
     canvas.releasePointerCapture?.(e.pointerId);
   } catch {}
 
-  // fin dessin
   if (mode === "draw" && isDrawing) {
     isDrawing = false;
     if (currentStroke) {
@@ -688,7 +660,6 @@ async function onPointerUp(e) {
     return;
   }
 
-  // fin drag
   if (!drag) return;
 
   const it = getSelectedItem();
@@ -715,13 +686,11 @@ async function onPointerUp(e) {
   redraw();
 }
 
-// Pointer Events attach
 canvas.addEventListener("pointerdown", onPointerDown);
 canvas.addEventListener("pointermove", onPointerMove);
 canvas.addEventListener("pointerup", onPointerUp);
 canvas.addEventListener("pointercancel", onPointerUp);
 
-/* Double clic pour éditer un texte */
 canvas.addEventListener("dblclick", (e) => {
   if (editorOpen()) return;
 
@@ -767,12 +736,11 @@ deleteBtn.addEventListener("click", async () => {
 publishBtn.addEventListener("click", async () => {
   if (mode !== "draw" || strokes.length === 0) return;
 
+  // Loading sans emoji
   publishBtn.disabled = true;
-  const oldText = publishBtn.textContent;
-  publishBtn.textContent = "⏳";
+  publishBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Publication…`;
 
   try {
-    // bounding box
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -798,7 +766,6 @@ publishBtn.addEventListener("click", async () => {
     const w = Math.max(80, maxX - minX);
     const h = Math.max(80, maxY - minY);
 
-    // offscreen
     const off = document.createElement("canvas");
     off.width = Math.round(w);
     off.height = Math.round(h);
@@ -818,9 +785,7 @@ publishBtn.addEventListener("click", async () => {
 
       octx.beginPath();
       octx.moveTo(pts[0].x - minX, pts[0].y - minY);
-      for (let i = 1; i < pts.length; i++) {
-        octx.lineTo(pts[i].x - minX, pts[i].y - minY);
-      }
+      for (let i = 1; i < pts.length; i++) octx.lineTo(pts[i].x - minX, pts[i].y - minY);
       octx.stroke();
     }
 
@@ -854,8 +819,9 @@ publishBtn.addEventListener("click", async () => {
   } catch (e) {
     alert("Erreur publication : " + (e?.message || e));
   } finally {
+    // restore button
     publishBtn.disabled = false;
-    publishBtn.textContent = oldText || "Publier";
+    publishBtn.textContent = "Publier";
   }
 });
 
@@ -902,7 +868,6 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  // init editor hidden (important)
   hideEditor();
 
   const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
@@ -911,7 +876,6 @@ async function main() {
     items = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .map((it) => {
-        // defaults
         if (typeof it.x !== "number") it.x = 40;
         if (typeof it.y !== "number") it.y = 40;
 
@@ -920,7 +884,6 @@ async function main() {
           it.italic = !!it.italic;
           it.underline = !!it.underline;
 
-          // box for selection/drag
           if (typeof it.w !== "number" || typeof it.h !== "number") {
             const b = measureTextBox(it);
             it.w = b.w;
