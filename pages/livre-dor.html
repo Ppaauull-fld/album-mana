@@ -23,16 +23,17 @@
       <h1 class="h1">Livre d’or</h1>
 
       <div class="guest-wrap">
-        <div class="guestbar">
-          <div class="left">
+        <div class="guestbar-grid">
+          <!-- LEFT -->
+          <div class="gb-left">
             <div class="segmented" role="tablist" aria-label="Outil">
               <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">T</button>
               <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">✎</button>
             </div>
           </div>
 
-          <div class="middle">
-            <!-- TEXTE -->
+          <!-- MIDDLE -->
+          <div class="gb-mid">
             <div id="textControls" class="control-row">
               <select id="font" class="mini-select" title="Police">
                 <option value="Georgia">Georgia</option>
@@ -57,7 +58,6 @@
               </div>
             </div>
 
-            <!-- DESSIN -->
             <div id="drawControls" class="control-row" style="display:none">
               <input id="penSize" class="mini-number" type="number" min="1" max="30" value="6" title="Trait" />
               <input id="penColor" class="mini-color" type="color" value="#111111" title="Couleur" />
@@ -65,7 +65,8 @@
             </div>
           </div>
 
-          <div class="right">
+          <!-- RIGHT (ne bouge jamais) -->
+          <div class="gb-right">
             <div class="segmented" aria-label="Annuler / Rétablir">
               <button id="undo" class="seg-btn" type="button" title="Annuler">↶</button>
               <button id="redo" class="seg-btn" type="button" title="Rétablir">↷</button>
@@ -80,7 +81,7 @@
           <div id="hint" class="hint">Texte : clique pour ajouter • Double clic pour éditer</div>
           <canvas id="guestCanvas"></canvas>
 
-          <!-- éditeur flottant (robuste Safari) -->
+          <!-- éditeur flottant -->
           <div id="editorShell" class="editor-shell" style="display:none">
             <textarea id="floatingEditor" class="floating-editor" placeholder="Écris ici…"></textarea>
             <div class="editor-actions">
