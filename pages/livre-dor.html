@@ -54,34 +54,18 @@
               </select>
 
               <input id="size" class="mini-number" type="number" min="10" max="140" value="32" title="Taille" />
-
-              <div class="color-wrap" title="Couleur">
-                <input id="color" class="mini-color" type="color" value="#111111" aria-label="Couleur du texte" />
-              </div>
+              <input id="color" class="mini-color" type="color" value="#111111" title="Couleur" />
 
               <div class="segmented" aria-label="Style">
                 <button id="boldBtn" class="seg-btn tiny" type="button" title="Gras"><strong>B</strong></button>
                 <button id="italicBtn" class="seg-btn tiny" type="button" title="Italique"><em>I</em></button>
-                <button id="underlineBtn" class="seg-btn tiny" type="button" title="Souligné">
-                  <span style="text-decoration:underline">U</span>
-                </button>
-              </div>
-
-              <div class="segmented" aria-label="Alignement">
-                <button id="alignLeft" class="seg-btn tiny active" type="button" title="Aligné à gauche">L</button>
-                <button id="alignCenter" class="seg-btn tiny" type="button" title="Centré">C</button>
-                <button id="alignRight" class="seg-btn tiny" type="button" title="Aligné à droite">R</button>
-                <button id="alignJustify" class="seg-btn tiny" type="button" title="Justifié">J</button>
+                <button id="underlineBtn" class="seg-btn tiny" type="button" title="Souligné"><span style="text-decoration:underline">U</span></button>
               </div>
             </div>
 
             <div id="drawControls" class="control-row" style="display:none">
               <input id="penSize" class="mini-number" type="number" min="1" max="30" value="6" title="Trait" />
-
-              <div class="color-wrap" title="Couleur">
-                <input id="penColor" class="mini-color" type="color" value="#111111" aria-label="Couleur du trait" />
-              </div>
-
+              <input id="penColor" class="mini-color" type="color" value="#111111" title="Couleur" />
               <button id="publish" class="btn primary" type="button">Publier</button>
             </div>
           </div>
@@ -102,24 +86,23 @@
               <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
             </button>
 
-            <!-- Export dropdown -->
-            <div class="menu">
-              <button id="exportMenuBtn" class="iconbtn" type="button" title="Télécharger">
+            <!-- Download unique + menu PNG/PDF -->
+            <div class="download-wrap">
+              <button id="exportCanvasBtn" class="iconbtn" type="button" title="Télécharger">
                 <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
               </button>
 
-              <div id="exportMenu" class="menu-pop" role="menu" aria-hidden="true">
-                <button id="exportPng" class="menu-item" type="button" role="menuitem">PNG</button>
-                <button id="exportPdf" class="menu-item" type="button" role="menuitem">PDF</button>
+              <div id="downloadMenu" class="download-menu" hidden>
+                <button id="exportCanvasPng" type="button">PNG</button>
+                <button id="exportCanvasPdf" type="button">PDF</button>
               </div>
             </div>
+
           </div>
         </div>
 
         <div class="canvas-wrap editor">
-          <div id="hint" class="hint">
-            Texte : clique pour ajouter • Déplacement : espace + glisser • Zoom : Ctrl + molette
-          </div>
+          <div id="hint" class="hint">Texte : clique pour ajouter • Double clic pour éditer</div>
           <canvas id="guestCanvas"></canvas>
 
           <!-- éditeur flottant -->
@@ -135,9 +118,6 @@
 
     </div>
   </main>
-
-  <!-- jsPDF pour export PDF -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <script type="module" src="../assets/js/pages/livre-dor.js"></script>
 </body>

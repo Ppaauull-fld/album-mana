@@ -15,9 +15,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 /* =========================
-   DOM (match ton HTML)
+   Safe DOM getters
    ========================= */
 const canvas = document.getElementById("guestCanvas");
+if (!canvas) {
+  console.error("[livre-dor] canvas #guestCanvas introuvable");
+}
 const ctx = canvas?.getContext?.("2d");
 
 const toolTextBtn = document.getElementById("toolText");
@@ -33,11 +36,6 @@ const boldBtn = document.getElementById("boldBtn");
 const italicBtn = document.getElementById("italicBtn");
 const underlineBtn = document.getElementById("underlineBtn");
 
-const alignLeftBtn = document.getElementById("alignLeft");
-const alignCenterBtn = document.getElementById("alignCenter");
-const alignRightBtn = document.getElementById("alignRight");
-const alignJustifyBtn = document.getElementById("alignJustify");
-
 const penSizeInput = document.getElementById("penSize");
 const penColorInput = document.getElementById("penColor");
 const publishBtn = document.getElementById("publish");
@@ -46,24 +44,18 @@ const undoBtn = document.getElementById("undo");
 const redoBtn = document.getElementById("redo");
 const deleteBtn = document.getElementById("deleteSelected");
 
-const exportMenuBtn = document.getElementById("exportMenuBtn");
-const exportMenu = document.getElementById("exportMenu");
-const exportPngBtn = document.getElementById("exportPng");
-const exportPdfBtn = document.getElementById("exportPdf");
+const exportMenuBtn = document.getElementById("exportCanvasBtn");
+const exportPngBtn = document.getElementById("exportCanvasPng");
+const exportPdfBtn = document.getElementById("exportCanvasPdf");
+const downloadMenu = document.getElementById("downloadMenu");
 
 const hint = document.getElementById("hint");
 
+// editor
 const editorShell = document.getElementById("editorShell");
 const floatingEditor = document.getElementById("floatingEditor");
 const editorOk = document.getElementById("editorOk");
 const editorCancel = document.getElementById("editorCancel");
-
-/* =========================
-   Guard
-   ========================= */
-if (!canvas || !ctx) {
-  console.error("[livre-dor] canvas introuvable");
-}
 
 /* =========================
    State
@@ -73,37 +65,24 @@ let items = [];
 const imageCache = new Map();
 
 let selectedId = null;
-let drag = null; // {type, ...}
-let editorState = null;
+let drag = null;
 
 const HANDLE_RADIUS = 14;
 const MIN_W = 60;
 const MIN_H = 40;
 
-// Drawing local (non publié)
+// drawing local (non publié)
 let isDrawing = false;
 let currentStroke = null;
 let strokes = [];
 let redoStrokes = [];
 
-// Undo/redo Firestore
+// global undo/redo (Firestore)
 const undoStack = [];
 const redoStack = [];
 
-/* =========================
-   Pan/Zoom camera
-   ========================= */
-const camera = {
-  x: 0,
-  y: 0,
-  z: 1, // zoom
-  minZ: 0.35,
-  maxZ: 3.0,
-};
-
-let isPanning = false;
-let panStart = null;
-let spaceDown = false;
+// editor state: { mode:"create"|"edit", id?, x,y }
+let editorState = null;
 
 /* =========================
    Utils
@@ -123,25 +102,6 @@ function editorOpen() {
 function getSelectedItem() {
   return items.find((i) => i.id === selectedId) || null;
 }
-function setCanvasCursor(cur) {
-  if (!canvas) return;
-  canvas.style.cursor = cur;
-}
-
-function getAlign() {
-  if (alignCenterBtn?.classList.contains("active")) return "center";
-  if (alignRightBtn?.classList.contains("active")) return "right";
-  if (alignJustifyBtn?.classList.contains("active")) return "justify";
-  return "left";
-}
-
-function setAlignUI(align) {
-  const a = align || "left";
-  applyActive(alignLeftBtn, a === "left");
-  applyActive(alignCenterBtn, a === "center");
-  applyActive(alignRightBtn, a === "right");
-  applyActive(alignJustifyBtn, a === "justify");
-}
 
 function getTextStyle() {
   return {
@@ -151,7 +111,6 @@ function getTextStyle() {
     bold: !!boldBtn?.classList.contains("active"),
     italic: !!italicBtn?.classList.contains("active"),
     underline: !!underlineBtn?.classList.contains("active"),
-    align: getAlign(), // NEW
   };
 }
 
@@ -164,83 +123,37 @@ function buildFontCss(it) {
   return parts.join(" ");
 }
 
-function applyCameraTransform() {
-  // transform “world -> screen”
-  ctx.setTransform(camera.z, 0, 0, camera.z, camera.x, camera.y);
+function measureTextBox(it) {
+  if (!ctx) return { w: 240, h: 120 };
+  ctx.save();
+  ctx.font = buildFontCss(it);
+  const m = ctx.measureText(it.text || "");
+  const w = Math.max(MIN_W, Math.ceil(m.width) + 24);
+  const h = Math.max(MIN_H, Math.ceil((it.size || 32) * 1.25) + 18);
+  ctx.restore();
+  return { w, h };
 }
 
-function screenToWorld(sx, sy) {
-  // world = (screen - translate) / zoom
-  return {
-    x: (sx - camera.x) / camera.z,
-    y: (sy - camera.y) / camera.z,
-  };
-}
+/* =========================
+   Canvas sizing (DPR safe)
+   ========================= */
+function dprResize() {
+  if (!canvas || !ctx) return;
 
-function worldToScreen(wx, wy) {
-  return {
-    x: wx * camera.z + camera.x,
-    y: wy * camera.z + camera.y,
-  };
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+
+  // draw in CSS pixels
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redraw();
 }
 
 function posFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
-  const sx = e.clientX - rect.left;
-  const sy = e.clientY - rect.top;
-  return { sx, sy, ...screenToWorld(sx, sy) };
-}
-
-/* =========================
-   Measure + wrapping + justify
-   ========================= */
-function wrapTextLines(text, it, maxWidth) {
-  const words = String(text || "").split(/\s+/).filter(Boolean);
-  const lines = [];
-  if (!words.length) return lines;
-
-  let line = words[0];
-  for (let i = 1; i < words.length; i++) {
-    const w = words[i];
-    const test = line + " " + w;
-    const mw = ctx.measureText(test).width;
-    if (mw <= maxWidth) line = test;
-    else {
-      lines.push(line);
-      line = w;
-    }
-  }
-  lines.push(line);
-  return lines;
-}
-
-function measureTextBox(it) {
-  if (!ctx) return { w: 240, h: 120 };
-
-  ctx.save();
-  ctx.font = buildFontCss(it);
-
-  // largeur par défaut (si pas définie) : un bloc raisonnable
-  const targetW = clamp(Number(it.w || 420), 240, 900);
-
-  const padX = 16;
-  const padY = 12;
-  const maxLineW = targetW - padX * 2;
-
-  const lines = wrapTextLines(it.text || "", it, maxLineW);
-  const lineH = Math.max(18, Number(it.size || 32) * 1.25);
-
-  // si texte très court -> ajuster w au contenu
-  let widest = 0;
-  for (const ln of lines.length ? lines : [it.text || ""]) {
-    widest = Math.max(widest, ctx.measureText(ln).width);
-  }
-
-  const w = clamp(Math.ceil(widest + padX * 2), MIN_W, 900);
-  const h = clamp(Math.ceil(lines.length * lineH + padY * 2), MIN_H, 4000);
-
-  ctx.restore();
-  return { w, h, lines, lineH, padX, padY };
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
 /* =========================
@@ -261,8 +174,8 @@ function setMode(next) {
 
   setHint(
     mode === "text"
-      ? "Texte : clique pour ajouter • Double clic pour éditer • Déplacement : espace + glisser • Zoom : Ctrl/Cmd + molette"
-      : "Dessin : dessine • Annuler/Rétablir = traits • Publier pour ajouter • Déplacement : espace + glisser • Zoom : Ctrl/Cmd + molette"
+      ? "Texte : clique pour ajouter • Double clic pour éditer"
+      : "Dessin : dessine • Annuler/Rétablir = traits • Publier pour ajouter"
   );
 
   updateButtons();
@@ -275,8 +188,10 @@ function updateButtons() {
   if (mode === "draw") {
     const canUndoLocal = strokes.length > 0;
     const canRedoLocal = redoStrokes.length > 0;
+
     undoBtn.disabled = !(canUndoLocal || undoStack.length > 0);
     redoBtn.disabled = !(canRedoLocal || redoStack.length > 0);
+
     publishBtn.disabled = strokes.length === 0;
   } else {
     undoBtn.disabled = undoStack.length === 0;
@@ -288,38 +203,17 @@ function updateButtons() {
 }
 
 /* =========================
-   Canvas sizing (DPR safe)
+   Drawing (canvas)
    ========================= */
-function dprResize() {
-  if (!canvas || !ctx) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-
-  canvas.width = Math.round(rect.width * dpr);
-  canvas.height = Math.round(rect.height * dpr);
-
-  // IMPORTANT: on dessine en pixels CSS, donc on compense DPR via scale
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  redraw();
-}
-
-/* =========================
-   Rendering
-   ========================= */
-function clearBackground() {
-  // clear en coord screen : on reset, puis clear, puis on remet camera
-  const tr = ctx.getTransform();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+function drawBackground() {
+  if (!ctx || !canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.setTransform(tr);
 }
 
 function drawStroke(s) {
-  if (!s?.points?.length) return;
+  if (!ctx || !s?.points?.length) return;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = s.color;
@@ -331,88 +225,23 @@ function drawStroke(s) {
 }
 
 function drawText(it) {
+  if (!ctx) return;
   ctx.save();
   ctx.fillStyle = it.color || "#111";
   ctx.font = buildFontCss(it);
   ctx.textBaseline = "top";
+  ctx.fillText(it.text || "", it.x, it.y);
 
-  const align = it.align || "left";
-  const { w, h, lines, lineH, padX, padY } = measureTextBox(it);
-
-  // bounding box (w/h déjà sur it normalement)
-  const boxW = it.w || w;
-  const boxH = it.h || h;
-  const innerW = Math.max(10, boxW - padX * 2);
-
-  const startX = it.x + padX;
-  const startY = it.y + padY;
-
-  // draw lines
-  if (align === "justify") {
-    // Justify all lines except last
-    for (let li = 0; li < lines.length; li++) {
-      const line = lines[li];
-      const y = startY + li * lineH;
-
-      // last line -> left
-      if (li === lines.length - 1) {
-        ctx.fillText(line, startX, y);
-        continue;
-      }
-
-      const words = line.split(" ");
-      if (words.length <= 1) {
-        ctx.fillText(line, startX, y);
-        continue;
-      }
-
-      const totalWordsW = words.reduce((acc, w) => acc + ctx.measureText(w).width, 0);
-      const gaps = words.length - 1;
-      const extra = Math.max(0, innerW - totalWordsW);
-      const gapW = extra / gaps;
-
-      let x = startX;
-      for (let wi = 0; wi < words.length; wi++) {
-        const word = words[wi];
-        ctx.fillText(word, x, y);
-        x += ctx.measureText(word).width + (wi < gaps ? gapW : 0);
-      }
-    }
-  } else {
-    for (let li = 0; li < lines.length; li++) {
-      const line = lines[li];
-      const y = startY + li * lineH;
-      const lw = ctx.measureText(line).width;
-
-      let x = startX;
-      if (align === "center") x = it.x + boxW / 2 - lw / 2;
-      if (align === "right") x = it.x + boxW - padX - lw;
-
-      ctx.fillText(line, x, y);
-    }
-  }
-
-  // underline : on underline chaque ligne
   if (it.underline) {
+    const m = ctx.measureText(it.text || "");
+    const yLine = it.y + Number(it.size || 32) * 1.08;
     ctx.strokeStyle = it.color || "#111";
     ctx.lineWidth = Math.max(1, Math.round(Number(it.size || 32) / 18));
-    for (let li = 0; li < lines.length; li++) {
-      const line = lines[li];
-      const y = startY + li * lineH + Number(it.size || 32) * 1.08;
-
-      let x = startX;
-      let lw = ctx.measureText(line).width;
-
-      if (align === "center") x = it.x + boxW / 2 - lw / 2;
-      if (align === "right") x = it.x + boxW - padX - lw;
-
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + lw, y);
-      ctx.stroke();
-    }
+    ctx.beginPath();
+    ctx.moveTo(it.x, yLine);
+    ctx.lineTo(it.x + m.width, yLine);
+    ctx.stroke();
   }
-
   ctx.restore();
 }
 
@@ -430,7 +259,7 @@ async function getImage(url) {
 }
 
 async function drawDrawing(it) {
-  if (!it.imageUrl) return;
+  if (!ctx || !it.imageUrl) return;
   try {
     const img = await getImage(it.imageUrl);
     ctx.drawImage(img, it.x, it.y, it.w, it.h);
@@ -438,6 +267,7 @@ async function drawDrawing(it) {
 }
 
 function drawSelectionBox(it) {
+  if (!ctx) return;
   ctx.save();
   ctx.strokeStyle = "rgba(0,0,0,.35)";
   ctx.lineWidth = 1;
@@ -464,26 +294,14 @@ function drawSelectionBox(it) {
 }
 
 async function redraw() {
-  if (!ctx || !canvas) return;
+  if (!ctx) return;
+  drawBackground();
 
-  // reset DPR transform then camera
-  const dpr = window.devicePixelRatio || 1;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  clearBackground();
-
-  // now apply camera in CSS pixels space (so combine DPR then camera)
-  // easiest: multiply camera into current transform
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.z, camera.z);
-
-  // items are stored in WORLD coordinates
   for (const it of items) {
     if (it.kind === "text") drawText(it);
     if (it.kind === "drawing") await drawDrawing(it);
   }
 
-  // strokes are WORLD coords too
   for (const s of strokes) drawStroke(s);
   if (currentStroke) drawStroke(currentStroke);
 
@@ -494,7 +312,7 @@ async function redraw() {
 }
 
 /* =========================
-   Hit testing (WORLD coords)
+   Hit testing
    ========================= */
 function handleHit(it, x, y) {
   const corners = [
@@ -522,16 +340,14 @@ function itemHit(x, y) {
 /* =========================
    Editor (texte)
    ========================= */
-function showEditor(worldX, worldY, initial, state) {
+function showEditor(x, y, initial, state) {
   if (!editorShell || !floatingEditor || !canvas) return;
 
-  editorState = { ...state, x: worldX, y: worldY };
+  editorState = { ...state, x, y };
 
-  // position editor in SCREEN coords
-  const scr = worldToScreen(worldX, worldY);
   editorShell.style.display = "block";
-  editorShell.style.left = `${scr.x}px`;
-  editorShell.style.top = `${scr.y}px`;
+  editorShell.style.left = `${x}px`;
+  editorShell.style.top = `${y}px`;
 
   floatingEditor.value = initial || "";
 
@@ -602,6 +418,7 @@ async function undo() {
   }
   const a = undoStack.pop();
   if (!a) return;
+
   await applyInverse(a);
   redoStack.push(a);
   redraw();
@@ -616,6 +433,7 @@ async function redo() {
   }
   const a = redoStack.pop();
   if (!a) return;
+
   await applyForward(a);
   undoStack.push(a);
   redraw();
@@ -639,10 +457,8 @@ editorOk?.addEventListener("click", async () => {
   try {
     if (editorState.mode === "create") {
       const style = getTextStyle();
-
-      // default box width
-      const temp = { kind: "text", text: txt, x: editorState.x, y: editorState.y, w: 420, h: 120, ...style };
-      const m = measureTextBox(temp);
+      const temp = { kind: "text", text: txt, x: editorState.x, y: editorState.y, ...style };
+      const { w, h } = measureTextBox(temp);
 
       const idRef = doc(collection(db, "guestbook"));
       const data = {
@@ -651,12 +467,13 @@ editorOk?.addEventListener("click", async () => {
         text: txt,
         x: editorState.x,
         y: editorState.y,
-        w: m.w,
-        h: m.h,
+        w,
+        h,
         ...style,
       };
 
       await setDoc(idRef, data);
+
       undoStack.push({ type: "create", id: idRef.id, data });
       redoStack.length = 0;
       selectedId = idRef.id;
@@ -669,25 +486,15 @@ editorOk?.addEventListener("click", async () => {
         hideEditor();
         return;
       }
-
       const beforeDoc = snap.data();
-      const style = {
-        font: beforeDoc.font,
-        size: beforeDoc.size,
-        color: beforeDoc.color,
-        bold: !!beforeDoc.bold,
-        italic: !!beforeDoc.italic,
-        underline: !!beforeDoc.underline,
-        align: beforeDoc.align || "left",
-      };
-
-      const temp = { ...beforeDoc, ...style, text: txt };
-      const m = measureTextBox(temp);
+      const temp = { ...beforeDoc, text: txt };
+      const { w, h } = measureTextBox(temp);
 
       const before = { text: beforeDoc.text, w: beforeDoc.w, h: beforeDoc.h };
-      const after = { text: txt, w: m.w, h: m.h };
+      const after = { text: txt, w, h };
 
       await updateDoc(ref, after);
+
       undoStack.push({ type: "update", id: editorState.id, before, after });
       redoStack.length = 0;
     }
@@ -700,7 +507,7 @@ editorOk?.addEventListener("click", async () => {
 });
 
 /* =========================
-   Style / Align -> update selected text
+   Style buttons -> update selected text style
    ========================= */
 async function updateSelectedTextStyle() {
   const it = getSelectedItem();
@@ -714,7 +521,7 @@ async function updateSelectedTextStyle() {
 
   const style = getTextStyle();
   const temp = { ...beforeDoc, ...style };
-  const m = measureTextBox({ ...temp, w: beforeDoc.w || 420 });
+  const { w, h } = measureTextBox(temp);
 
   const before = {
     font: beforeDoc.font,
@@ -723,14 +530,13 @@ async function updateSelectedTextStyle() {
     bold: !!beforeDoc.bold,
     italic: !!beforeDoc.italic,
     underline: !!beforeDoc.underline,
-    align: beforeDoc.align || "left",
     w: beforeDoc.w,
     h: beforeDoc.h,
   };
-
-  const after = { ...style, w: m.w, h: m.h };
+  const after = { ...style, w, h };
 
   await updateDoc(ref, after);
+
   undoStack.push({ type: "update", id: it.id, before, after });
   redoStack.length = 0;
   redraw();
@@ -753,26 +559,8 @@ fontSel?.addEventListener("change", updateSelectedTextStyle);
 sizeInput?.addEventListener("change", updateSelectedTextStyle);
 colorInput?.addEventListener("change", updateSelectedTextStyle);
 
-// Align buttons
-alignLeftBtn?.addEventListener("click", async () => {
-  setAlignUI("left");
-  await updateSelectedTextStyle();
-});
-alignCenterBtn?.addEventListener("click", async () => {
-  setAlignUI("center");
-  await updateSelectedTextStyle();
-});
-alignRightBtn?.addEventListener("click", async () => {
-  setAlignUI("right");
-  await updateSelectedTextStyle();
-});
-alignJustifyBtn?.addEventListener("click", async () => {
-  setAlignUI("justify");
-  await updateSelectedTextStyle();
-});
-
 /* =========================
-   Pointer interactions (pan / draw / move / resize)
+   Pointer interactions
    ========================= */
 async function onPointerDown(e) {
   if (!canvas) return;
@@ -783,28 +571,9 @@ async function onPointerDown(e) {
 
   const { x, y } = posFromEvent(e);
 
-  // PAN if space pressed
-  if (spaceDown) {
-    isPanning = true;
-    panStart = { sx: e.clientX, sy: e.clientY, cx: camera.x, cy: camera.y };
-    setCanvasCursor("grabbing");
-    return;
-  }
-
   const hit = itemHit(x, y);
   if (hit) {
     selectedId = hit.id;
-
-    // sync UI style with selected text
-    if (hit.kind === "text") {
-      setAlignUI(hit.align || "left");
-      applyActive(boldBtn, !!hit.bold);
-      applyActive(italicBtn, !!hit.italic);
-      applyActive(underlineBtn, !!hit.underline);
-      if (fontSel) fontSel.value = hit.font || "Georgia";
-      if (sizeInput) sizeInput.value = String(hit.size || 32);
-      if (colorInput) colorInput.value = hit.color || "#111111";
-    }
 
     const h = handleHit(hit, x, y);
     drag = h
@@ -837,16 +606,6 @@ async function onPointerDown(e) {
 
 async function onPointerMove(e) {
   if (editorOpen()) return;
-
-  // PAN
-  if (isPanning && panStart) {
-    const dx = e.clientX - panStart.sx;
-    const dy = e.clientY - panStart.sy;
-    camera.x = panStart.cx + dx;
-    camera.y = panStart.cy + dy;
-    redraw();
-    return;
-  }
 
   const { x, y } = posFromEvent(e);
 
@@ -904,13 +663,6 @@ async function onPointerUp(e) {
     canvas.releasePointerCapture?.(e.pointerId);
   } catch {}
 
-  if (isPanning) {
-    isPanning = false;
-    panStart = null;
-    setCanvasCursor(spaceDown ? "grab" : "default");
-    return;
-  }
-
   if (mode === "draw" && isDrawing) {
     isDrawing = false;
     if (currentStroke) {
@@ -937,6 +689,7 @@ async function onPointerUp(e) {
     const after = { x: it.x, y: it.y, w: it.w, h: it.h };
 
     await updateDoc(ref, after);
+
     undoStack.push({ type: "update", id: it.id, before, after });
     redoStack.length = 0;
   } catch (e) {
@@ -962,40 +715,6 @@ canvas?.addEventListener("dblclick", (e) => {
   redraw();
   showEditor(hit.x, hit.y, hit.text || "", { mode: "edit", id: hit.id });
 });
-
-/* =========================
-   Zoom (Ctrl/Cmd + wheel)
-   ========================= */
-canvas?.addEventListener(
-  "wheel",
-  (e) => {
-    const isZoom = e.ctrlKey || e.metaKey;
-    if (!isZoom) return;
-
-    e.preventDefault();
-
-    const rect = canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-
-    const before = screenToWorld(sx, sy);
-
-    const delta = -e.deltaY; // up => zoom in
-    const factor = delta > 0 ? 1.08 : 1 / 1.08;
-
-    const newZ = clamp(camera.z * factor, camera.minZ, camera.maxZ);
-    camera.z = newZ;
-
-    const after = screenToWorld(sx, sy);
-
-    // keep point under cursor stable
-    camera.x += (after.x - before.x) * camera.z;
-    camera.y += (after.y - before.y) * camera.z;
-
-    redraw();
-  },
-  { passive: false }
-);
 
 /* =========================
    Delete selected
@@ -1025,7 +744,7 @@ deleteBtn?.addEventListener("click", async () => {
 });
 
 /* =========================
-   Publish drawing (strokes -> image -> Firestore item)
+   Publish drawing
    ========================= */
 publishBtn?.addEventListener("click", async () => {
   if (mode !== "draw" || strokes.length === 0) return;
@@ -1033,10 +752,7 @@ publishBtn?.addEventListener("click", async () => {
   setBtnLoading(publishBtn, true, { label: "Publication…" });
 
   try {
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     for (const s of strokes) {
       for (const p of s.points) {
@@ -1048,10 +764,12 @@ publishBtn?.addEventListener("click", async () => {
     }
 
     const pad = 18;
-    minX = minX - pad;
-    minY = minY - pad;
-    maxX = maxX + pad;
-    maxY = maxY + pad;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+
+    const rect = canvas.getBoundingClientRect();
+    maxX = Math.min(rect.width, maxX + pad);
+    maxY = Math.min(rect.height, maxY + pad);
 
     const w = Math.max(80, maxX - minX);
     const h = Math.max(80, maxY - minY);
@@ -1115,71 +833,49 @@ publishBtn?.addEventListener("click", async () => {
 });
 
 /* =========================
-   Export (PNG / PDF)
+   Export helpers
    ========================= */
-function closeExportMenu() {
-  if (!exportMenu) return;
-  exportMenu.setAttribute("aria-hidden", "true");
-  exportMenu.style.display = "none";
-}
-function toggleExportMenu() {
-  if (!exportMenu) return;
-  const isHidden = exportMenu.getAttribute("aria-hidden") !== "false";
-  exportMenu.setAttribute("aria-hidden", isHidden ? "false" : "true");
-  exportMenu.style.display = isHidden ? "block" : "none";
-}
-
-exportMenuBtn?.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  toggleExportMenu();
-});
-
-document.addEventListener("click", () => closeExportMenu());
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeExportMenu();
-});
-
 async function exportPng() {
   await redraw();
-
-  // export in screen space: on remet camera neutre le temps de l’export
-  const prev = { ...camera };
-  camera.x = 0;
-  camera.y = 0;
-  camera.z = 1;
-  await redraw();
-
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = `livre-dor-${Date.now()}.png`;
   a.click();
+}
 
-  Object.assign(camera, prev);
-  await redraw();
+async function loadJsPdf() {
+  // jsPDF UMD
+  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+
+  await new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+
+  return window.jspdf?.jsPDF;
 }
 
 async function exportPdf() {
   await redraw();
 
-  const jsPDF = window.jspdf?.jsPDF;
+  const jsPDF = await loadJsPdf();
   if (!jsPDF) {
-    alert("jsPDF non chargé.");
+    alert("Impossible de charger le module PDF.");
     return;
   }
 
-  const prev = { ...camera };
-  camera.x = 0;
-  camera.y = 0;
-  camera.z = 1;
-  await redraw();
-
+  // image du canvas
   const dataUrl = canvas.toDataURL("image/png");
 
+  // PDF A4 portrait (simple)
   const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
+  // dimensions image pour contenir dans la page en gardant ratio
   const img = new Image();
   await new Promise((res, rej) => {
     img.onload = res;
@@ -1195,38 +891,59 @@ async function exportPdf() {
 
   pdf.addImage(dataUrl, "PNG", x, y, w, h);
   pdf.save(`livre-dor-${Date.now()}.pdf`);
-
-  Object.assign(camera, prev);
-  await redraw();
 }
+
+/* =========================
+   Download menu (PNG/PDF)
+   ========================= */
+function closeDownloadMenu() {
+  if (!downloadMenu) return;
+  downloadMenu.hidden = true;
+}
+
+function toggleDownloadMenu() {
+  if (!downloadMenu) return;
+  downloadMenu.hidden = !downloadMenu.hidden;
+}
+
+exportMenuBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleDownloadMenu();
+});
 
 exportPngBtn?.addEventListener("click", async (e) => {
   e.preventDefault();
-  e.stopPropagation();
-  closeExportMenu();
+  closeDownloadMenu();
   await exportPng();
 });
 
 exportPdfBtn?.addEventListener("click", async (e) => {
   e.preventDefault();
-  e.stopPropagation();
-  closeExportMenu();
+  closeDownloadMenu();
   await exportPdf();
 });
 
+// fermer menu au clic ailleurs + ESC
+document.addEventListener("click", (e) => {
+  if (!downloadMenu || downloadMenu.hidden) return;
+  const wrap = downloadMenu.parentElement;
+  if (wrap && !wrap.contains(e.target)) closeDownloadMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeDownloadMenu();
+});
+
 /* =========================
-   Keyboard
+   Tool buttons
+   ========================= */
+toolTextBtn?.addEventListener("click", () => setMode("text"));
+toolDrawBtn?.addEventListener("click", () => setMode("draw"));
+
+/* =========================
+   Keyboard (Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
-  // Space pan
-  if (e.code === "Space" && !editorOpen()) {
-    spaceDown = true;
-    setCanvasCursor(isPanning ? "grabbing" : "grab");
-    // éviter page scroll sur espace
-    e.preventDefault();
-  }
-
-  // Undo/Redo
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1243,68 +960,56 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.addEventListener("keyup", (e) => {
-  if (e.code === "Space") {
-    spaceDown = false;
-    setCanvasCursor("default");
-  }
-});
-
-/* =========================
-   Tool buttons
-   ========================= */
-toolTextBtn?.addEventListener("click", () => setMode("text"));
-toolDrawBtn?.addEventListener("click", () => setMode("draw"));
-
 /* =========================
    Firestore realtime
    ========================= */
 async function main() {
-  await ensureAnonAuth();
-  hideEditor();
+  try {
+    await ensureAnonAuth();
 
-  // close export menu at start
-  closeExportMenu();
+    hideEditor();
 
-  const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
+    const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
 
-  onSnapshot(q, (snap) => {
-    items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).map((it) => {
-      if (typeof it.x !== "number") it.x = 40;
-      if (typeof it.y !== "number") it.y = 40;
+    onSnapshot(q, (snap) => {
+      items = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((it) => {
+          if (typeof it.x !== "number") it.x = 40;
+          if (typeof it.y !== "number") it.y = 40;
 
-      if (it.kind === "text") {
-        it.bold = !!it.bold;
-        it.italic = !!it.italic;
-        it.underline = !!it.underline;
-        it.align = it.align || "left";
+          if (it.kind === "text") {
+            it.bold = !!it.bold;
+            it.italic = !!it.italic;
+            it.underline = !!it.underline;
 
-        // ensure w/h exist
-        if (typeof it.w !== "number" || typeof it.h !== "number") {
-          const m = measureTextBox({ ...it, w: it.w || 420 });
-          it.w = m.w;
-          it.h = m.h;
-        }
-      }
+            if (typeof it.w !== "number" || typeof it.h !== "number") {
+              const b = measureTextBox(it);
+              it.w = b.w;
+              it.h = b.h;
+            }
+          }
 
-      if (it.kind === "drawing") {
-        if (typeof it.w !== "number") it.w = 240;
-        if (typeof it.h !== "number") it.h = 160;
-      }
+          if (it.kind === "drawing") {
+            if (typeof it.w !== "number") it.w = 240;
+            if (typeof it.h !== "number") it.h = 160;
+          }
 
-      return it;
+          return it;
+        });
+
+      if (selectedId && !items.some((i) => i.id === selectedId)) selectedId = null;
+      redraw();
     });
 
-    if (selectedId && !items.some((i) => i.id === selectedId)) selectedId = null;
-    redraw();
-  });
+    dprResize();
+    window.addEventListener("resize", dprResize);
 
-  dprResize();
-  window.addEventListener("resize", dprResize);
-
-  setAlignUI("left");
-  setMode("text");
-  setCanvasCursor("default");
+    setMode("text");
+  } catch (e) {
+    console.error("[livre-dor] init error", e);
+    alert("Erreur d'initialisation du livre d’or. Ouvre la console pour voir le détail.");
+  }
 }
 
 if (canvas && ctx) main();
