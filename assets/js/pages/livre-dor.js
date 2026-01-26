@@ -1071,7 +1071,7 @@ publishBtn?.addEventListener("click", async () => {
     off.height = h;
 
     const octx = off.getContext("2d");
-    octx.fillRect(0, 0, off.width, off.height);
+    octx.clearRect(0, 0, off.width, off.height);
 
     for (const s of strokes) {
       octx.lineCap = "round";
@@ -1188,7 +1188,7 @@ async function renderAllContentToCanvas() {
     off.width = Math.round(rect.width);
     off.height = Math.round(rect.height);
     const octx = off.getContext("2d");
-    octx.fillRect(0, 0, off.width, off.height);
+    octx.clearRect(0, 0, off.width, off.height);
     octx.drawImage(canvas, 0, 0, off.width, off.height);
     return { canvas: off, w: off.width, h: off.height };
   }
@@ -1198,7 +1198,7 @@ async function renderAllContentToCanvas() {
   off.height = bounds.h;
 
   const octx = off.getContext("2d");
-  octx.fillRect(0, 0, off.width, off.height);
+  octx.clearRect(0, 0, off.width, off.height);
 
   const drawStrokeTo = (s) => {
     if (!s?.points?.length) return;
