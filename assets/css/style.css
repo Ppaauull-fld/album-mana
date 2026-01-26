@@ -601,9 +601,72 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 .mini-select{ min-width: 170px; }
 .mini-number{ width: 86px; }
+
+/* input color “brut” (fallback si pas de wrapper) */
 .mini-color{
   width: 44px;
   padding: 0;
+}
+
+/* ✅ AJOUT: wrapper couleur (plus propre) */
+.color-wrap{
+  height: 40px;
+  width: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: #fff;
+  display:grid;
+  place-items:center;
+  padding: 0;
+}
+.color-wrap .mini-color{
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  padding: 0;
+  outline: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ✅ AJOUT: dropdown menu export (PNG/PDF) */
+.menu{
+  position: relative;
+  display: inline-block;
+}
+
+.menu-pop{
+  position: absolute;
+  right: 0;
+  top: 48px;
+  min-width: 96px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(0,0,0,.12);
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
+  z-index: 20;
+  display: none; /* contrôlé par JS */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.menu-item{
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: rgba(0,0,0,.82);
+}
+
+.menu-item:hover{
+  background: rgba(0,0,0,.06);
 }
 
 /* hint */
@@ -730,7 +793,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   height:18px;
   display:block;
 }
-
 
 .sr-only{
   position:absolute;
