@@ -11,11 +11,9 @@
   <header class="topbar">
     <div class="container inner">
       <a class="back" href="../index.html"><span>‹</span> Retour</a>
-
       <div class="brand-mini">
         <img class="topbar-logo" src="../assets/img/logo-noir.svg" alt="Logo" />
       </div>
-
       <div style="width:64px"></div>
     </div>
   </header>
@@ -24,96 +22,61 @@
     <div class="container">
       <h1 class="h1">Livre d’or</h1>
 
-      <div class="guest-intro">
-        <div class="guest-intro-title">Laisse un petit mot ou un dessin 💛</div>
-        <div class="guest-intro-sub">
-          Choisis un outil, puis <strong>clique dans la zone blanche</strong> pour placer ton texte,
-          ou <strong>dessine</strong> directement. Tout se partage en direct.
-        </div>
-
-        <div class="guest-steps">
-          <div class="step">
-            <div class="dot">1</div>
-            <div class="txt"><strong>Texte</strong> → écris ton message → clique pour le placer</div>
-          </div>
-          <div class="step">
-            <div class="dot">2</div>
-            <div class="txt"><strong>Dessin</strong> → dessine → <strong>Publier</strong> pour l’ajouter</div>
-          </div>
-          <div class="step">
-            <div class="dot">3</div>
-            <div class="txt"><strong>Annuler</strong> retire le dernier trait • <strong>Effacer</strong> vide ton dessin</div>
-          </div>
-          <div class="step">
-            <div class="dot">4</div>
-            <div class="txt"><strong>Exporter PNG</strong> télécharge une image du livre d’or</div>
-          </div>
-        </div>
-      </div>
-
       <div class="guest-wrap">
-        <div class="guest-toolbar" role="group" aria-label="Outils du livre d'or">
-
-          <!-- Mode -->
-          <div class="field field-wide">
-            <label for="tool">Outil</label>
-            <select id="tool">
-              <option value="text">Texte</option>
-              <option value="draw">Dessin</option>
-            </select>
-            <div class="field-help" id="toolHelp">Choisis “Texte” ou “Dessin”.</div>
+        <div class="guestbar">
+          <!-- Outil : Segmented control -->
+          <div class="segmented" role="tablist" aria-label="Outil">
+            <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">
+              T
+            </button>
+            <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">
+              ✎
+            </button>
           </div>
 
-          <!-- Texte -->
-          <div class="field field-text">
-            <label for="textValue">Texte</label>
-            <input id="textValue" type="text" placeholder="Écris un mot… puis clique dans la zone blanche" />
-            <div class="field-help">Astuce : clique à l’endroit où tu veux placer ton message.</div>
-          </div>
+          <!-- Réglages contextuels -->
+          <div class="controls">
+            <!-- TEXTE -->
+            <div id="textControls" class="control-row">
+              <select id="font" class="mini-select" title="Police">
+                <option value="Georgia">Georgia</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Inter">Inter</option>
+                <option value="Arial">Arial</option>
+                <option value="Courier New">Courier New</option>
+              </select>
 
-          <div class="field field-text">
-            <label for="font">Police</label>
-            <select id="font">
-              <option value="Georgia">Georgia</option>
-              <option value="Times New Roman">Times New Roman</option>
-              <option value="Inter">Inter</option>
-              <option value="Arial">Arial</option>
-              <option value="Courier New">Courier New</option>
-            </select>
-            <div class="field-help">Choisis une police lisible.</div>
-          </div>
+              <input id="size" class="mini-number" type="number" min="10" max="140" value="32" title="Taille" />
+              <input id="color" class="mini-color" type="color" value="#111111" title="Couleur" />
+            </div>
 
-          <div class="field field-text">
-            <label for="size">Taille</label>
-            <input id="size" type="number" min="10" max="120" value="28" />
-            <div class="field-help">28–36 est souvent parfait.</div>
-          </div>
-
-          <div class="field field-text">
-            <label for="color">Couleur</label>
-            <input id="color" type="color" value="#111111" />
-            <div class="field-help">Noir / bleu foncé conseillés.</div>
-          </div>
-
-          <!-- Dessin -->
-          <div class="field field-draw">
-            <label for="penSize">Trait</label>
-            <input id="penSize" type="number" min="1" max="30" value="6" />
-            <div class="field-help">Plus petit = plus fin.</div>
+            <!-- DESSIN -->
+            <div id="drawControls" class="control-row" style="display:none">
+              <input id="penSize" class="mini-number" type="number" min="1" max="30" value="6" title="Trait" />
+              <input id="penColor" class="mini-color" type="color" value="#111111" title="Couleur" />
+              <button id="publish" class="btn primary" type="button">Publier</button>
+            </div>
           </div>
 
           <!-- Actions -->
-          <div class="guest-actions">
-            <button id="publish" class="btn primary" type="button">Publier dessin</button>
-            <button id="undo" class="btn" type="button">Annuler</button>
-            <button id="clear" class="btn" type="button">Effacer</button>
-            <button id="exportCanvasPng" class="btn" type="button">Exporter PNG</button>
+          <div class="actions-right">
+            <div class="segmented" aria-label="Annuler / Rétablir">
+              <button id="undo" class="seg-btn" type="button" title="Annuler">↶</button>
+              <button id="redo" class="seg-btn" type="button" title="Rétablir">↷</button>
+            </div>
+
+            <button id="deleteSelected" class="iconbtn danger" type="button" title="Supprimer l’élément sélectionné">🗑</button>
+            <button id="exportCanvasPng" class="iconbtn" type="button" title="Exporter en PNG">⬇</button>
           </div>
         </div>
 
-        <div class="canvas-wrap">
-          <div id="canvasHint" class="canvas-hint" aria-live="polite"></div>
+        <div class="canvas-wrap editor">
+          <div id="hint" class="hint">Texte : clique pour ajouter • Sélection : clique sur un élément</div>
+
           <canvas id="guestCanvas"></canvas>
+
+          <!-- éditeur flottant -->
+          <textarea id="floatingEditor" class="floating-editor" placeholder="Écris ici…"></textarea>
         </div>
       </div>
     </div>
