@@ -24,53 +24,95 @@
     <div class="container">
       <h1 class="h1">Livre d’or</h1>
 
+      <div class="guest-intro">
+        <div class="guest-intro-title">Laisse un petit mot ou un dessin 💛</div>
+        <div class="guest-intro-sub">
+          Choisis un outil, puis <strong>clique dans la zone blanche</strong> pour placer ton texte,
+          ou <strong>dessine</strong> directement. Tout se partage en direct.
+        </div>
+
+        <div class="guest-steps">
+          <div class="step">
+            <div class="dot">1</div>
+            <div class="txt"><strong>Texte</strong> → écris ton message → clique pour le placer</div>
+          </div>
+          <div class="step">
+            <div class="dot">2</div>
+            <div class="txt"><strong>Dessin</strong> → dessine → <strong>Publier</strong> pour l’ajouter</div>
+          </div>
+          <div class="step">
+            <div class="dot">3</div>
+            <div class="txt"><strong>Annuler</strong> retire le dernier trait • <strong>Effacer</strong> vide ton dessin</div>
+          </div>
+          <div class="step">
+            <div class="dot">4</div>
+            <div class="txt"><strong>Exporter PNG</strong> télécharge une image du livre d’or</div>
+          </div>
+        </div>
+      </div>
+
       <div class="guest-wrap">
-        <div class="guest-toolbar">
-          <div class="field">
-            <label>Outil</label>
+        <div class="guest-toolbar" role="group" aria-label="Outils du livre d'or">
+
+          <!-- Mode -->
+          <div class="field field-wide">
+            <label for="tool">Outil</label>
             <select id="tool">
               <option value="text">Texte</option>
-              <option value="pen">Dessin</option>
+              <option value="draw">Dessin</option>
             </select>
+            <div class="field-help" id="toolHelp">Choisis “Texte” ou “Dessin”.</div>
           </div>
 
-          <div class="field">
-            <label>Texte</label>
-            <input id="textValue" type="text" placeholder="Écris un mot… puis clique pour placer" />
+          <!-- Texte -->
+          <div class="field field-text">
+            <label for="textValue">Texte</label>
+            <input id="textValue" type="text" placeholder="Écris un mot… puis clique dans la zone blanche" />
+            <div class="field-help">Astuce : clique à l’endroit où tu veux placer ton message.</div>
           </div>
 
-          <div class="field">
-            <label>Police</label>
+          <div class="field field-text">
+            <label for="font">Police</label>
             <select id="font">
-              <option value="Georgia, serif">Georgia</option>
-              <option value="Times New Roman, serif">Times New Roman</option>
-              <option value="Comic Sans MS, cursive">Comic Sans</option>
-              <option value="Courier New, monospace">Courier</option>
-              <option value="system-ui, sans-serif">System</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Inter">Inter</option>
+              <option value="Arial">Arial</option>
+              <option value="Courier New">Courier New</option>
             </select>
+            <div class="field-help">Choisis une police lisible.</div>
           </div>
 
-          <div class="field">
-            <label>Taille</label>
-            <input id="size" type="number" min="12" max="96" value="28" style="width:72px"/>
+          <div class="field field-text">
+            <label for="size">Taille</label>
+            <input id="size" type="number" min="10" max="120" value="28" />
+            <div class="field-help">28–36 est souvent parfait.</div>
           </div>
 
-          <div class="field">
-            <label>Couleur</label>
-            <input id="color" type="color" value="#111111"/>
+          <div class="field field-text">
+            <label for="color">Couleur</label>
+            <input id="color" type="color" value="#111111" />
+            <div class="field-help">Noir / bleu foncé conseillés.</div>
           </div>
 
-          <div class="field">
-            <label>Trait</label>
-            <input id="penSize" type="number" min="1" max="30" value="6" style="width:64px"/>
+          <!-- Dessin -->
+          <div class="field field-draw">
+            <label for="penSize">Trait</label>
+            <input id="penSize" type="number" min="1" max="30" value="6" />
+            <div class="field-help">Plus petit = plus fin.</div>
           </div>
 
-          <button id="undo" class="btn">Annuler</button>
-          <button id="clear" class="btn">Effacer</button>
-          <button id="exportCanvasPng" class="btn primary">Exporter PNG</button>
+          <!-- Actions -->
+          <div class="guest-actions">
+            <button id="publish" class="btn primary" type="button">Publier dessin</button>
+            <button id="undo" class="btn" type="button">Annuler</button>
+            <button id="clear" class="btn" type="button">Effacer</button>
+            <button id="exportCanvasPng" class="btn" type="button">Exporter PNG</button>
+          </div>
         </div>
 
         <div class="canvas-wrap">
+          <div id="canvasHint" class="canvas-hint" aria-live="polite"></div>
           <canvas id="guestCanvas"></canvas>
         </div>
       </div>
