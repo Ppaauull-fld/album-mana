@@ -18,9 +18,7 @@ import {
    Safe DOM getters
    ========================= */
 const canvas = document.getElementById("guestCanvas");
-if (!canvas) {
-  console.error("[livre-dor] canvas #guestCanvas introuvable");
-}
+if (!canvas) console.error("[livre-dor] canvas #guestCanvas introuvable");
 const ctx = canvas?.getContext?.("2d");
 
 const toolTextBtn = document.getElementById("toolText");
@@ -36,6 +34,12 @@ const boldBtn = document.getElementById("boldBtn");
 const italicBtn = document.getElementById("italicBtn");
 const underlineBtn = document.getElementById("underlineBtn");
 
+// Align buttons (doivent exister dans ton HTML)
+const alignLeftBtn = document.getElementById("alignLeftBtn");
+const alignCenterBtn = document.getElementById("alignCenterBtn");
+const alignRightBtn = document.getElementById("alignRightBtn");
+const alignJustifyBtn = document.getElementById("alignJustifyBtn");
+
 const penSizeInput = document.getElementById("penSize");
 const penColorInput = document.getElementById("penColor");
 const publishBtn = document.getElementById("publish");
@@ -45,9 +49,8 @@ const redoBtn = document.getElementById("redo");
 const deleteBtn = document.getElementById("deleteSelected");
 
 const exportMenuBtn = document.getElementById("exportCanvasBtn");
-const exportPngBtn = document.getElementById("exportCanvasPng");
-const exportPdfBtn = document.getElementById("exportCanvasPdf");
-const downloadMenu = document.getElementById("downloadMenu");
+// Nouveau select (doit exister dans ton HTML)
+const exportFormatSel = document.getElementById("exportFormat");
 
 const hint = document.getElementById("hint");
 
@@ -81,8 +84,25 @@ let redoStrokes = [];
 const undoStack = [];
 const redoStack = [];
 
-// editor state: { mode:"create"|"edit", id?, x,y }
+// editor state: { mode:"create"|"edit", id?, x,y }  (x,y = monde)
 let editorState = null;
+
+/* =========================
+   Camera (pan)
+   ========================= */
+let camX = 0;
+let camY = 0;
+
+let spaceDown = false;
+let isPanning = false;
+let panStart = null;
+
+function screenToWorld(p) {
+  return { x: p.x + camX, y: p.y + camY };
+}
+function worldToScreen(p) {
+  return { x: p.x - camX, y: p.y - camY };
+}
 
 /* =========================
    Utils
@@ -102,6 +122,21 @@ function editorOpen() {
 function getSelectedItem() {
   return items.find((i) => i.id === selectedId) || null;
 }
+function getCanvasCssRect() {
+  return canvas?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, top: 0 };
+}
+
+/* =========================
+   Text style / Align
+   ========================= */
+let currentAlign = "left";
+function setAlignUI(val) {
+  currentAlign = val;
+  applyActive(alignLeftBtn, val === "left");
+  applyActive(alignCenterBtn, val === "center");
+  applyActive(alignRightBtn, val === "right");
+  applyActive(alignJustifyBtn, val === "justify");
+}
 
 function getTextStyle() {
   return {
@@ -111,6 +146,7 @@ function getTextStyle() {
     bold: !!boldBtn?.classList.contains("active"),
     italic: !!italicBtn?.classList.contains("active"),
     underline: !!underlineBtn?.classList.contains("active"),
+    align: currentAlign || "left",
   };
 }
 
@@ -125,11 +161,23 @@ function buildFontCss(it) {
 
 function measureTextBox(it) {
   if (!ctx) return { w: 240, h: 120 };
+
   ctx.save();
   ctx.font = buildFontCss(it);
-  const m = ctx.measureText(it.text || "");
-  const w = Math.max(MIN_W, Math.ceil(m.width) + 24);
-  const h = Math.max(MIN_H, Math.ceil((it.size || 32) * 1.25) + 18);
+
+  const lines = String(it.text || "").split("\n");
+  const size = Number(it.size || 32);
+  const lineH = Math.round(size * 1.25);
+
+  let maxW = 0;
+  for (const line of lines) {
+    const m = ctx.measureText(line);
+    maxW = Math.max(maxW, m.width);
+  }
+
+  const w = Math.max(MIN_W, Math.ceil(maxW) + 24);
+  const h = Math.max(MIN_H, Math.ceil(lines.length * lineH) + 18);
+
   ctx.restore();
   return { w, h };
 }
@@ -174,8 +222,8 @@ function setMode(next) {
 
   setHint(
     mode === "text"
-      ? "Texte : clique pour ajouter • Double clic pour éditer"
-      : "Dessin : dessine • Annuler/Rétablir = traits • Publier pour ajouter"
+      ? "Texte : clique pour ajouter • Double clic pour éditer • Espace+glisser = déplacer la vue"
+      : "Dessin : dessine • Annuler/Rétablir = traits • Publier pour ajouter • Espace+glisser = déplacer la vue"
   );
 
   updateButtons();
@@ -207,41 +255,120 @@ function updateButtons() {
    ========================= */
 function drawBackground() {
   if (!ctx || !canvas) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const rect = getCanvasCssRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
   ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, rect.width, rect.height);
 }
 
-function drawStroke(s) {
+function drawStroke(s, camOffX = camX, camOffY = camY) {
   if (!ctx || !s?.points?.length) return;
+
+  ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = s.color;
   ctx.lineWidth = s.width;
+
+  const p0 = { x: s.points[0].x - camOffX, y: s.points[0].y - camOffY };
   ctx.beginPath();
-  ctx.moveTo(s.points[0].x, s.points[0].y);
-  for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+  ctx.moveTo(p0.x, p0.y);
+
+  for (let i = 1; i < s.points.length; i++) {
+    const p = s.points[i];
+    ctx.lineTo(p.x - camOffX, p.y - camOffY);
+  }
   ctx.stroke();
+  ctx.restore();
 }
 
-function drawText(it) {
+function drawText(it, camOffX = camX, camOffY = camY) {
   if (!ctx) return;
+
+  const sx = it.x - camOffX;
+  const sy = it.y - camOffY;
+
+  const lines = String(it.text || "").split("\n");
+  const size = Number(it.size || 32);
+  const lineH = Math.round(size * 1.25);
+
+  const align = it.align || "left";
+
   ctx.save();
   ctx.fillStyle = it.color || "#111";
   ctx.font = buildFontCss(it);
   ctx.textBaseline = "top";
-  ctx.fillText(it.text || "", it.x, it.y);
 
-  if (it.underline) {
-    const m = ctx.measureText(it.text || "");
-    const yLine = it.y + Number(it.size || 32) * 1.08;
-    ctx.strokeStyle = it.color || "#111";
-    ctx.lineWidth = Math.max(1, Math.round(Number(it.size || 32) / 18));
-    ctx.beginPath();
-    ctx.moveTo(it.x, yLine);
-    ctx.lineTo(it.x + m.width, yLine);
-    ctx.stroke();
+  // Canvas: justify non support natif. On fait un "pseudo-justify" ligne par ligne.
+  if (align === "center") ctx.textAlign = "center";
+  else if (align === "right") ctx.textAlign = "right";
+  else ctx.textAlign = "left";
+
+  const boxW = Number(it.w || 0);
+
+  const rx =
+    align === "center" ? sx + boxW / 2 :
+    align === "right" ? sx + boxW :
+    sx;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const y = sy + i * lineH;
+
+    if (align === "justify" && i < lines.length - 1) {
+      // Justify: répartir l'espace entre mots pour atteindre boxW
+      const words = line.trim().split(/\s+/).filter(Boolean);
+      if (words.length <= 1) {
+        ctx.textAlign = "left";
+        ctx.fillText(line, sx, y);
+      } else {
+        const spaceWidth = ctx.measureText(" ").width;
+        const wordsWidth = words.reduce((acc, w) => acc + ctx.measureText(w).width, 0);
+        const target = Math.max(0, boxW - 12); // petite marge
+        const gaps = words.length - 1;
+        const base = spaceWidth;
+        const extra = clamp((target - wordsWidth - base * gaps) / gaps, 0, 40);
+
+        let x = sx;
+        ctx.textAlign = "left";
+        for (let wi = 0; wi < words.length; wi++) {
+          ctx.fillText(words[wi], x, y);
+          x += ctx.measureText(words[wi]).width;
+          if (wi < words.length - 1) x += base + extra;
+        }
+      }
+    } else {
+      ctx.fillText(line, rx, y);
+    }
+
+    if (it.underline) {
+      const m = ctx.measureText(line);
+      const yLine = y + size * 1.08;
+
+      // underline start/end selon align courant (sauf justify où on souligne toute la ligne visible)
+      let ux0 = rx;
+      let ux1 = rx + m.width;
+
+      if (align === "center") {
+        ux0 = rx - m.width / 2;
+        ux1 = rx + m.width / 2;
+      } else if (align === "right") {
+        ux0 = rx - m.width;
+        ux1 = rx;
+      } else if (align === "justify") {
+        ux0 = sx;
+        ux1 = sx + Math.max(0, boxW - 12);
+      }
+
+      ctx.strokeStyle = it.color || "#111";
+      ctx.lineWidth = Math.max(1, Math.round(size / 18));
+      ctx.beginPath();
+      ctx.moveTo(ux0, yLine);
+      ctx.lineTo(ux1, yLine);
+      ctx.stroke();
+    }
   }
+
   ctx.restore();
 }
 
@@ -258,35 +385,40 @@ async function getImage(url) {
   return p;
 }
 
-async function drawDrawing(it) {
+async function drawDrawing(it, camOffX = camX, camOffY = camY) {
   if (!ctx || !it.imageUrl) return;
   try {
     const img = await getImage(it.imageUrl);
-    ctx.drawImage(img, it.x, it.y, it.w, it.h);
+    ctx.drawImage(img, it.x - camOffX, it.y - camOffY, it.w, it.h);
   } catch {}
 }
 
 function drawSelectionBox(it) {
   if (!ctx) return;
+
+  const p = worldToScreen({ x: it.x, y: it.y });
+  const x = p.x;
+  const y = p.y;
+
   ctx.save();
   ctx.strokeStyle = "rgba(0,0,0,.35)";
   ctx.lineWidth = 1;
   ctx.setLineDash([6, 5]);
-  ctx.strokeRect(it.x, it.y, it.w, it.h);
+  ctx.strokeRect(x, y, it.w, it.h);
   ctx.setLineDash([]);
 
   const hs = [
-    ["nw", it.x, it.y],
-    ["ne", it.x + it.w, it.y],
-    ["se", it.x + it.w, it.y + it.h],
-    ["sw", it.x, it.y + it.h],
+    ["nw", x, y],
+    ["ne", x + it.w, y],
+    ["se", x + it.w, y + it.h],
+    ["sw", x, y + it.h],
   ];
 
-  for (const [, x, y] of hs) {
+  for (const [, hx, hy] of hs) {
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "rgba(0,0,0,.35)";
     ctx.beginPath();
-    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.arc(hx, hy, 7, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
@@ -297,13 +429,15 @@ async function redraw() {
   if (!ctx) return;
   drawBackground();
 
+  // items (monde -> écran via cam)
   for (const it of items) {
-    if (it.kind === "text") drawText(it);
-    if (it.kind === "drawing") await drawDrawing(it);
+    if (it.kind === "text") drawText(it, camX, camY);
+    if (it.kind === "drawing") await drawDrawing(it, camX, camY);
   }
 
-  for (const s of strokes) drawStroke(s);
-  if (currentStroke) drawStroke(currentStroke);
+  // strokes locaux (déjà en coords monde)
+  for (const s of strokes) drawStroke(s, camX, camY);
+  if (currentStroke) drawStroke(currentStroke, camX, camY);
 
   const sel = getSelectedItem();
   if (sel) drawSelectionBox(sel);
@@ -312,7 +446,7 @@ async function redraw() {
 }
 
 /* =========================
-   Hit testing
+   Hit testing (coords monde)
    ========================= */
 function handleHit(it, x, y) {
   const corners = [
@@ -340,14 +474,18 @@ function itemHit(x, y) {
 /* =========================
    Editor (texte)
    ========================= */
-function showEditor(x, y, initial, state) {
+function showEditor(screenX, screenY, initial, state) {
   if (!editorShell || !floatingEditor || !canvas) return;
 
-  editorState = { ...state, x, y };
+  // store monde coords (si fournies) sinon déduites de la camera
+  const wx = typeof state.worldX === "number" ? state.worldX : screenX + camX;
+  const wy = typeof state.worldY === "number" ? state.worldY : screenY + camY;
+
+  editorState = { ...state, x: wx, y: wy };
 
   editorShell.style.display = "block";
-  editorShell.style.left = `${x}px`;
-  editorShell.style.top = `${y}px`;
+  editorShell.style.left = `${screenX}px`;
+  editorShell.style.top = `${screenY}px`;
 
   floatingEditor.value = initial || "";
 
@@ -530,6 +668,7 @@ async function updateSelectedTextStyle() {
     bold: !!beforeDoc.bold,
     italic: !!beforeDoc.italic,
     underline: !!beforeDoc.underline,
+    align: beforeDoc.align || "left",
     w: beforeDoc.w,
     h: beforeDoc.h,
   };
@@ -555,6 +694,23 @@ underlineBtn?.addEventListener("click", async () => {
   await updateSelectedTextStyle();
 });
 
+alignLeftBtn?.addEventListener("click", async () => {
+  setAlignUI("left");
+  await updateSelectedTextStyle();
+});
+alignCenterBtn?.addEventListener("click", async () => {
+  setAlignUI("center");
+  await updateSelectedTextStyle();
+});
+alignRightBtn?.addEventListener("click", async () => {
+  setAlignUI("right");
+  await updateSelectedTextStyle();
+});
+alignJustifyBtn?.addEventListener("click", async () => {
+  setAlignUI("justify");
+  await updateSelectedTextStyle();
+});
+
 fontSel?.addEventListener("change", updateSelectedTextStyle);
 sizeInput?.addEventListener("change", updateSelectedTextStyle);
 colorInput?.addEventListener("change", updateSelectedTextStyle);
@@ -565,11 +721,24 @@ colorInput?.addEventListener("change", updateSelectedTextStyle);
 async function onPointerDown(e) {
   if (!canvas) return;
   if (editorOpen()) return;
-  if (e.button != null && e.button !== 0) return;
 
+  // PAN (Space + clic gauche)
+  if (spaceDown && (e.button === 0)) {
+    isPanning = true;
+    const sp = posFromEvent(e);
+    panStart = { sx: sp.x, sy: sp.y, camX, camY };
+    canvas.setPointerCapture?.(e.pointerId);
+    redraw();
+    return;
+  }
+
+  if (e.button != null && e.button !== 0) return;
   canvas.setPointerCapture?.(e.pointerId);
 
-  const { x, y } = posFromEvent(e);
+  const sp = posFromEvent(e);
+  const wp = screenToWorld(sp);
+  const x = wp.x;
+  const y = wp.y;
 
   const hit = itemHit(x, y);
   if (hit) {
@@ -588,7 +757,7 @@ async function onPointerDown(e) {
   redraw();
 
   if (mode === "text") {
-    showEditor(x, y, "", { mode: "create" });
+    showEditor(sp.x, sp.y, "", { mode: "create", worldX: x, worldY: y });
     return;
   }
 
@@ -607,7 +776,19 @@ async function onPointerDown(e) {
 async function onPointerMove(e) {
   if (editorOpen()) return;
 
-  const { x, y } = posFromEvent(e);
+  const sp = posFromEvent(e);
+
+  // PAN
+  if (isPanning && panStart) {
+    camX = panStart.camX + (panStart.sx - sp.x);
+    camY = panStart.camY + (panStart.sy - sp.y);
+    redraw();
+    return;
+  }
+
+  const wp = screenToWorld(sp);
+  const x = wp.x;
+  const y = wp.y;
 
   if (mode === "draw" && isDrawing && currentStroke) {
     currentStroke.points.push({ x, y });
@@ -663,6 +844,13 @@ async function onPointerUp(e) {
     canvas.releasePointerCapture?.(e.pointerId);
   } catch {}
 
+  if (isPanning) {
+    isPanning = false;
+    panStart = null;
+    redraw();
+    return;
+  }
+
   if (mode === "draw" && isDrawing) {
     isDrawing = false;
     if (currentStroke) {
@@ -692,8 +880,8 @@ async function onPointerUp(e) {
 
     undoStack.push({ type: "update", id: it.id, before, after });
     redoStack.length = 0;
-  } catch (e) {
-    alert("Impossible de déplacer/redimensionner : " + (e?.message || e));
+  } catch (e2) {
+    alert("Impossible de déplacer/redimensionner : " + (e2?.message || e2));
   }
 
   redraw();
@@ -707,14 +895,30 @@ canvas?.addEventListener("pointercancel", onPointerUp);
 canvas?.addEventListener("dblclick", (e) => {
   if (editorOpen()) return;
 
-  const { x, y } = posFromEvent(e);
-  const hit = itemHit(x, y);
+  const sp = posFromEvent(e);
+  const wp = screenToWorld(sp);
+
+  const hit = itemHit(wp.x, wp.y);
   if (!hit || hit.kind !== "text") return;
 
   selectedId = hit.id;
   redraw();
-  showEditor(hit.x, hit.y, hit.text || "", { mode: "edit", id: hit.id });
+
+  const hp = worldToScreen({ x: hit.x, y: hit.y });
+  showEditor(hp.x, hp.y, hit.text || "", { mode: "edit", id: hit.id, worldX: hit.x, worldY: hit.y });
 });
+
+// Pan au scroll (trackpad / molette)
+canvas?.addEventListener(
+  "wheel",
+  (e) => {
+    camX += e.deltaX;
+    camY += e.deltaY;
+    e.preventDefault();
+    redraw();
+  },
+  { passive: false }
+);
 
 /* =========================
    Delete selected
@@ -744,7 +948,7 @@ deleteBtn?.addEventListener("click", async () => {
 });
 
 /* =========================
-   Publish drawing
+   Publish drawing (monde, sans restriction au viewport)
    ========================= */
 publishBtn?.addEventListener("click", async () => {
   if (mode !== "draw" || strokes.length === 0) return;
@@ -752,31 +956,35 @@ publishBtn?.addEventListener("click", async () => {
   setBtnLoading(publishBtn, true, { label: "Publication…" });
 
   try {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
 
     for (const s of strokes) {
+      const w = Number(s.width || 6);
       for (const p of s.points) {
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x);
-        maxY = Math.max(maxY, p.y);
+        minX = Math.min(minX, p.x - w);
+        minY = Math.min(minY, p.y - w);
+        maxX = Math.max(maxX, p.x + w);
+        maxY = Math.max(maxY, p.y + w);
       }
     }
 
+    if (!isFinite(minX) || !isFinite(minY)) throw new Error("Dessin vide.");
+
     const pad = 18;
-    minX = Math.max(0, minX - pad);
-    minY = Math.max(0, minY - pad);
+    minX -= pad;
+    minY -= pad;
+    maxX += pad;
+    maxY += pad;
 
-    const rect = canvas.getBoundingClientRect();
-    maxX = Math.min(rect.width, maxX + pad);
-    maxY = Math.min(rect.height, maxY + pad);
-
-    const w = Math.max(80, maxX - minX);
-    const h = Math.max(80, maxY - minY);
+    const w = Math.max(80, Math.ceil(maxX - minX));
+    const h = Math.max(80, Math.ceil(maxY - minY));
 
     const off = document.createElement("canvas");
-    off.width = Math.round(w);
-    off.height = Math.round(h);
+    off.width = w;
+    off.height = h;
 
     const octx = off.getContext("2d");
     octx.fillStyle = "#fff";
@@ -833,12 +1041,217 @@ publishBtn?.addEventListener("click", async () => {
 });
 
 /* =========================
-   Export helpers
+   Export helpers (inclure tous les textes/dessins)
    ========================= */
+function computeContentBounds() {
+  // union: items + strokes (et currentStroke)
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+
+  const takeRect = (x, y, w, h) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  };
+
+  for (const it of items) {
+    if (typeof it.x === "number" && typeof it.y === "number" && typeof it.w === "number" && typeof it.h === "number") {
+      takeRect(it.x, it.y, it.w, it.h);
+    }
+  }
+
+  const takeStroke = (s) => {
+    if (!s?.points?.length) return;
+    const w = Number(s.width || 6);
+    for (const p of s.points) {
+      minX = Math.min(minX, p.x - w);
+      minY = Math.min(minY, p.y - w);
+      maxX = Math.max(maxX, p.x + w);
+      maxY = Math.max(maxY, p.y + w);
+    }
+  };
+
+  for (const s of strokes) takeStroke(s);
+  if (currentStroke) takeStroke(currentStroke);
+
+  if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
+
+  const PAD = 40;
+  minX -= PAD;
+  minY -= PAD;
+  maxX += PAD;
+  maxY += PAD;
+
+  const w = Math.max(1, Math.ceil(maxX - minX));
+  const h = Math.max(1, Math.ceil(maxY - minY));
+
+  return { minX, minY, maxX, maxY, w, h };
+}
+
+async function renderAllContentToCanvas() {
+  // Retourne { canvas: HTMLCanvasElement, w, h }
+  // Rend tout le contenu (items + strokes) dans un offscreen canvas (coords monde -> (0,0))
+  const bounds = computeContentBounds();
+
+  // Si rien, export la vue actuelle
+  if (!bounds || !ctx || !canvas) {
+    await redraw();
+    const off = document.createElement("canvas");
+    const rect = getCanvasCssRect();
+    off.width = Math.round(rect.width);
+    off.height = Math.round(rect.height);
+    const octx = off.getContext("2d");
+    octx.fillStyle = "#fff";
+    octx.fillRect(0, 0, off.width, off.height);
+    octx.drawImage(canvas, 0, 0, off.width, off.height);
+    return { canvas: off, w: off.width, h: off.height };
+  }
+
+  const off = document.createElement("canvas");
+  off.width = bounds.w;
+  off.height = bounds.h;
+
+  const octx = off.getContext("2d");
+  octx.fillStyle = "#fff";
+  octx.fillRect(0, 0, off.width, off.height);
+
+  // On rend dans le offscreen en "caméra" fixée sur bounds.minX/minY
+  // => monde (bounds.minX, bounds.minY) devient écran (0,0)
+  const savedCtx = ctx;
+  const savedTransform = savedCtx.getTransform();
+
+  // Hack simple: on dessine en réutilisant les mêmes fonctions mais en redirigeant ctx temporairement.
+  // (on ne peut pas "reassign" const ctx, donc on dessine directement ici avec octx)
+  const drawStrokeTo = (s) => {
+    if (!s?.points?.length) return;
+    octx.save();
+    octx.lineCap = "round";
+    octx.lineJoin = "round";
+    octx.strokeStyle = s.color;
+    octx.lineWidth = s.width;
+
+    octx.beginPath();
+    octx.moveTo(s.points[0].x - bounds.minX, s.points[0].y - bounds.minY);
+    for (let i = 1; i < s.points.length; i++) {
+      const p = s.points[i];
+      octx.lineTo(p.x - bounds.minX, p.y - bounds.minY);
+    }
+    octx.stroke();
+    octx.restore();
+  };
+
+  const drawTextTo = (it) => {
+    const sx = it.x - bounds.minX;
+    const sy = it.y - bounds.minY;
+
+    const lines = String(it.text || "").split("\n");
+    const size = Number(it.size || 32);
+    const lineH = Math.round(size * 1.25);
+    const align = it.align || "left";
+    const boxW = Number(it.w || 0);
+
+    octx.save();
+    octx.fillStyle = it.color || "#111";
+    octx.font = buildFontCss(it);
+    octx.textBaseline = "top";
+
+    if (align === "center") octx.textAlign = "center";
+    else if (align === "right") octx.textAlign = "right";
+    else octx.textAlign = "left";
+
+    const rx =
+      align === "center" ? sx + boxW / 2 :
+      align === "right" ? sx + boxW :
+      sx;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const y = sy + i * lineH;
+
+      if (align === "justify" && i < lines.length - 1) {
+        const words = line.trim().split(/\s+/).filter(Boolean);
+        if (words.length <= 1) {
+          octx.textAlign = "left";
+          octx.fillText(line, sx, y);
+        } else {
+          const spaceWidth = octx.measureText(" ").width;
+          const wordsWidth = words.reduce((acc, w) => acc + octx.measureText(w).width, 0);
+          const target = Math.max(0, boxW - 12);
+          const gaps = words.length - 1;
+          const base = spaceWidth;
+          const extra = clamp((target - wordsWidth - base * gaps) / gaps, 0, 40);
+
+          let x = sx;
+          octx.textAlign = "left";
+          for (let wi = 0; wi < words.length; wi++) {
+            octx.fillText(words[wi], x, y);
+            x += octx.measureText(words[wi]).width;
+            if (wi < words.length - 1) x += base + extra;
+          }
+        }
+      } else {
+        octx.fillText(line, rx, y);
+      }
+
+      if (it.underline) {
+        const m = octx.measureText(line);
+        const yLine = y + size * 1.08;
+
+        let ux0 = rx;
+        let ux1 = rx + m.width;
+
+        if (align === "center") {
+          ux0 = rx - m.width / 2;
+          ux1 = rx + m.width / 2;
+        } else if (align === "right") {
+          ux0 = rx - m.width;
+          ux1 = rx;
+        } else if (align === "justify") {
+          ux0 = sx;
+          ux1 = sx + Math.max(0, boxW - 12);
+        }
+
+        octx.strokeStyle = it.color || "#111";
+        octx.lineWidth = Math.max(1, Math.round(size / 18));
+        octx.beginPath();
+        octx.moveTo(ux0, yLine);
+        octx.lineTo(ux1, yLine);
+        octx.stroke();
+      }
+    }
+
+    octx.restore();
+  };
+
+  const drawDrawingTo = async (it) => {
+    if (!it.imageUrl) return;
+    try {
+      const img = await getImage(it.imageUrl);
+      octx.drawImage(img, it.x - bounds.minX, it.y - bounds.minY, it.w, it.h);
+    } catch {}
+  };
+
+  // Important: d'abord drawings (images) ou texte ? on garde l'ordre des items.
+  for (const it of items) {
+    if (it.kind === "drawing") await drawDrawingTo(it);
+    if (it.kind === "text") drawTextTo(it);
+  }
+  for (const s of strokes) drawStrokeTo(s);
+  if (currentStroke) drawStrokeTo(currentStroke);
+
+  // restaure (pas strictement nécessaire ici)
+  savedCtx.setTransform(savedTransform);
+
+  return { canvas: off, w: off.width, h: off.height };
+}
+
 async function exportPng() {
-  await redraw();
+  const rendered = await renderAllContentToCanvas();
   const a = document.createElement("a");
-  a.href = canvas.toDataURL("image/png");
+  a.href = rendered.canvas.toDataURL("image/png");
   a.download = `livre-dor-${Date.now()}.png`;
   a.click();
 }
@@ -859,7 +1272,8 @@ async function loadJsPdf() {
 }
 
 async function exportPdf() {
-  await redraw();
+  const rendered = await renderAllContentToCanvas();
+  const imgData = rendered.canvas.toDataURL("image/png");
 
   const jsPDF = await loadJsPdf();
   if (!jsPDF) {
@@ -867,71 +1281,64 @@ async function exportPdf() {
     return;
   }
 
-  // image du canvas
-  const dataUrl = canvas.toDataURL("image/png");
-
-  // PDF A4 portrait (simple)
+  // A4 portrait
   const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
-  // dimensions image pour contenir dans la page en gardant ratio
-  const img = new Image();
-  await new Promise((res, rej) => {
-    img.onload = res;
-    img.onerror = rej;
-    img.src = dataUrl;
-  });
+  // On fit à la largeur, puis on "slice" en plusieurs pages si nécessaire
+  const imgW = rendered.w;
+  const imgH = rendered.h;
 
-  const ratio = Math.min(pageW / img.width, pageH / img.height);
-  const w = img.width * ratio;
-  const h = img.height * ratio;
-  const x = (pageW - w) / 2;
-  const y = (pageH - h) / 2;
+  const ratio = pageW / imgW;
+  const displayH = imgH * ratio;
 
-  pdf.addImage(dataUrl, "PNG", x, y, w, h);
+  if (displayH <= pageH) {
+    pdf.addImage(imgData, "PNG", 0, 0, pageW, displayH);
+    pdf.save(`livre-dor-${Date.now()}.pdf`);
+    return;
+  }
+
+  // multi-pages: découpe en tranches
+  const sliceHpx = Math.floor(pageH / ratio); // hauteur en pixels correspondant à une page
+  let y = 0;
+  let pageIndex = 0;
+
+  while (y < imgH) {
+    const hpx = Math.min(sliceHpx, imgH - y);
+
+    const slice = document.createElement("canvas");
+    slice.width = imgW;
+    slice.height = hpx;
+
+    const sctx = slice.getContext("2d");
+    sctx.fillStyle = "#fff";
+    sctx.fillRect(0, 0, slice.width, slice.height);
+
+    // draw portion
+    sctx.drawImage(rendered.canvas, 0, y, imgW, hpx, 0, 0, imgW, hpx);
+
+    const sliceData = slice.toDataURL("image/png");
+    if (pageIndex > 0) pdf.addPage();
+
+    const sliceDisplayH = hpx * ratio;
+    pdf.addImage(sliceData, "PNG", 0, 0, pageW, sliceDisplayH);
+
+    y += hpx;
+    pageIndex++;
+  }
+
   pdf.save(`livre-dor-${Date.now()}.pdf`);
 }
 
 /* =========================
-   Download menu (PNG/PDF)
+   Export trigger (select PNG/PDF)
    ========================= */
-function closeDownloadMenu() {
-  if (!downloadMenu) return;
-  downloadMenu.hidden = true;
-}
-
-function toggleDownloadMenu() {
-  if (!downloadMenu) return;
-  downloadMenu.hidden = !downloadMenu.hidden;
-}
-
-exportMenuBtn?.addEventListener("click", (e) => {
+exportMenuBtn?.addEventListener("click", async (e) => {
   e.preventDefault();
-  e.stopPropagation();
-  toggleDownloadMenu();
-});
-
-exportPngBtn?.addEventListener("click", async (e) => {
-  e.preventDefault();
-  closeDownloadMenu();
-  await exportPng();
-});
-
-exportPdfBtn?.addEventListener("click", async (e) => {
-  e.preventDefault();
-  closeDownloadMenu();
-  await exportPdf();
-});
-
-// fermer menu au clic ailleurs + ESC
-document.addEventListener("click", (e) => {
-  if (!downloadMenu || downloadMenu.hidden) return;
-  const wrap = downloadMenu.parentElement;
-  if (wrap && !wrap.contains(e.target)) closeDownloadMenu();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeDownloadMenu();
+  const fmt = exportFormatSel?.value || "png";
+  if (fmt === "pdf") await exportPdf();
+  else await exportPng();
 });
 
 /* =========================
@@ -941,9 +1348,14 @@ toolTextBtn?.addEventListener("click", () => setMode("text"));
 toolDrawBtn?.addEventListener("click", () => setMode("draw"));
 
 /* =========================
-   Keyboard (Ctrl+Z / Ctrl+Shift+Z)
+   Keyboard (Space pan + Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
+  // Space = pan
+  if (e.code === "Space") {
+    spaceDown = true;
+  }
+
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {
@@ -958,6 +1370,10 @@ document.addEventListener("keydown", (e) => {
     if (e.shiftKey) redo();
     else undo();
   }
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.code === "Space") spaceDown = false;
 });
 
 /* =========================
@@ -982,6 +1398,7 @@ async function main() {
             it.bold = !!it.bold;
             it.italic = !!it.italic;
             it.underline = !!it.underline;
+            it.align = it.align || "left";
 
             if (typeof it.w !== "number" || typeof it.h !== "number") {
               const b = measureTextBox(it);
@@ -1005,6 +1422,8 @@ async function main() {
     dprResize();
     window.addEventListener("resize", dprResize);
 
+    // UI defaults
+    setAlignUI("left");
     setMode("text");
   } catch (e) {
     console.error("[livre-dor] init error", e);

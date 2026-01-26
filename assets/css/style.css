@@ -572,6 +572,17 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   font-size: 16px;
 }
 
+/* ✅ séparateur dans la barre style (B/I/U | align) */
+.seg-divider{
+  width: 1px;
+  height: 22px;
+  background: rgba(0,0,0,.12);
+  display:inline-block;
+  margin: 0 8px;
+  border-radius: 99px;
+  align-self:center;
+}
+
 /* controls row (texte / dessin) */
 .control-row{
   display:flex;
@@ -599,11 +610,60 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   line-height: 40px;
 }
 
-.mini-select{ min-width: 170px; }
+.mini-select{
+  min-width: 170px;
+  padding-right: 34px; /* place pour la flèche */
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(0,0,0,.55) 50%),
+    linear-gradient(135deg, rgba(0,0,0,.55) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 16px,
+    calc(100% - 12px) 16px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+/* ✅ version compacte (export png/pdf) */
+.mini-select--compact{
+  min-width: 92px;
+  width: 92px;
+  padding-right: 30px;
+}
+
+/* inputs number */
 .mini-number{ width: 86px; }
+
+/* ✅ color input plus joli (swatch) */
 .mini-color{
   width: 44px;
   padding: 0;
+  border-radius: 14px;
+  cursor:pointer;
+  overflow:hidden;
+}
+.mini-color::-webkit-color-swatch-wrapper{ padding: 6px; }
+.mini-color::-webkit-color-swatch{
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 10px;
+}
+.mini-color::-moz-color-swatch{
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 10px;
+}
+
+/* ✅ focus ring propre */
+.mini-select:focus,
+.mini-number:focus,
+.mini-color:focus{
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0,0,0,.08);
+}
+
+/* ✅ wrap export (select + bouton) */
+.export-wrap{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
 }
 
 /* hint */
@@ -731,7 +791,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display:block;
 }
 
-
 .sr-only{
   position:absolute;
   width:1px;height:1px;
@@ -740,4 +799,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   clip:rect(0,0,0,0);
   white-space:nowrap;
   border:0;
+}
+
+
+/* Align icons : taille homogène dans les seg-btn tiny */
+.seg-btn.tiny .icon-img{
+  width: 18px;
+  height: 18px;
 }
