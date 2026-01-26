@@ -1071,7 +1071,6 @@ publishBtn?.addEventListener("click", async () => {
     off.height = h;
 
     const octx = off.getContext("2d");
-    octx.fillStyle = "#fff";
     octx.fillRect(0, 0, off.width, off.height);
 
     for (const s of strokes) {
