@@ -1188,7 +1188,6 @@ async function renderAllContentToCanvas() {
     off.width = Math.round(rect.width);
     off.height = Math.round(rect.height);
     const octx = off.getContext("2d");
-    octx.fillStyle = "#fff";
     octx.fillRect(0, 0, off.width, off.height);
     octx.drawImage(canvas, 0, 0, off.width, off.height);
     return { canvas: off, w: off.width, h: off.height };
