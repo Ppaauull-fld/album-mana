@@ -1,6 +1,7 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
 import { setBtnLoading } from "../ui.js";
+import { jsPDF } from "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js";
 
 import {
   collection,
@@ -40,7 +41,12 @@ const publishBtn = document.getElementById("publish");
 const undoBtn = document.getElementById("undo");
 const redoBtn = document.getElementById("redo");
 const deleteBtn = document.getElementById("deleteSelected");
-const exportBtn = document.getElementById("exportCanvasPng");
+
+// Nouveau: bouton download unique + menu
+const exportMenuBtn = document.getElementById("exportCanvasBtn");
+const downloadMenu = document.getElementById("downloadMenu");
+const exportPngBtn = document.getElementById("exportCanvasPng");
+const exportPdfBtn = document.getElementById("exportCanvasPdf");
 
 const hint = document.getElementById("hint");
 
@@ -149,6 +155,39 @@ function posFromEvent(e) {
 }
 
 /* =========================
+   Download menu (PNG/PDF)
+   ========================= */
+function closeDownloadMenu() {
+  if (!downloadMenu) return;
+  downloadMenu.setAttribute("hidden", "");
+}
+
+function toggleDownloadMenu(e) {
+  if (!downloadMenu) return;
+  e?.stopPropagation?.();
+  const isOpen = !downloadMenu.hasAttribute("hidden");
+  if (isOpen) closeDownloadMenu();
+  else downloadMenu.removeAttribute("hidden");
+}
+
+exportMenuBtn?.addEventListener("click", toggleDownloadMenu);
+
+// clic hors menu => fermer
+document.addEventListener("click", (e) => {
+  if (!downloadMenu) return;
+  if (downloadMenu.hasAttribute("hidden")) return;
+
+  // si clic dans le wrapper/menu, on ne ferme pas ici (les handlers internes gèrent)
+  const t = e.target;
+  if (t && (downloadMenu.contains(t) || exportMenuBtn?.contains(t))) return;
+
+  closeDownloadMenu();
+});
+
+// empêcher le clic dans le menu de remonter et fermer
+downloadMenu?.addEventListener("click", (e) => e.stopPropagation());
+
+/* =========================
    Mode UI
    ========================= */
 function setMode(next) {
@@ -197,7 +236,6 @@ function updateButtons() {
    Drawing (canvas)
    ========================= */
 function drawBackground() {
-  // reset transform safe (dprResize sets it)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -736,9 +774,7 @@ deleteBtn.addEventListener("click", async () => {
 publishBtn.addEventListener("click", async () => {
   if (mode !== "draw" || strokes.length === 0) return;
 
-  // Loading sans emoji
-  publishBtn.disabled = true;
-  publishBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Publication…`;
+  setBtnLoading(publishBtn, true, { label: "Publication…" });
 
   try {
     let minX = Infinity,
@@ -819,21 +855,59 @@ publishBtn.addEventListener("click", async () => {
   } catch (e) {
     alert("Erreur publication : " + (e?.message || e));
   } finally {
-    // restore button
-    publishBtn.disabled = false;
+    setBtnLoading(publishBtn, false);
     publishBtn.textContent = "Publier";
   }
 });
 
 /* =========================
-   Export PNG
+   Export PNG / PDF (via menu)
    ========================= */
-exportBtn.addEventListener("click", async () => {
+exportPngBtn?.addEventListener("click", async () => {
+  closeDownloadMenu();
   await redraw();
+
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = `livre-dor-${Date.now()}.png`;
   a.click();
+});
+
+exportPdfBtn?.addEventListener("click", async () => {
+  closeDownloadMenu();
+  await redraw();
+
+  const imgData = canvas.toDataURL("image/png");
+
+  // taille en CSS pixels (pas en DPR)
+  const rect = canvas.getBoundingClientRect();
+  const imgW = rect.width || 1;
+  const imgH = rect.height || 1;
+
+  const landscape = imgW >= imgH;
+
+  const pdf = new jsPDF({
+    orientation: landscape ? "landscape" : "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  const margin = 10;
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+
+  const ratio = Math.min(maxW / imgW, maxH / imgH);
+  const drawW = imgW * ratio;
+  const drawH = imgH * ratio;
+
+  const x = (pageW - drawW) / 2;
+  const y = (pageH - drawH) / 2;
+
+  pdf.addImage(imgData, "PNG", x, y, drawW, drawH);
+  pdf.save(`livre-dor-${Date.now()}.pdf`);
 });
 
 /* =========================
@@ -846,6 +920,10 @@ toolDrawBtn.addEventListener("click", () => setMode("draw"));
    Keyboard (Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
+  if (!downloadMenu?.hasAttribute("hidden")) {
+    if (e.key === "Escape") closeDownloadMenu();
+  }
+
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {

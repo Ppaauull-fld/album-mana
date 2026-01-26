@@ -70,7 +70,7 @@
             </div>
           </div>
 
-          <!-- RIGHT (ne bouge jamais) -->
+          <!-- RIGHT -->
           <div class="gb-right">
             <div class="segmented" aria-label="Annuler / Rétablir">
               <button id="undo" class="seg-btn" type="button" title="Annuler">
@@ -86,7 +86,18 @@
               <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
             </button>
 
-            <button id="exportCanvasPng" class="iconbtn" type="button" title="Exporter PNG">⬇</button>
+            <!-- Download unique + menu PNG/PDF -->
+            <div class="download-wrap">
+              <button id="exportCanvasBtn" class="iconbtn" type="button" title="Télécharger">
+                <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
+              </button>
+
+              <div id="downloadMenu" class="download-menu" hidden>
+                <button id="exportCanvasPng" type="button">PNG</button>
+                <button id="exportCanvasPdf" type="button">PDF</button>
+              </div>
+            </div>
+
           </div>
         </div>
 
