@@ -236,12 +236,12 @@ function setMode(next) {
 
   setHint(
     mode === "cursor"
-      ? "Curseur : sélectionner • déplacer • redimensionner"
+      ? "Curseur : Sélectionner, déplacer, redimensionner"
       : mode === "move"
-      ? "Déplacement : glisse pour te déplacer dans la page"
+      ? "Déplacement : Glisse pour te déplacer dans la page"
       : mode === "text"
-      ? "Texte : clique pour ajouter • Double clic pour éditer"
-      : "Dessin : dessine • Publier pour ajouter"
+      ? "Texte : Clique pour ajouter, double clic pour éditer"
+      : "Dessin : Dessine. Publier pour ajouter"
   );
 
   updateButtons();
