@@ -842,3 +842,83 @@ html.noscroll, body.noscroll{
     justify-content:flex-end;
   }
 }
+
+
+
+/* ===== Livre d'or editor: fixes Safari + resize handles ===== */
+
+.guestbar { gap: 12px; }
+.guestbar .left,
+.guestbar .middle,
+.guestbar .right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width: 0; /* IMPORTANT Safari */
+}
+
+.guestbar .middle{
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+.guestbar .right{
+  justify-content: flex-end;
+}
+
+.mini-select, .mini-number, .mini-color{
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.canvas-wrap.editor{
+  touch-action: none; /* IMPORTANT Safari/ios: drag/resize */
+}
+
+.seg-btn.tiny{
+  width: 44px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.editor-shell{
+  position:absolute;
+  z-index: 5;
+  display:none;
+  width: min(360px, calc(100% - 24px));
+  background:#fff;
+  border:1px solid rgba(0,0,0,.14);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
+  padding: 10px;
+}
+
+.editor-shell .floating-editor{
+  width: 100%;
+  min-height: 72px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.12);
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.editor-actions{
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  margin-top: 10px;
+}
+
+@media (max-width: 900px){
+  .guestbar{
+    flex-wrap: wrap;
+  }
+  .guestbar .middle{
+    justify-content:flex-start;
+    width: 100%;
+  }
+  .guestbar .right{
+    width: 100%;
+  }
+}

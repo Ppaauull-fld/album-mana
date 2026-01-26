@@ -24,18 +24,14 @@
 
       <div class="guest-wrap">
         <div class="guestbar">
-          <!-- Outil : Segmented control -->
-          <div class="segmented" role="tablist" aria-label="Outil">
-            <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">
-              T
-            </button>
-            <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">
-              ✎
-            </button>
+          <div class="left">
+            <div class="segmented" role="tablist" aria-label="Outil">
+              <button id="toolText" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Texte">T</button>
+              <button id="toolDraw" class="seg-btn" type="button" role="tab" aria-selected="false" title="Dessin">✎</button>
+            </div>
           </div>
 
-          <!-- Réglages contextuels -->
-          <div class="controls">
+          <div class="middle">
             <!-- TEXTE -->
             <div id="textControls" class="control-row">
               <select id="font" class="mini-select" title="Police">
@@ -43,11 +39,22 @@
                 <option value="Times New Roman">Times New Roman</option>
                 <option value="Inter">Inter</option>
                 <option value="Arial">Arial</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Trebuchet MS">Trebuchet</option>
                 <option value="Courier New">Courier New</option>
+                <option value="Palatino Linotype">Palatino</option>
+                <option value="Garamond">Garamond</option>
               </select>
 
               <input id="size" class="mini-number" type="number" min="10" max="140" value="32" title="Taille" />
               <input id="color" class="mini-color" type="color" value="#111111" title="Couleur" />
+
+              <div class="segmented" aria-label="Style">
+                <button id="boldBtn" class="seg-btn tiny" type="button" title="Gras"><strong>B</strong></button>
+                <button id="italicBtn" class="seg-btn tiny" type="button" title="Italique"><em>I</em></button>
+                <button id="underlineBtn" class="seg-btn tiny" type="button" title="Souligné"><span style="text-decoration:underline">U</span></button>
+              </div>
             </div>
 
             <!-- DESSIN -->
@@ -58,27 +65,32 @@
             </div>
           </div>
 
-          <!-- Actions -->
-          <div class="actions-right">
+          <div class="right">
             <div class="segmented" aria-label="Annuler / Rétablir">
               <button id="undo" class="seg-btn" type="button" title="Annuler">↶</button>
               <button id="redo" class="seg-btn" type="button" title="Rétablir">↷</button>
             </div>
 
-            <button id="deleteSelected" class="iconbtn danger" type="button" title="Supprimer l’élément sélectionné">🗑</button>
-            <button id="exportCanvasPng" class="iconbtn" type="button" title="Exporter en PNG">⬇</button>
+            <button id="deleteSelected" class="iconbtn danger" type="button" title="Supprimer">🗑</button>
+            <button id="exportCanvasPng" class="iconbtn" type="button" title="Exporter PNG">⬇</button>
           </div>
         </div>
 
         <div class="canvas-wrap editor">
-          <div id="hint" class="hint">Texte : clique pour ajouter • Sélection : clique sur un élément</div>
-
+          <div id="hint" class="hint">Texte : clique pour ajouter • Double clic pour éditer</div>
           <canvas id="guestCanvas"></canvas>
 
-          <!-- éditeur flottant -->
-          <textarea id="floatingEditor" class="floating-editor" placeholder="Écris ici…"></textarea>
+          <!-- éditeur flottant (robuste Safari) -->
+          <div id="editorShell" class="editor-shell" style="display:none">
+            <textarea id="floatingEditor" class="floating-editor" placeholder="Écris ici…"></textarea>
+            <div class="editor-actions">
+              <button id="editorCancel" class="btn" type="button">Annuler</button>
+              <button id="editorOk" class="btn primary" type="button">OK</button>
+            </div>
+          </div>
         </div>
       </div>
+
     </div>
   </main>
 
