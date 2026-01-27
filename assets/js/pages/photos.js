@@ -11,18 +11,30 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const PHOTOS_COL = "photos";
 const SECTIONS_COL = "photoSections";
-const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestore)
+const UNASSIGNED = "__unassigned__";
 
 // UI (page)
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");
 const addBtn = document.getElementById("addPhotoBtn");
 const addSectionBtn = document.getElementById("addSectionBtn");
+const arrangeBtn = document.getElementById("arrangeBtn");
 const showBtn = document.getElementById("startSlideshowBtn");
+
+// Picker modal
+const picker = document.getElementById("sectionPicker");
+const pickerGrid = document.getElementById("pickerGrid");
+const pickerTitle = document.getElementById("pickerTitle");
+const pickerSub = document.getElementById("pickerSub");
+const pickerCancel = document.getElementById("pickerCancel");
+const pickerSelectAll = document.getElementById("pickerSelectAll");
+const pickerClear = document.getElementById("pickerClear");
+const pickerApply = document.getElementById("pickerApply");
 
 // Upload UI
 const uploadModal = document.getElementById("uploadModal");
@@ -53,22 +65,23 @@ const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 
-// Data state
-let photos = []; // tous les docs photos
-let sections = []; // docs sections
+// Data
+let photos = [];
+let sections = [];
+
 let queue = [];
 let idx = 0;
 let playing = true;
 let timer = null;
 
-// sélection en attente (avant envoi)
-let pending = []; // [{file, url}]
+let pending = [];
+let currentViewed = null;
 
-// viewer state
-let currentViewed = null; // {id, url, rotation?, ...}
+// Arrange mode
+let arranging = false;
 
-// drag state
-let draggedId = null;
+// Drag (pointer-based)
+let drag = null; // { id, fromSectionId, ghostEl, placeholderEl, originEl, activeGridEl }
 
 function clampRotation(deg) {
   const allowed = [0, 90, 180, 270];
@@ -81,7 +94,6 @@ function applyRotation(el, deg) {
   el.style.transformOrigin = "center center";
 }
 
-/** Galerie : si rotation 90/270 => contain pour éviter crop */
 function applyRotationThumb(imgEl, deg) {
   const rot = clampRotation(deg || 0);
   imgEl.style.transform = `rotate(${rot}deg)`;
@@ -96,8 +108,17 @@ function applyRotationThumb(imgEl, deg) {
 }
 
 /* ---------------------------
-   Sections + rendu
+   Group + render
 ---------------------------- */
+
+function sortByOrderThenCreated(arr) {
+  arr.sort((a, b) => {
+    const ao = a.order ?? a.createdAt ?? 0;
+    const bo = b.order ?? b.createdAt ?? 0;
+    return ao - bo;
+  });
+  return arr;
+}
 
 function groupPhotos() {
   const grouped = new Map();
@@ -110,15 +131,7 @@ function groupPhotos() {
     else grouped.get(sid).push(p);
   }
 
-  // tri par order asc (si absent, fallback createdAt)
-  for (const arr of grouped.values()) {
-    arr.sort((a, b) => {
-      const ao = a.order ?? a.createdAt ?? 0;
-      const bo = b.order ?? b.createdAt ?? 0;
-      return ao - bo;
-    });
-  }
-
+  for (const arr of grouped.values()) sortByOrderThenCreated(arr);
   return grouped;
 }
 
@@ -126,21 +139,30 @@ function renderPhotoCard(p) {
   const card = document.createElement("button");
   card.type = "button";
   card.className = "card card-btn";
-  card.title = "Ouvrir";
+  card.title = arranging ? "Déplacer" : "Ouvrir";
+  card.dataset.id = p.id;
 
   const img = document.createElement("img");
   img.className = "thumb";
   img.src = p.thumbUrl || p.url;
   img.alt = "photo";
-
   if (p.rotation) applyRotationThumb(img, p.rotation);
 
   card.appendChild(img);
-  card.addEventListener("click", () => openViewer(p));
 
-  // drag
-  card.dataset.id = p.id;
-  enableDnDForItem(card);
+  // click -> viewer seulement hors arrange mode
+  card.addEventListener("click", () => {
+    if (arranging) return;
+    openViewer(p);
+  });
+
+  // pointer drag seulement en arrange mode
+  card.addEventListener("pointerdown", (e) => {
+    if (!arranging) return;
+    // évite drag si clic droit / etc.
+    if (e.button !== 0) return;
+    startPointerDrag(e, card);
+  });
 
   return card;
 }
@@ -172,17 +194,32 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
     });
   }
 
+  const cta = document.createElement("div");
+  cta.className = "section-cta";
+
+  // Bouton "Ajouter / déplacer..."
+  if (id !== UNASSIGNED) {
+    const pickBtn = document.createElement("button");
+    pickBtn.className = "btn";
+    pickBtn.type = "button";
+    pickBtn.textContent = "Ajouter / déplacer des photos";
+    pickBtn.addEventListener("click", () => openPickerForSection(id, title || "Section"));
+    cta.appendChild(pickBtn);
+  }
+
   head.appendChild(t);
+  head.appendChild(cta);
 
   const grid = document.createElement("div");
   grid.className = "section-grid";
   grid.dataset.sectionId = id;
 
-  enableDnDForGrid(grid);
+  // Important : zone drop fiable (même vide)
+  grid.addEventListener("pointerenter", () => {
+    if (drag) drag.activeGridEl = grid;
+  });
 
-  for (const p of items) {
-    grid.appendChild(renderPhotoCard(p));
-  }
+  for (const p of items) grid.appendChild(renderPhotoCard(p));
 
   card.appendChild(head);
   card.appendChild(grid);
@@ -195,7 +232,7 @@ function renderAll() {
   const grouped = groupPhotos();
   sectionsWrap.innerHTML = "";
 
-  // Grille principale (sans titre)
+  // Unassigned grid (sans titre)
   sectionsWrap.appendChild(
     renderSectionCard(
       { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
@@ -203,7 +240,7 @@ function renderAll() {
     )
   );
 
-  // Sections créées (avec titres)
+  // Sections
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
@@ -215,57 +252,321 @@ function renderAll() {
 }
 
 /* ---------------------------
-   Drag & drop
+   Arrange mode toggle
 ---------------------------- */
 
-function enableDnDForItem(el) {
-  el.draggable = true;
+function setArranging(on) {
+  arranging = !!on;
+  document.body.classList.toggle("arranging", arranging);
+  document.querySelector(".page")?.classList.toggle("arranging", arranging);
 
-  el.addEventListener("dragstart", (e) => {
-    draggedId = el.dataset.id;
-    el.classList.add("dragging");
-    e.dataTransfer.effectAllowed = "move";
-  });
+  if (arrangeBtn) {
+    arrangeBtn.classList.toggle("primary", arranging);
+    arrangeBtn.textContent = arranging ? "Terminer" : "Arranger";
+    // Remet l’icône si tu veux la garder : simple (optionnel)
+    // (tu peux aussi laisser juste le texte)
+  }
 
-  el.addEventListener("dragend", () => {
-    el.classList.remove("dragging");
-    draggedId = null;
-  });
+  // Re-render pour que les cards prennent le bon comportement (click vs drag)
+  renderAll();
 }
 
-function enableDnDForGrid(grid) {
-  grid.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    grid.classList.add("drag-over");
-  });
+arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
 
-  grid.addEventListener("dragleave", () => {
-    grid.classList.remove("drag-over");
-  });
+/* ---------------------------
+   Pointer drag with placeholder (iPhone-like)
+---------------------------- */
 
-  grid.addEventListener("drop", async (e) => {
-    e.preventDefault();
-    grid.classList.remove("drag-over");
-    if (!draggedId) return;
+function createPlaceholderLike(el) {
+  const ph = document.createElement("div");
+  ph.className = "drop-placeholder";
+  ph.style.width = `${el.getBoundingClientRect().width}px`;
+  return ph;
+}
 
-    const target = grid.dataset.sectionId; // UNASSIGNED ou id Firestore
-    const newSectionValue = target === UNASSIGNED ? null : target;
+function startPointerDrag(e, cardEl) {
+  e.preventDefault();
+  cardEl.setPointerCapture(e.pointerId);
 
-    try {
-      // drop = on met à la fin via order = Date.now()
-      await updateDoc(doc(db, PHOTOS_COL, draggedId), {
-        sectionId: newSectionValue,
-        order: Date.now(),
-      });
-    } catch (err) {
-      alert("Impossible de déplacer la photo.");
-      console.error(err);
+  const id = cardEl.dataset.id;
+  const originGrid = cardEl.closest(".section-grid");
+  const fromSectionId = originGrid?.dataset.sectionId || UNASSIGNED;
+
+  const rect = cardEl.getBoundingClientRect();
+
+  const ghost = cardEl.cloneNode(true);
+  ghost.classList.add("drag-ghost");
+  ghost.style.position = "fixed";
+  ghost.style.left = `${rect.left}px`;
+  ghost.style.top = `${rect.top}px`;
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.zIndex = "9999";
+  ghost.style.pointerEvents = "none";
+
+  const placeholder = createPlaceholderLike(cardEl);
+
+  // Remplace l’élément par le placeholder
+  cardEl.parentNode.insertBefore(placeholder, cardEl);
+  cardEl.style.display = "none";
+
+  document.body.appendChild(ghost);
+
+  drag = {
+    id,
+    fromSectionId,
+    originEl: cardEl,
+    ghostEl: ghost,
+    placeholderEl: placeholder,
+    activeGridEl: originGrid,
+    offsetX: e.clientX - rect.left,
+    offsetY: e.clientY - rect.top,
+  };
+
+  window.addEventListener("pointermove", onPointerMove, { passive: false });
+  window.addEventListener("pointerup", onPointerUp, { passive: false });
+}
+
+function findInsertBefore(gridEl, x, y) {
+  const items = [...gridEl.querySelectorAll(".card-btn")].filter(
+    (el) => el.style.display !== "none" && !el.classList.contains("drag-ghost")
+  );
+
+  // Trouve l’item le plus proche pour décider avant/après
+  let closest = null;
+  let closestDist = Infinity;
+
+  for (const it of items) {
+    const r = it.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dist = Math.hypot(x - cx, y - cy);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = { el: it, rect: r };
     }
-  });
+  }
+
+  if (!closest) return null;
+
+  // Si on est à droite du centre -> après, sinon avant
+  const before = x < (closest.rect.left + closest.rect.width / 2);
+  return before ? closest.el : closest.el.nextSibling;
+}
+
+function onPointerMove(e) {
+  if (!drag) return;
+  e.preventDefault();
+
+  // Move ghost
+  drag.ghostEl.style.left = `${e.clientX - drag.offsetX}px`;
+  drag.ghostEl.style.top = `${e.clientY - drag.offsetY}px`;
+
+  // Determine active grid under pointer
+  const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+  const grid = elUnder?.closest?.(".section-grid");
+  if (grid) {
+    drag.activeGridEl = grid;
+  }
+
+  const activeGrid = drag.activeGridEl;
+  if (!activeGrid) return;
+
+  activeGrid.classList.add("drag-over");
+
+  // Insert placeholder position
+  const ref = findInsertBefore(activeGrid, e.clientX, e.clientY);
+  if (ref !== drag.placeholderEl) {
+    activeGrid.insertBefore(drag.placeholderEl, ref);
+  }
+}
+
+async function onPointerUp(e) {
+  if (!drag) return;
+  e.preventDefault();
+
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+
+  // cleanup drag-over
+  document.querySelectorAll(".section-grid.drag-over").forEach((g) => g.classList.remove("drag-over"));
+
+  const activeGrid = drag.activeGridEl;
+  const newSectionId = activeGrid?.dataset.sectionId || UNASSIGNED;
+
+  // Replace placeholder with original element in DOM
+  drag.placeholderEl.parentNode.insertBefore(drag.originEl, drag.placeholderEl);
+  drag.placeholderEl.remove();
+  drag.originEl.style.display = "";
+
+  drag.ghostEl.remove();
+
+  // Compute new "order" based on neighbors around the dropped element
+  const siblings = [...drag.originEl.parentNode.querySelectorAll(".card-btn")];
+  const i = siblings.indexOf(drag.originEl);
+
+  const prev = i > 0 ? siblings[i - 1] : null;
+  const next = i < siblings.length - 1 ? siblings[i + 1] : null;
+
+  const prevId = prev?.dataset.id;
+  const nextId = next?.dataset.id;
+
+  const prevDoc = prevId ? photos.find((p) => p.id === prevId) : null;
+  const nextDoc = nextId ? photos.find((p) => p.id === nextId) : null;
+
+  const prevOrder = prevDoc ? (prevDoc.order ?? prevDoc.createdAt ?? 0) : null;
+  const nextOrder = nextDoc ? (nextDoc.order ?? nextDoc.createdAt ?? 0) : null;
+
+  let newOrder;
+  if (prevOrder == null && nextOrder == null) {
+    newOrder = Date.now();
+  } else if (prevOrder == null) {
+    newOrder = nextOrder - 1;
+  } else if (nextOrder == null) {
+    newOrder = prevOrder + 1;
+  } else {
+    // milieu : moyenne (float OK)
+    newOrder = (prevOrder + nextOrder) / 2;
+  }
+
+  const sectionValue = newSectionId === UNASSIGNED ? null : newSectionId;
+
+  try {
+    await updateDoc(doc(db, PHOTOS_COL, drag.id), {
+      sectionId: sectionValue,
+      order: newOrder,
+    });
+  } catch (err) {
+    alert("Impossible de déplacer la photo (Firestore).");
+    console.error(err);
+  }
+
+  drag = null;
 }
 
 /* ---------------------------
-   Viewer (plein écran)
+   Picker (checkbox) for section
+---------------------------- */
+
+let pickerTargetSectionId = null;
+let pickerSelected = new Set();
+
+function openPickerForSection(sectionId, title) {
+  pickerTargetSectionId = sectionId;
+  pickerSelected = new Set();
+
+  pickerTitle.textContent = `Ajouter / déplacer — ${title}`;
+  pickerSub.textContent = "0 sélectionnée";
+
+  renderPickerGrid();
+
+  picker.classList.add("open");
+  picker.setAttribute("aria-hidden", "false");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closePicker() {
+  picker.classList.remove("open");
+  picker.setAttribute("aria-hidden", "true");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+
+  pickerTargetSectionId = null;
+  pickerSelected.clear();
+}
+
+function updatePickerSub() {
+  const n = pickerSelected.size;
+  pickerSub.textContent = n === 0 ? "0 sélectionnée" : n === 1 ? "1 sélectionnée" : `${n} sélectionnées`;
+}
+
+function renderPickerGrid() {
+  pickerGrid.innerHTML = "";
+
+  // On propose toutes les photos (y compris celles d'autres sections)
+  const list = sortByOrderThenCreated(photos.slice());
+
+  for (const p of list) {
+    const item = document.createElement("div");
+    item.className = "pick-item";
+    item.dataset.id = p.id;
+
+    const img = document.createElement("img");
+    img.src = p.thumbUrl || p.url;
+    img.alt = "photo";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "pick-check";
+    cb.checked = pickerSelected.has(p.id);
+
+    const setSel = (val) => {
+      if (val) pickerSelected.add(p.id);
+      else pickerSelected.delete(p.id);
+      item.classList.toggle("selected", val);
+      cb.checked = val;
+      updatePickerSub();
+    };
+
+    cb.addEventListener("change", () => setSel(cb.checked));
+    item.addEventListener("click", (e) => {
+      if (e.target === cb) return;
+      setSel(!pickerSelected.has(p.id));
+    });
+
+    item.appendChild(img);
+    item.appendChild(cb);
+    pickerGrid.appendChild(item);
+  }
+
+  updatePickerSub();
+}
+
+pickerCancel?.addEventListener("click", closePicker);
+picker.addEventListener("click", (e) => {
+  if (e.target === picker) closePicker();
+});
+
+pickerSelectAll?.addEventListener("click", () => {
+  photos.forEach((p) => pickerSelected.add(p.id));
+  renderPickerGrid();
+});
+
+pickerClear?.addEventListener("click", () => {
+  pickerSelected.clear();
+  renderPickerGrid();
+});
+
+pickerApply?.addEventListener("click", async () => {
+  if (!pickerTargetSectionId) return;
+  if (!pickerSelected.size) return closePicker();
+
+  try {
+    pickerApply.disabled = true;
+
+    const batch = writeBatch(db);
+    const now = Date.now();
+
+    for (const id of pickerSelected) {
+      batch.update(doc(db, PHOTOS_COL, id), {
+        sectionId: pickerTargetSectionId,
+        order: now + Math.random(), // évite collisions
+      });
+    }
+
+    await batch.commit();
+    closePicker();
+  } catch (e) {
+    alert("Impossible d'ajouter les photos : " + (e?.message || e));
+    console.error(e);
+  } finally {
+    pickerApply.disabled = false;
+  }
+});
+
+/* ---------------------------
+   Viewer
 ---------------------------- */
 
 function openViewer(photo) {
@@ -296,14 +597,10 @@ function closeViewer() {
 }
 
 viewerClose?.addEventListener("click", closeViewer);
-
-viewer.addEventListener("click", (e) => {
-  if (e.target === viewer) closeViewer();
-});
+viewer.addEventListener("click", (e) => { if (e.target === viewer) closeViewer(); });
 
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
-
   const ok = confirm("Supprimer cette photo de la galerie ?");
   if (!ok) return;
 
@@ -318,7 +615,6 @@ viewerDelete?.addEventListener("click", async () => {
   }
 });
 
-// Rotation persistée Firestore
 viewerRotate?.addEventListener("click", async () => {
   if (!currentViewed) return;
 
@@ -357,10 +653,8 @@ function buildQueue() {
 function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
-
   slideImg.src = s.url;
   slideCounter.textContent = `${idx + 1} / ${queue.length}`;
-
   applyRotation(slideImg, s.rotation || 0);
 }
 
@@ -380,9 +674,7 @@ function prev() {
 
 function startAuto() {
   stopAuto();
-  timer = setInterval(() => {
-    if (playing) next();
-  }, 3500);
+  timer = setInterval(() => { if (playing) next(); }, 3500);
 }
 
 function stopAuto() {
@@ -392,16 +684,11 @@ function stopAuto() {
 
 function syncPlayIcon() {
   if (!togglePlayIcon) return;
-  togglePlayIcon.src = playing
-    ? "../assets/img/icons/pause.svg"
-    : "../assets/img/icons/play.svg";
+  togglePlayIcon.src = playing ? "../assets/img/icons/pause.svg" : "../assets/img/icons/play.svg";
 }
 
 function openShow() {
-  if (!photos.length) {
-    alert("Ajoute d'abord quelques photos.");
-    return;
-  }
+  if (!photos.length) return alert("Ajoute d'abord quelques photos.");
   buildQueue();
   slideshow.classList.add("open");
   playing = true;
@@ -419,14 +706,10 @@ showBtn?.addEventListener("click", openShow);
 closeShowBtn?.addEventListener("click", closeShow);
 nextSlideBtn?.addEventListener("click", next);
 prevSlideBtn?.addEventListener("click", prev);
-
-togglePlayBtn?.addEventListener("click", () => {
-  playing = !playing;
-  syncPlayIcon();
-});
+togglePlayBtn?.addEventListener("click", () => { playing = !playing; syncPlayIcon(); });
 
 /* ---------------------------
-   Upload modal (preview + progression)
+   Upload modal (inchangé)
 ---------------------------- */
 
 function openUploadModal() {
@@ -445,8 +728,7 @@ function closeUploadModal() {
 
 function fmtCount() {
   const n = pending.length;
-  uploadCount.textContent =
-    n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
 }
 
 function resetProgressUI() {
@@ -459,6 +741,7 @@ function setUploadingState(isUploading) {
   addBtn.disabled = isUploading;
   showBtn.disabled = isUploading;
   addSectionBtn.disabled = isUploading;
+  arrangeBtn && (arrangeBtn.disabled = isUploading);
   uploadCancelBtn.disabled = isUploading;
 
   uploadStartBtn.disabled = isUploading || pending.length === 0;
@@ -515,9 +798,7 @@ function renderPending() {
     remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try {
-        URL.revokeObjectURL(pending[i].url);
-      } catch {}
+      try { URL.revokeObjectURL(pending[i].url); } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -540,9 +821,7 @@ input?.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try {
-      URL.revokeObjectURL(p.url);
-    } catch {}
+    try { URL.revokeObjectURL(p.url); } catch {}
   }
 
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -557,9 +836,7 @@ uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
   for (const p of pending) {
-    try {
-      URL.revokeObjectURL(p.url);
-    } catch {}
+    try { URL.revokeObjectURL(p.url); } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -599,8 +876,8 @@ uploadStartBtn?.addEventListener("click", async () => {
       await addDoc(collection(db, PHOTOS_COL), {
         type: "photo",
         createdAt: now,
-        order: now, // ordre éditable via drag&drop
-        sectionId: null, // non classée au départ
+        order: now,      // important: ordre stable
+        sectionId: null, // par défaut dans la grille principale
 
         publicId: up.public_id,
         url: up.secure_url,
@@ -615,9 +892,7 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try {
-        URL.revokeObjectURL(p.url);
-      } catch {}
+      try { URL.revokeObjectURL(p.url); } catch {}
     }
     pending = [];
 
@@ -634,7 +909,7 @@ uploadStartBtn?.addEventListener("click", async () => {
 });
 
 /* ---------------------------
-   Sections: création + listeners Firestore
+   Sections: create
 ---------------------------- */
 
 addSectionBtn?.addEventListener("click", async () => {
@@ -646,7 +921,7 @@ addSectionBtn?.addEventListener("click", async () => {
     await addDoc(collection(db, SECTIONS_COL), {
       title: title.trim(),
       order: now,
-      createdAt: now, // fallback si orderBy pose problème
+      createdAt: now,
     });
   } catch (e) {
     alert("Impossible de créer la section : " + (e?.message || e));
@@ -672,27 +947,26 @@ document.addEventListener("keydown", (e) => {
   if (uploadModal.classList.contains("open")) {
     if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
   }
+  if (picker.classList.contains("open")) {
+    if (e.key === "Escape") closePicker();
+  }
 });
 
 /* ---------------------------
-   Main
+   Main (listeners robustes)
 ---------------------------- */
 
 async function main() {
   await ensureAnonAuth();
 
-  // ✅ Sections : pas de orderBy côté Firestore (plus robuste), tri côté JS
+  // Sections (sans orderBy, tri local)
   onSnapshot(collection(db, SECTIONS_COL), (snap) => {
     sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    sections.sort((a, b) => {
-      const ao = a.order ?? a.createdAt ?? 0;
-      const bo = b.order ?? b.createdAt ?? 0;
-      return ao - bo;
-    });
+    sortByOrderThenCreated(sections);
     renderAll();
   });
 
-  // ✅ Photos : on écoute sur createdAt pour inclure les anciennes photos sans "order"
+  // Photos : orderBy createdAt pour inclure toutes les anciennes
   onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
     photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAll();

@@ -30,6 +30,12 @@
         <button id="addPhotoBtn" class="btn" type="button">＋ Ajouter une photo</button>
         <button id="addSectionBtn" class="btn" type="button">＋ Nouvelle section</button>
 
+        <!-- ✅ Arranger -->
+        <button id="arrangeBtn" class="btn" type="button">
+          <img class="btn-icon" src="../assets/img/icons/move.svg" alt="" />
+          Arranger
+        </button>
+
         <button id="startSlideshowBtn" class="btn primary" type="button">
           <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" />
           Lancer un diaporama
@@ -40,6 +46,31 @@
       <div id="sectionsWrap" class="sections"></div>
     </div>
   </main>
+
+  <!-- ✅ Section picker (checkbox) -->
+  <div id="sectionPicker" class="modal" aria-hidden="true">
+    <div class="box picker-box">
+      <div class="top">
+        <div class="picker-title">
+          <strong id="pickerTitle">Ajouter des photos</strong>
+          <div id="pickerSub" class="upload-sub">0 sélectionnée</div>
+        </div>
+        <div class="controls">
+          <button id="pickerCancel" class="iconbtn" title="Fermer" type="button">✕</button>
+        </div>
+      </div>
+
+      <div class="picker-body">
+        <div class="picker-actions">
+          <button id="pickerSelectAll" class="btn" type="button">Tout sélectionner</button>
+          <button id="pickerClear" class="btn" type="button">Tout enlever</button>
+          <button id="pickerApply" class="btn primary" type="button">Ajouter à la section</button>
+        </div>
+
+        <div id="pickerGrid" class="picker-grid"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Upload modal -->
   <div id="uploadModal" class="modal" aria-hidden="true">

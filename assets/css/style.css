@@ -188,79 +188,9 @@ img{max-width:100%;display:block}
   .topbar-logo{height: 20px;}
 }
 
-/* ---------- Grid + Cards (ancien grid, conservé) ---------- */
-.grid{
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap:16px;
-  margin-top: 18px;
-}
-@media (max-width: 1000px){ .grid{grid-template-columns: repeat(3, 1fr)} }
-@media (max-width: 740px){ .grid{grid-template-columns: repeat(2, 1fr)} }
-@media (max-width: 430px){ .grid{grid-template-columns: 1fr} }
-
 /* =========================================================
-   SECTIONS (Photos/Vidéos/Animées) + Drag&Drop
+   Cards
    ========================================================= */
-.sections{
-  display:flex;
-  flex-direction:column;
-  gap:18px;
-  margin-top: 18px;
-}
-
-.section-card{
-  background:#fff;
-  border: 1px solid rgba(0,0,0,.075);
-  box-shadow: 0 12px 26px rgba(0,0,0,.06);
-  border-radius: 18px;
-  padding: 14px;
-}
-
-/* grille principale : pas de titre */
-.section-card.no-title .section-head{ display:none; }
-.section-card.no-title{ padding-top: 0; }
-
-.section-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom: 10px;
-}
-
-.section-title{
-  font-weight: 750;
-  letter-spacing: -0.2px;
-  font-size: 16px;
-}
-
-.section-title[contenteditable="true"]{
-  outline:none;
-  padding: 6px 10px;
-  border-radius: 12px;
-}
-.section-title[contenteditable="true"]:focus{
-  box-shadow: 0 0 0 4px rgba(0,0,0,.08);
-}
-
-.section-grid{
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap:16px;
-}
-@media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
-@media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
-@media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
-
-/* Drag feedback */
-.card.dragging{ opacity:.35; }
-.section-grid.drag-over{
-  outline: 2px dashed rgba(0,0,0,.25);
-  outline-offset: 6px;
-  border-radius: 18px;
-}
-
 .card{
   border-radius: 18px;
   overflow:hidden;
@@ -309,6 +239,105 @@ img{max-width:100%;display:block}
   outline: 2px solid rgba(0,0,0,.25);
   outline-offset: 4px;
   border-radius: 18px;
+}
+
+/* =========================================================
+   SECTIONS + Grilles
+   ========================================================= */
+.sections{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  margin-top: 18px;
+}
+
+.section-card{
+  background:#fff;
+  border: 1px solid rgba(0,0,0,.075);
+  border-radius: 18px;
+  box-shadow: 0 12px 26px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+
+.section-card.no-title .section-head{ display:none; }
+
+.section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 14px 14px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  background: rgba(0,0,0,.02);
+}
+
+.section-title{
+  font-weight: 720;
+  font-size: 16px;
+  color: rgba(0,0,0,.86);
+  outline: none;
+  letter-spacing: -0.2px;
+}
+
+/* champ éditable */
+.section-title[contenteditable="true"]{
+  padding: 6px 10px;
+  border-radius: 12px;
+}
+.section-title[contenteditable="true"]:focus{
+  box-shadow: 0 0 0 4px rgba(0,0,0,.08);
+}
+
+.section-cta{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.section-grid{
+  padding: 14px;
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:16px;
+  min-height: 90px; /* important pour drop */
+}
+@media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
+@media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
+@media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
+
+/* =========================================================
+   Arrange mode (iPhone-like)
+   ========================================================= */
+
+/* curseur move en mode arranger */
+.page.arranging .card-btn{
+  cursor: url("../img/icons/move.svg") 12 12, move;
+}
+
+/* on évite d'ouvrir le viewer en mode arranger (côté CSS seulement : JS gère le click) */
+.page.arranging .card-btn:focus{
+  outline: none;
+}
+
+/* ghost pendant déplacement */
+.card-btn.drag-ghost{
+  opacity:.55;
+  transform: scale(.98);
+}
+
+/* placeholder qui prend EXACTEMENT la place d’une carte */
+.drop-placeholder{
+  border-radius: 18px;
+  border: 2px dashed rgba(0,0,0,.18);
+  background: rgba(0,0,0,.03);
+  height: 260px;          /* même hauteur que .thumb */
+}
+
+/* highlight zone drop */
+.section-grid.drag-over{
+  outline: 2px solid rgba(0,0,0,.10);
+  outline-offset: -6px;
+  border-radius: 16px;
 }
 
 /* =========================================================
@@ -555,7 +584,66 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 /* =========================================================
-   LIVRE D'OR – EDITOR (stable + beau + Safari OK)
+   Picker (checkbox modal)
+   ========================================================= */
+.picker-box{
+  width:min(1100px, 100%);
+}
+
+.picker-body{
+  padding: 14px;
+  color: rgba(255,255,255,.88);
+}
+
+.picker-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end;
+  margin-bottom: 12px;
+}
+
+.picker-grid{
+  display:grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap:12px;
+}
+@media (max-width: 1100px){ .picker-grid{grid-template-columns: repeat(5, 1fr)} }
+@media (max-width: 900px){ .picker-grid{grid-template-columns: repeat(4, 1fr)} }
+@media (max-width: 740px){ .picker-grid{grid-template-columns: repeat(3, 1fr)} }
+@media (max-width: 430px){ .picker-grid{grid-template-columns: repeat(2, 1fr)} }
+
+.pick-item{
+  position:relative;
+  border-radius: 16px;
+  overflow:hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+}
+
+.pick-item img{
+  width:100%;
+  height: 140px;
+  object-fit: cover;
+  display:block;
+}
+
+.pick-check{
+  position:absolute;
+  top:10px;
+  left:10px;
+  width:20px;
+  height:20px;
+  accent-color: #fff;
+}
+
+.pick-item.selected{
+  outline: 2px solid rgba(255,255,255,.35);
+  outline-offset: -2px;
+}
+
+/* =========================================================
+   LIVRE D'OR – EDITOR (inchangé)
    ========================================================= */
 
 .guest-wrap{
@@ -749,7 +837,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   position:relative;
   height: 72vh;
   background:#fff;
-  /* IMPORTANT : NE PAS mettre touch-action:none ici (Safari focus textarea) */
   touch-action: manipulation;
 }
 
@@ -758,7 +845,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   height:100%;
   display:block;
   background:#fff;
-  /* ici oui : gestures sur le canvas seulement */
   touch-action: none;
 }
 
@@ -772,12 +858,9 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 18px;
   box-shadow: 0 18px 50px rgba(0,0,0,.18);
   padding: 10px;
-  touch-action: auto; /* Safari : autorise le focus + clavier */
-}
-
-.editor-shell *{
   touch-action: auto;
 }
+.editor-shell *{ touch-action: auto; }
 
 .editor-shell .floating-editor{
   width: 100%;
@@ -797,7 +880,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin-top: 10px;
 }
 
-/* quand l'éditeur est ouvert on désactive seulement le canvas */
 .canvas-disabled{ pointer-events: none; }
 
 /* =========================
@@ -810,13 +892,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display:block;
 }
 
-/* Dans les modales (fond sombre), on force les icônes en blanc */
 .modal .iconbtn .icon-img,
 .modal .play-badge .icon-img{
   filter: brightness(0) invert(1);
 }
 
-/* Icône dans un bouton "btn" (ex: Lancer diaporama) */
 .btn .btn-icon{
   width:18px;
   height:18px;
@@ -825,12 +905,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin-right:8px;
 }
 
-/* Pour le redo : miroir horizontal */
-.icon-mirror{
-  transform: scaleX(-1);
-}
+.icon-mirror{ transform: scaleX(-1); }
 
-/* Anneau de chargement (pas d’emoji) */
 .spinner{
   width:16px;
   height:16px;
@@ -842,11 +918,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin-right:8px;
   animation: spin .8s linear infinite;
 }
-@keyframes spin{
-  to{ transform: rotate(360deg); }
-}
+@keyframes spin{ to{ transform: rotate(360deg); } }
 
-/* Play badge: si on met une image dedans */
 .play-badge img{
   width:18px;
   height:18px;
@@ -863,7 +936,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border:0;
 }
 
-/* Align icons : taille homogène dans les seg-btn tiny */
 .seg-btn.tiny .icon-img{
   width: 18px;
   height: 18px;
