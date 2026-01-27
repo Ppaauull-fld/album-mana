@@ -11,6 +11,9 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  getDocs,
+  where,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const PHOTOS_COL = "photos";
@@ -19,29 +22,6 @@ const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestor
 
 const LONG_PRESS_MS = 260; // mobile: évite drag involontaire pendant scroll
 const DRAG_START_PX = 8; // seuil mouvement pour démarrer (desktop)
-
-// Layout (sections)
-const GRID_COLS = 12;
-
-// Largeur aimantée: 1/3, 2/3, plein écran
-const SPAN_PRESETS = [4, 8, 12];
-
-// Hauteurs aimantées (px)
-const HEIGHT_PRESETS = [260, 360, 480, 620];
-const MIN_HEIGHT = HEIGHT_PRESETS[0];
-const MAX_HEIGHT = HEIGHT_PRESETS[HEIGHT_PRESETS.length - 1];
-
-// Masonry (doit matcher le CSS)
-const MASONRY_ROW = 10; // grid-auto-rows: 10px;
-const FALLBACK_GAP = 18; // gap: 18px;
-
-const GALLERY_LAYOUT_KEY = "albumMana_galleryLayout_v1";
-let galleryLayout = { colSpan: 12, heightPx: null };
-try {
-  const saved = JSON.parse(localStorage.getItem(GALLERY_LAYOUT_KEY) || "null");
-  if (saved && typeof saved === "object")
-    galleryLayout = { ...galleryLayout, ...saved };
-} catch {}
 
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");
@@ -110,7 +90,6 @@ drag = {
   offsetX, offsetY,
 }
 */
-
 let autoScrollRaf = null;
 
 // Drag sections
@@ -126,37 +105,13 @@ sectionDrag = {
   offsetX,offsetY,
 }
 */
-
 let autoScrollSectionRaf = null;
 
-// Resize sections
+// Resize sections (conservé pour compat avec la 2e partie — on désactivera ensuite)
 let sectionResize = null;
-/*
-sectionResize = {
-  id,
-  pointerId,
-  startX,startY,
-  startW,startH,
-  colW,
-  gap,
-}
-*/
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
-}
-
-function nearestPreset(value, presets) {
-  let best = presets[0];
-  let bestD = Infinity;
-  for (const p of presets) {
-    const d = Math.abs(value - p);
-    if (d < bestD) {
-      bestD = d;
-      best = p;
-    }
-  }
-  return best;
 }
 
 function clampRotation(deg) {
@@ -183,35 +138,116 @@ function applyRotationThumb(imgEl, deg) {
   }
 }
 
-function getWrapGap() {
-  try {
-    if (!sectionsWrap) return FALLBACK_GAP;
-    const cs = getComputedStyle(sectionsWrap);
-    const g =
-      parseFloat(cs.gap || cs.rowGap || cs.columnGap || `${FALLBACK_GAP}`) ||
-      FALLBACK_GAP;
-    return g;
-  } catch {
-    return FALLBACK_GAP;
-  }
+/**
+ * Ancien helper "masonry" — on le garde comme no-op sécurisé
+ * pour éviter de casser des appels existants (la 2e partie sera nettoyée ensuite).
+ */
+function updateMasonryRows(_cardEl, _forcedHeightPx = null) {}
+
+/* ---------------------------
+   Fullscreen section (maximize)
+---------------------------- */
+
+let fullscreenSectionId = null;
+let sectionBackdropEl = null;
+
+function ensureSectionBackdrop() {
+  if (sectionBackdropEl) return sectionBackdropEl;
+  sectionBackdropEl = document.createElement("div");
+  sectionBackdropEl.className = "section-backdrop";
+  sectionBackdropEl.addEventListener("click", exitSectionFullscreen);
+  return sectionBackdropEl;
 }
 
-function updateMasonryRows(cardEl, forcedHeightPx = null) {
-  if (!cardEl) return;
+function onFullscreenKeydown(e) {
+  if (e.key === "Escape") exitSectionFullscreen();
+}
 
-  const gap = getWrapGap();
+function enterSectionFullscreen(sectionId) {
+  if (!sectionsWrap) return;
 
-  if (typeof forcedHeightPx === "number" && !Number.isNaN(forcedHeightPx)) {
-    const rows = Math.ceil((forcedHeightPx + gap) / MASONRY_ROW);
-    cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
-    return;
+  exitSectionFullscreen();
+
+  const card = sectionsWrap.querySelector(
+    `.section-card[data-section-card-id="${sectionId}"]`
+  );
+  if (!card) return;
+
+  fullscreenSectionId = sectionId;
+
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+
+  document.body.appendChild(ensureSectionBackdrop());
+  card.classList.add("is-fullscreen");
+
+  window.addEventListener("keydown", onFullscreenKeydown);
+}
+
+function exitSectionFullscreen() {
+  if (!sectionsWrap) return;
+
+  if (fullscreenSectionId) {
+    const card = sectionsWrap.querySelector(
+      `.section-card[data-section-card-id="${fullscreenSectionId}"]`
+    );
+    if (card) card.classList.remove("is-fullscreen");
   }
 
-  requestAnimationFrame(() => {
-    const h = cardEl.getBoundingClientRect().height || 0;
-    const rows = Math.ceil((h + gap) / MASONRY_ROW);
-    cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
-  });
+  fullscreenSectionId = null;
+
+  if (sectionBackdropEl && sectionBackdropEl.parentElement) {
+    sectionBackdropEl.remove();
+  }
+
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+
+  window.removeEventListener("keydown", onFullscreenKeydown);
+}
+
+/* ---------------------------
+   Delete section (toujours dispo)
+   - Supprime la section
+   - Réassigne ses photos en "non assigné" (sectionId: null)
+---------------------------- */
+
+async function deleteSectionAndUnassignPhotos(sectionId) {
+  if (!sectionId || sectionId === UNASSIGNED) return;
+
+  const ok = confirm(
+    "Supprimer cette section ?\nLes photos resteront dans la galerie (non supprimées)."
+  );
+  if (!ok) return;
+
+  try {
+    // 1) remettre toutes les photos de cette section en non assigné
+    const q = query(
+      collection(db, PHOTOS_COL),
+      where("sectionId", "==", sectionId)
+    );
+    const snap = await getDocs(q);
+
+    let batch = writeBatch(db);
+    let count = 0;
+
+    for (const d of snap.docs) {
+      batch.update(d.ref, { sectionId: null });
+      count++;
+      if (count >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    }
+    if (count > 0) await batch.commit();
+
+    // 2) supprimer la section
+    await deleteDoc(doc(db, SECTIONS_COL, sectionId));
+  } catch (e) {
+    console.error(e);
+    alert("Impossible de supprimer la section.");
+  }
 }
 
 /* ---------------------------
@@ -231,11 +267,10 @@ function groupPhotos() {
 
   for (const arr of grouped.values()) {
     arr.sort((a, b) => {
-  const ao = typeof a.order === "number" ? a.order : (a.createdAt ?? 0);
-  const bo = typeof b.order === "number" ? b.order : (b.createdAt ?? 0);
-  return ao - bo;
-});
-
+      const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
+      const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
+      return ao - bo;
+    });
   }
 
   return grouped;
@@ -265,61 +300,21 @@ function renderPhotoCard(p) {
   return card;
 }
 
-function getSectionLayout(id) {
-  if (id === UNASSIGNED) return galleryLayout;
-
-  const s = sections.find((x) => x.id === id);
-  return {
-    colSpan: typeof s?.colSpan === "number" ? s.colSpan : 12,
-    heightPx: typeof s?.heightPx === "number" ? s.heightPx : null,
-  };
-}
-
-function normalizeSectionLayout(lay) {
-  const span = nearestPreset(
-    clamp(lay?.colSpan ?? 12, 1, GRID_COLS),
-    SPAN_PRESETS
-  );
-  const rawH = typeof lay?.heightPx === "number" ? lay.heightPx : null;
-
-  let h = null;
-  if (rawH != null) {
-    const clamped = clamp(rawH, MIN_HEIGHT, MAX_HEIGHT);
-    h = nearestPreset(clamped, HEIGHT_PRESETS);
-  }
-
-  return { colSpan: span, heightPx: h };
-}
-
-function applySectionLayout(cardEl, id) {
-  const lay = normalizeSectionLayout(getSectionLayout(id));
-  cardEl.style.setProperty("--span", String(lay.colSpan));
-
-  if (lay.heightPx && typeof lay.heightPx === "number") {
-    cardEl.style.setProperty("--h", `${Math.round(lay.heightPx)}px`);
-  } else {
-    cardEl.style.setProperty("--h", "auto");
-  }
-
-  updateMasonryRows(cardEl, lay.heightPx ?? null);
-}
-
 function renderSectionCard({ id, title, editable, hideTitle }, items) {
   const card = document.createElement("div");
   card.className = "section-card";
   card.dataset.sectionCardId = id;
-
-  applySectionLayout(card, id);
 
   if (hideTitle) card.classList.add("no-title");
 
   const head = document.createElement("div");
   head.className = "section-head";
 
+  // poignée de déplacement (réorder) : visible uniquement en mode Arranger via CSS
   const move = document.createElement("button");
   move.type = "button";
   move.className = "section-move";
-  move.title = "Déplacer la section";
+  move.title = "Changer l'ordre de la section";
   move.textContent = "⋮⋮";
   move.dataset.sectionMove = "1";
 
@@ -330,12 +325,14 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   if (editable) {
     t.contentEditable = "true";
     t.spellcheck = false;
+
     t.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         t.blur();
       }
     });
+
     t.addEventListener("blur", async () => {
       const newTitle = (t.textContent || "").trim();
       if (!newTitle) return;
@@ -351,12 +348,45 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   head.appendChild(move);
   head.appendChild(t);
 
-  // Expand / collapse (double-clic sur le header hors titre éditable)
-  head.addEventListener("dblclick", (e) => {
-    if (e.target?.closest?.('.section-title[contenteditable="true"]')) return;
-    card.classList.toggle("is-expanded");
-    updateMasonryRows(card, null);
+  // actions: maximize (toujours) + delete (toujours sauf galerie)
+  const actions = document.createElement("div");
+  actions.className = "section-actions";
+
+  const maxBtn = document.createElement("button");
+  maxBtn.type = "button";
+  maxBtn.className = "iconbtn";
+  maxBtn.title = "Agrandir";
+  maxBtn.innerHTML = `
+    <img class="icon-img" src="../assets/img/icons/maximize.svg" alt="" aria-hidden="true" />
+    <span class="sr-only">Agrandir</span>
+  `;
+  maxBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isFs = card.classList.contains("is-fullscreen");
+    if (isFs) exitSectionFullscreen();
+    else enterSectionFullscreen(id);
   });
+  actions.appendChild(maxBtn);
+
+  if (id !== UNASSIGNED) {
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "iconbtn danger";
+    delBtn.title = "Supprimer la section";
+    delBtn.innerHTML = `
+      <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" aria-hidden="true" />
+      <span class="sr-only">Supprimer</span>
+    `;
+    delBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteSectionAndUnassignPhotos(id);
+    });
+    actions.appendChild(delBtn);
+  }
+
+  head.appendChild(actions);
 
   const grid = document.createElement("div");
   grid.className = "section-grid";
@@ -364,13 +394,8 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
 
   for (const p of items) grid.appendChild(renderPhotoCard(p));
 
-  const resize = document.createElement("div");
-  resize.className = "section-resize";
-  resize.dataset.sectionResize = "1";
-
   card.appendChild(head);
   card.appendChild(grid);
-  card.appendChild(resize);
 
   return card;
 }
@@ -381,6 +406,7 @@ function renderAll() {
   const grouped = groupPhotos();
   sectionsWrap.innerHTML = "";
 
+  // Galerie (non assigné) en premier
   sectionsWrap.appendChild(
     renderSectionCard(
       { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
@@ -388,6 +414,7 @@ function renderAll() {
     )
   );
 
+  // Sections empilées ensuite (ordre Firestore)
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
@@ -401,12 +428,6 @@ function renderAll() {
       )
     );
   }
-
-  // recalc masonry pour tout ce qui est en "auto"
-  requestAnimationFrame(() => {
-    const all = [...sectionsWrap.querySelectorAll(".section-card")];
-    for (const el of all) updateMasonryRows(el, null);
-  });
 }
 
 /* ---------------------------
@@ -446,11 +467,18 @@ function setArranging(on) {
 
   if (arrangeBtn) {
     arrangeBtn.classList.toggle("primary", arranging);
+    arrangeBtn.setAttribute("aria-pressed", arranging ? "true" : "false");
+
     const label = ensureArrangeLabelSpan();
     if (label) label.textContent = arranging ? "Terminer" : "Arranger";
+
+    // ✅ Fix Safari : on force show/hide de grid.svg selon l'état
+    const icon = arrangeBtn.querySelector("img.btn-icon");
+    if (icon) icon.style.display = arranging ? "none" : "block";
   }
 
   if (!arranging) {
+    // ces fonctions existent plus bas (2e partie)
     cancelDrag();
     cancelSectionDrag();
     cancelSectionResize();
@@ -568,7 +596,9 @@ function cancelDrag() {
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
+  const original = sectionsWrap?.querySelector(
+    `.card-btn[data-id="${drag.id}"]`
+  );
   if (original) original.classList.remove("dragging");
 
   document.body.classList.remove("drag-active");
@@ -652,7 +682,7 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
 
 function onPointerDown(e) {
   if (!arranging) return;
-  if (sectionDrag || sectionResize) return;
+  if (sectionDrag) return; // resize supprimé
 
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
@@ -718,7 +748,13 @@ function startDrag(cardEl) {
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
   animateFLIP(drag.srcGrid, beforeRects);
 
-  placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+  placePlaceholder(
+    drag.srcGrid,
+    drag.placeholderEl,
+    drag.lastX,
+    drag.lastY,
+    drag.id
+  );
 
   document.body.classList.add("drag-active");
   startAutoScroll();
@@ -745,7 +781,9 @@ function onPointerMove(e) {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
     if (Math.hypot(dx, dy) >= DRAG_START_PX) {
-      const cardEl = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
+      const cardEl = sectionsWrap?.querySelector(
+        `.card-btn[data-id="${drag.id}"]`
+      );
       if (cardEl) startDrag(cardEl);
     } else return;
   }
@@ -824,7 +862,11 @@ async function finalizeDrop(state) {
       const renorm = (grouped.get(targetSectionId) || []).filter(
         (p) => p.id !== state.id
       );
-      renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
+      renorm.splice(dropIndex, 0, {
+        id: state.id,
+        createdAt: Date.now(),
+        order: 0,
+      });
 
       const base = Date.now();
       for (let i = 0; i < renorm.length; i++) {
@@ -833,7 +875,9 @@ async function finalizeDrop(state) {
         await updateDoc(doc(db, PHOTOS_COL, pid), { order: ord });
       }
 
-      await updateDoc(doc(db, PHOTOS_COL, state.id), { sectionId: newSectionValue });
+      await updateDoc(doc(db, PHOTOS_COL, state.id), {
+        sectionId: newSectionValue,
+      });
       return;
     } catch (e) {
       console.error("Renormalisation order failed", e);
@@ -871,7 +915,9 @@ function onPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${draggedId}"]`);
+  const original = sectionsWrap?.querySelector(
+    `.card-btn[data-id="${draggedId}"]`
+  );
   if (original) original.classList.remove("dragging");
 
   if (!wasStarted) return;
@@ -891,7 +937,8 @@ function onPointerUp(e) {
 }
 
 /* ---------------------------
-   Drag SECTIONS + auto-scroll
+   Drag SECTIONS (uniquement ordre)
+   - La galerie UNASSIGNED reste 1ère et ne bouge pas
 ---------------------------- */
 
 function stopAutoScrollSection() {
@@ -910,28 +957,20 @@ function startAutoScrollSection() {
 
     const edge = 90;
     const maxSpeed = 22;
-    const W = window.innerWidth;
     const H = window.innerHeight;
 
-    const x = sectionDrag.lastX;
     const y = sectionDrag.lastY;
 
-    let vx = 0;
     let vy = 0;
-
     if (y < edge) vy = -maxSpeed * (1 - y / edge);
     else if (y > H - edge) vy = maxSpeed * (1 - (H - y) / edge);
 
-    if (x < edge) vx = -maxSpeed * (1 - x / edge);
-    else if (x > W - edge) vx = maxSpeed * (1 - (W - x) / edge);
-
-    if (vx || vy) {
-      window.scrollBy(vx, vy);
+    if (vy) {
+      window.scrollBy(0, vy);
       if (sectionDrag?.placeholderEl) {
-        placeSectionPlaceholder(
+        placeSectionPlaceholderVertical(
           sectionsWrap,
           sectionDrag.placeholderEl,
-          sectionDrag.lastX,
           sectionDrag.lastY,
           sectionDrag.id
         );
@@ -968,24 +1007,8 @@ function createSectionPlaceholder(sectionEl) {
   const ph = document.createElement("div");
   ph.className = "section-placeholder";
 
-  const span = sectionEl.style.getPropertyValue("--span") || "12";
-  const h = sectionEl.style.getPropertyValue("--h") || "auto";
-  const rows = sectionEl.style.getPropertyValue("--rows") || "";
-
-  ph.style.setProperty("--span", span);
-  ph.style.setProperty("--h", h);
-
-  if (rows) {
-    ph.style.setProperty("--rows", rows);
-  } else {
-    const gap = getWrapGap();
-    const r = sectionEl.getBoundingClientRect();
-    const calcRows = Math.ceil((r.height + gap) / MASONRY_ROW);
-    ph.style.setProperty("--rows", String(Math.max(1, calcRows)));
-  }
-
   const r = sectionEl.getBoundingClientRect();
-  ph.style.minHeight = `${Math.max(120, Math.round(r.height))}px`;
+  ph.style.height = `${Math.max(120, Math.round(r.height))}px`;
 
   return ph;
 }
@@ -999,48 +1022,69 @@ function createSectionGhost(sectionEl) {
   ghost.style.top = `${rect.top}px`;
   ghost.style.width = `${rect.width}px`;
   ghost.style.height = `${rect.height}px`;
+  ghost.style.zIndex = 9999;
+  ghost.style.pointerEvents = "none";
+  ghost.style.boxShadow = "0 24px 70px rgba(0,0,0,.22)";
+  ghost.style.borderRadius = "18px";
   return ghost;
 }
 
-function placeSectionPlaceholder(wrap, placeholderEl, x, y, draggedId) {
-  const cards = [...wrap.querySelectorAll(".section-card")].filter(
-    (c) => c.dataset.sectionCardId !== draggedId
+/**
+ * Placement vertical : on ne considère que les sections Firestore (pas la galerie).
+ * Le placeholder ne peut pas être inséré avant la galerie.
+ */
+function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
+  if (!wrap) return;
+
+  const galleryEl = wrap.querySelector(
+    `.section-card[data-section-card-id="${UNASSIGNED}"]`
   );
 
+  const cards = [...wrap.querySelectorAll(".section-card")].filter((c) => {
+    const sid = c.dataset.sectionCardId;
+    if (!sid) return false;
+    if (sid === UNASSIGNED) return false;
+    if (sid === draggedId) return false;
+    return true;
+  });
+
   if (!cards.length) {
-    wrap.appendChild(placeholderEl);
+    // juste après la galerie
+    if (galleryEl?.nextSibling) wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
+    else wrap.appendChild(placeholderEl);
     return;
   }
 
   const items = cards
     .map((el) => {
       const r = el.getBoundingClientRect();
-      return {
-        el,
-        r,
-        cx: r.left + r.width / 2,
-        cy: r.top + r.height / 2,
-        rowTol: Math.max(18, r.height * 0.35),
-      };
+      return { el, midY: r.top + r.height / 2 };
     })
-    .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
+    .sort((a, b) => a.midY - b.midY);
 
   let beforeEl = null;
   for (const it of items) {
-    const sameRow = Math.abs(y - it.cy) <= it.rowTol;
-    if (y < it.cy || (sameRow && x < it.cx)) {
+    if (y < it.midY) {
       beforeEl = it.el;
       break;
     }
   }
 
-  if (!beforeEl) wrap.appendChild(placeholderEl);
-  else wrap.insertBefore(placeholderEl, beforeEl);
+  if (!beforeEl) {
+    wrap.appendChild(placeholderEl);
+  } else {
+    wrap.insertBefore(placeholderEl, beforeEl);
+  }
+
+  // sécurité : ne jamais passer avant la galerie
+  if (galleryEl && placeholderEl.previousSibling == null) {
+    wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
+  }
 }
 
 function onSectionPointerDown(e) {
   if (!arranging) return;
-  if (drag || sectionResize) return;
+  if (drag) return;
 
   const handle = e.target?.closest?.('[data-section-move="1"]');
   if (!handle) return;
@@ -1048,9 +1092,11 @@ function onSectionPointerDown(e) {
   const sectionEl = handle.closest(".section-card");
   if (!sectionEl) return;
 
+  const id = sectionEl.dataset.sectionCardId;
+  if (!id || id === UNASSIGNED) return; // ✅ galerie non déplaçable
+
   e.preventDefault();
 
-  const id = sectionEl.dataset.sectionCardId;
   const rect = sectionEl.getBoundingClientRect();
 
   sectionDrag = {
@@ -1083,6 +1129,7 @@ function startSectionDrag(sectionEl) {
   sectionEl.style.opacity = "0";
   sectionEl.style.pointerEvents = "none";
 
+  // placeholder à la place de la section
   sectionEl.parentElement.insertBefore(sectionDrag.placeholderEl, sectionEl);
 
   document.body.classList.add("drag-active");
@@ -1115,32 +1162,33 @@ function onSectionPointerMove(e) {
   sectionDrag.ghostEl.style.top = `${y}px`;
 
   startAutoScrollSection();
-  placeSectionPlaceholder(
+  placeSectionPlaceholderVertical(
     sectionsWrap,
     sectionDrag.placeholderEl,
-    sectionDrag.lastX,
     sectionDrag.lastY,
     sectionDrag.id
   );
 }
 
-async function finalizeSectionDrop(wrap) {
+async function finalizeSectionDropAndPersist(wrap) {
   if (!wrap) return;
 
-  const all = [...wrap.querySelectorAll(".section-card")];
+  const cards = [...wrap.querySelectorAll(".section-card")];
+
+  // On persiste uniquement les sections (pas la galerie)
+  const orderedIds = cards
+    .map((el) => el.dataset.sectionCardId)
+    .filter((sid) => sid && sid !== UNASSIGNED);
 
   const base = Date.now();
-  let i = 0;
 
-  for (const el of all) {
-    const sid = el.dataset.sectionCardId;
-    if (!sid || sid === UNASSIGNED) continue;
-
-    const ord = base + i * 1000;
-    i++;
-
-    await updateDoc(doc(db, SECTIONS_COL, sid), { order: ord });
+  // Batch : plus robuste et plus rapide
+  const batch = writeBatch(db);
+  for (let i = 0; i < orderedIds.length; i++) {
+    const sid = orderedIds[i];
+    batch.update(doc(db, SECTIONS_COL, sid), { order: base + i * 1000 });
   }
+  await batch.commit();
 }
 
 function onSectionPointerUp(e) {
@@ -1178,166 +1226,41 @@ function onSectionPointerUp(e) {
       wrap.insertBefore(original, placeholder);
       original.style.opacity = "";
       original.style.pointerEvents = "";
-      updateMasonryRows(original, null);
     }
 
     try {
       placeholder.remove();
     } catch {}
 
-    finalizeSectionDrop(wrap).catch((err) => {
+    finalizeSectionDropAndPersist(wrap).catch((err) => {
       console.error(err);
-      alert("Impossible de déplacer la section.");
+      alert("Impossible de réordonner les sections.");
     });
   }
 }
 
 /* ---------------------------
-   Resize SECTIONS (aimanté)
+   Resize SECTIONS : désactivé
 ---------------------------- */
 
 function cancelSectionResize() {
-  if (!sectionResize) return;
-  document.body.classList.remove("drag-active");
-  sectionResize = null;
-}
-
-function computeGridMetrics() {
-  const cs = getComputedStyle(sectionsWrap);
-  const gap = parseFloat(cs.gap || cs.columnGap || "18") || 18;
-  const wrapRect = sectionsWrap.getBoundingClientRect();
-
-  const totalGap = gap * (GRID_COLS - 1);
-  const colW = (wrapRect.width - totalGap) / GRID_COLS;
-
-  return { gap, colW };
-}
-
-async function persistSectionLayout(id, colSpan, heightPx) {
-  const normalized = normalizeSectionLayout({ colSpan, heightPx });
-
-  if (id === UNASSIGNED) {
-    galleryLayout.colSpan = normalized.colSpan;
-    galleryLayout.heightPx = normalized.heightPx;
-    try {
-      localStorage.setItem(GALLERY_LAYOUT_KEY, JSON.stringify(galleryLayout));
-    } catch {}
-    return;
-  }
-
-  await updateDoc(doc(db, SECTIONS_COL, id), {
-    colSpan: normalized.colSpan,
-    heightPx: normalized.heightPx,
-  });
-}
-
-function onSectionResizeDown(e) {
-  if (!arranging) return;
-  if (drag || sectionDrag) return;
-
-  const handle = e.target?.closest?.('[data-section-resize="1"]');
-  if (!handle) return;
-
-  const sectionEl = handle.closest(".section-card");
-  if (!sectionEl) return;
-
-  e.preventDefault();
-
-  const id = sectionEl.dataset.sectionCardId;
-  const r = sectionEl.getBoundingClientRect();
-  const { gap, colW } = computeGridMetrics();
-
-  sectionResize = {
-    id,
-    pointerId: e.pointerId,
-    startX: e.clientX,
-    startY: e.clientY,
-    startW: r.width,
-    startH: r.height,
-    gap,
-    colW,
-  };
-
-  try {
-    handle.setPointerCapture(e.pointerId);
-  } catch {}
-  document.body.classList.add("drag-active");
-}
-
-function onSectionResizeMove(e) {
-  if (!sectionResize) return;
-  if (e.pointerId !== sectionResize.pointerId) return;
-
-  const sectionEl = sectionsWrap?.querySelector(
-    `.section-card[data-section-card-id="${sectionResize.id}"]`
-  );
-  if (!sectionEl) return;
-
-  const dx = e.clientX - sectionResize.startX;
-  const dy = e.clientY - sectionResize.startY;
-
-  const newW = Math.max(220, sectionResize.startW + dx);
-  const newH = clamp(sectionResize.startH + dy, MIN_HEIGHT, MAX_HEIGHT);
-
-  const colUnit = sectionResize.colW + sectionResize.gap;
-  const approxSpan = clamp(
-    Math.round((newW + sectionResize.gap) / colUnit),
-    1,
-    GRID_COLS
-  );
-  const span = nearestPreset(approxSpan, SPAN_PRESETS);
-  const hSnap = nearestPreset(newH, HEIGHT_PRESETS);
-
-  sectionEl.style.setProperty("--span", String(span));
-  sectionEl.style.setProperty("--h", `${Math.round(hSnap)}px`);
-  updateMasonryRows(sectionEl, hSnap);
-}
-
-function onSectionResizeUp(e) {
-  if (!sectionResize) return;
-  if (e.pointerId !== sectionResize.pointerId) return;
-
-  const id = sectionResize.id;
-  sectionResize = null;
-  document.body.classList.remove("drag-active");
-
-  const sectionEl = sectionsWrap?.querySelector(
-    `.section-card[data-section-card-id="${id}"]`
-  );
-  if (!sectionEl) return;
-
-  const span =
-    parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
-
-  const hRaw = sectionEl.style.getPropertyValue("--h");
-  const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
-
-  persistSectionLayout(id, span, heightPx)
-    .then(() => updateMasonryRows(sectionEl, heightPx))
-    .catch((err) => {
-      console.error(err);
-      alert("Impossible de sauvegarder la taille de la section.");
-    });
+  // no-op (on garde pour compat avec setArranging(false))
 }
 
 /* ---------------------------
    Listeners (delegation)
+   - resize supprimé
 ---------------------------- */
 
 sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, {
   passive: false,
 });
-sectionsWrap?.addEventListener("pointerdown", onSectionResizeDown, {
-  passive: false,
-});
 sectionsWrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
 
 window.addEventListener("pointermove", onSectionPointerMove, { passive: false });
-window.addEventListener("pointermove", onSectionResizeMove, { passive: false });
 window.addEventListener("pointermove", onPointerMove, { passive: false });
 
 window.addEventListener("pointerup", onSectionPointerUp);
-window.addEventListener("pointerup", onSectionResizeUp);
 window.addEventListener("pointerup", onPointerUp);
 
 window.addEventListener("pointercancel", (e) => {
@@ -1346,9 +1269,6 @@ window.addEventListener("pointercancel", (e) => {
   } catch {}
   try {
     onSectionPointerUp(e);
-  } catch {}
-  try {
-    onSectionResizeUp(e);
   } catch {}
 });
 
@@ -1504,7 +1424,7 @@ prevSlideBtn?.addEventListener("click", prev);
 togglePlayBtn?.addEventListener("click", () => {
   playing = !playing;
   syncPlayIcon();
-}); 
+});
 
 /* ---------------------------
    Upload modal
@@ -1597,7 +1517,9 @@ function renderPending() {
     remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      try {
+        URL.revokeObjectURL(pending[i].url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -1620,7 +1542,9 @@ input?.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
 
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -1635,7 +1559,9 @@ uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -1689,7 +1615,9 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try { URL.revokeObjectURL(p.url); } catch {}
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
     }
     pending = [];
 
@@ -1717,8 +1645,6 @@ addSectionBtn?.addEventListener("click", async () => {
     await addDoc(collection(db, SECTIONS_COL), {
       title: title.trim(),
       order: Date.now(),
-      colSpan: 12,
-      heightPx: null,
     });
   } catch (e) {
     alert("Impossible de créer la section.");
@@ -1753,15 +1679,21 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
-    sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
+  onSnapshot(
+    query(collection(db, SECTIONS_COL), orderBy("order", "asc")),
+    (snap) => {
+      sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+    }
+  );
 
-  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
-    photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
+  onSnapshot(
+    query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")),
+    (snap) => {
+      photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+    }
+  );
 }
 
 main();
