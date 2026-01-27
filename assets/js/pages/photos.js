@@ -138,6 +138,136 @@ function applyRotationThumb(imgEl, deg) {
   }
 }
 
+
+
+
+
+function getUiModalEls() {
+  const modal = document.getElementById("uiModal");
+  return {
+    modal,
+    title: document.getElementById("uiModalTitle"),
+    msg: document.getElementById("uiModalMessage"),
+    ok: document.getElementById("uiModalOk"),
+    cancel: document.getElementById("uiModalCancel"),
+    fieldWrap: document.getElementById("uiModalFieldWrap"),
+    input: document.getElementById("uiModalInput"),
+  };
+}
+
+function openUiModal() {
+  const { modal } = getUiModalEls();
+  modal.setAttribute("aria-hidden", "false");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closeUiModal() {
+  const { modal } = getUiModalEls();
+  modal.setAttribute("aria-hidden", "true");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+}
+
+function uiConfirm(message, opts = {}) {
+  const { modal, title, msg, ok, cancel, fieldWrap } = getUiModalEls();
+
+  title.textContent = opts.title || "Confirmation";
+  msg.textContent = message || "";
+
+  fieldWrap.style.display = "none";
+
+  ok.textContent = opts.okText || "OK";
+  cancel.textContent = opts.cancelText || "Annuler";
+
+  ok.classList.toggle("danger", !!opts.danger);
+
+  openUiModal();
+
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      ok.classList.remove("danger");
+      modal.removeEventListener("click", onBackdrop);
+      window.removeEventListener("keydown", onKey);
+      ok.removeEventListener("click", onOk);
+      cancel.removeEventListener("click", onCancel);
+      closeUiModal();
+    };
+
+    const onOk = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+    const onBackdrop = (e) => {
+      if (e.target?.dataset?.close === "1") onCancel();
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onOk();
+    };
+
+    ok.addEventListener("click", onOk);
+    cancel.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+    window.addEventListener("keydown", onKey);
+  });
+}
+
+function uiPrompt(message, opts = {}) {
+  const { modal, title, msg, ok, cancel, fieldWrap, input } = getUiModalEls();
+
+  title.textContent = opts.title || "Saisie";
+  msg.textContent = message || "";
+
+  fieldWrap.style.display = "";
+  input.value = opts.defaultValue || "";
+  input.placeholder = opts.placeholder || "";
+
+  ok.textContent = opts.okText || "OK";
+  cancel.textContent = opts.cancelText || "Annuler";
+
+  ok.classList.remove("danger");
+
+  openUiModal();
+  setTimeout(() => input.focus(), 0);
+
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      modal.removeEventListener("click", onBackdrop);
+      window.removeEventListener("keydown", onKey);
+      ok.removeEventListener("click", onOk);
+      cancel.removeEventListener("click", onCancel);
+      closeUiModal();
+    };
+
+    const onOk = () => {
+      const v = (input.value || "").trim();
+      cleanup();
+      resolve(v ? v : null);
+    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onBackdrop = (e) => {
+      if (e.target?.dataset?.close === "1") onCancel();
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onOk();
+    };
+
+    ok.addEventListener("click", onOk);
+    cancel.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+    window.addEventListener("keydown", onKey);
+  });
+}
+
+
+
+
+
+
+
+
+
+
 /**
  * Ancien helper "masonry" — on le garde comme no-op sécurisé
  * pour éviter de casser des appels existants (la 2e partie sera nettoyée ensuite).
@@ -269,10 +399,12 @@ function exitSectionFullscreen() {
 async function deleteSectionAndUnassignPhotos(sectionId) {
   if (!sectionId || sectionId === UNASSIGNED) return;
 
-  const ok = confirm(
-    "Supprimer cette section ?\nLes photos resteront dans la galerie (non supprimées)."
-  );
-  if (!ok) return;
+ const ok = await uiConfirm(
+  "Supprimer cette section ? Les photos resteront dans la galerie (non supprimées).",
+  { title: "Supprimer la section", danger: true, okText: "Supprimer" }
+);
+if (!ok) return;
+
 
   try {
     // 1) remettre toutes les photos de cette section en non assigné
@@ -1370,8 +1502,14 @@ viewer.addEventListener("click", (e) => {
 
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
-  const ok = confirm("Supprimer cette photo de la galerie ?");
-  if (!ok) return;
+  const ok = await uiConfirm("Supprimer cette photo de la galerie ?", {
+  title: "Supprimer la photo",
+  danger: true,
+  okText: "Supprimer",
+  cancelText: "Annuler",
+});
+if (!ok) return;
+
 
   try {
     viewerDelete.disabled = true;
@@ -1700,8 +1838,13 @@ uploadStartBtn?.addEventListener("click", async () => {
 ---------------------------- */
 
 addSectionBtn?.addEventListener("click", async () => {
-  const title = prompt("Titre de la section ?");
-  if (!title) return;
+  const title = await uiPrompt("Titre de la section ?", {
+  title: "Nouvelle section",
+  placeholder: "Ex: Avec les petits enfants (exemple au hasard...)",
+  okText: "Créer",
+});
+if (!title) return;
+
 
   try {
     await addDoc(collection(db, SECTIONS_COL), {
