@@ -508,13 +508,17 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   justify-content:center;
   background: rgba(0,0,0,.25);
 }
+
 .viewer-wrap img{
-  max-width: 100%;
-  max-height: calc(100vh - 160px);
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: 22px;
   box-shadow: 0 30px 80px rgba(0,0,0,.55);
 }
+
+
+
 .viewer-wrap video{
   width: 100%;
   max-width: 100%;
