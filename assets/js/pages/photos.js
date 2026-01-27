@@ -168,10 +168,6 @@ function enterSectionFullscreen(sectionId) {
 
   exitSectionFullscreen();
 
-  const btn = card.querySelector(".section-maximize");
-if (btn) btn.title = "Réduire";
-
-
   const card = sectionsWrap.querySelector(
     `.section-card[data-section-card-id="${sectionId}"]`
   );
@@ -179,7 +175,7 @@ if (btn) btn.title = "Réduire";
 
   fullscreenSectionId = sectionId;
 
-  // 🔴 LIGNE MANQUANTE
+  // déplacer dans <body> pour éviter les stacking contexts
   document.body.appendChild(card);
 
   document.documentElement.classList.add("noscroll");
@@ -187,15 +183,15 @@ if (btn) btn.title = "Réduire";
 
   document.body.appendChild(ensureSectionBackdrop());
   card.classList.add("is-fullscreen");
-  const icon = card.querySelector("[data-maximize-icon]");
-if (icon) {
-  icon.src = "../assets/img/icons/minimize.svg";
-}
 
+  const icon = card.querySelector("[data-maximize-icon]");
+  if (icon) icon.src = "../assets/img/icons/minimize.svg";
+
+  const btn = card.querySelector(".section-maximize");
+  if (btn) btn.title = "Réduire";
 
   window.addEventListener("keydown", onFullscreenKeydown);
 }
-
 
 function exitSectionFullscreen() {
   if (!sectionsWrap) return;
@@ -204,18 +200,17 @@ function exitSectionFullscreen() {
     const card = document.querySelector(
       `.section-card[data-section-card-id="${fullscreenSectionId}"]`
     );
+
     if (card) {
       card.classList.remove("is-fullscreen");
+
       const icon = card.querySelector("[data-maximize-icon]");
-if (icon) {
-  icon.src = "../assets/img/icons/maximize.svg";
-}
+      if (icon) icon.src = "../assets/img/icons/maximize.svg";
 
-const btn = card.querySelector(".section-maximize");
-if (btn) btn.title = "Agrandir";
+      const btn = card.querySelector(".section-maximize");
+      if (btn) btn.title = "Agrandir";
 
-
-      sectionsWrap.appendChild(card); // 🔴 IMPORTANT
+      sectionsWrap.appendChild(card);
     }
   }
 
@@ -230,6 +225,7 @@ if (btn) btn.title = "Agrandir";
 
   window.removeEventListener("keydown", onFullscreenKeydown);
 }
+
 
 
 /* ---------------------------
