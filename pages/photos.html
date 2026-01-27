@@ -7,36 +7,6 @@
 
   <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
-
-
-
-
-<div id="uiModal" class="ui-modal" aria-hidden="true">
-  <div class="ui-modal__backdrop" data-close="1"></div>
-
-  <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
-    <div class="ui-modal__head">
-      <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
-      <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">✕</button>
-    </div>
-
-    <div id="uiModalMessage" class="ui-modal__message"></div>
-
-    <div id="uiModalFieldWrap" class="ui-modal__field" style="display:none;">
-      <input id="uiModalInput" class="ui-input" type="text" />
-    </div>
-
-    <div class="ui-modal__actions">
-      <button id="uiModalCancel" class="btn" type="button">Annuler</button>
-      <button id="uiModalOk" class="btn primary" type="button">OK</button>
-    </div>
-  </div>
-</div>
-
-
-
-
-
 <body class="page">
   <!-- ======================================================
        TOP BAR
@@ -47,14 +17,14 @@
         <span aria-hidden="true">‹</span> Retour
       </a>
 
-      <div class="brand-mini" aria-hidden="true">
-        <img
-          class="topbar-logo"
-          src="../assets/img/logo-noir.svg"
-          alt=""
-          decoding="async"
-        />
-      </div>
+     <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
+  <img
+    class="topbar-logo"
+    src="../assets/img/logo-noir.svg"
+    alt="Accueil"
+  />
+</a>
+
 
       <div style="width:64px" aria-hidden="true"></div>
     </div>
@@ -384,6 +354,28 @@
       </div>
     </div>
   </div>
+
+  <div id="uiModal" class="ui-modal" aria-hidden="true">
+  <div class="ui-modal__backdrop" data-close="1"></div>
+
+  <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
+    <div class="ui-modal__head">
+      <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
+      <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">✕</button>
+    </div>
+
+    <div id="uiModalMessage" class="ui-modal__message"></div>
+
+    <div id="uiModalFieldWrap" class="ui-modal__field" style="display:none;">
+      <input id="uiModalInput" class="ui-input" type="text" />
+    </div>
+
+    <div class="ui-modal__actions">
+      <button id="uiModalCancel" class="btn" type="button">Annuler</button>
+      <button id="uiModalOk" class="btn primary" type="button">OK</button>
+    </div>
+  </div>
+</div>
 
   <!-- JS -->
   <script type="module" src="../assets/js/pages/photos.js"></script>
