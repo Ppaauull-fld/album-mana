@@ -1260,6 +1260,8 @@ function cancelSectionResize() {
 }
 
 function computeGridMetrics() {
+  if (!sectionsWrap) return { gap: FALLBACK_GAP, colW: 0 };
+
   const cs = getComputedStyle(sectionsWrap);
   const gap = parseFloat(cs.gap || cs.columnGap || "18") || 18;
   const wrapRect = sectionsWrap.getBoundingClientRect();
@@ -1269,6 +1271,7 @@ function computeGridMetrics() {
 
   return { gap, colW };
 }
+
 
 async function persistSectionLayout(id, colSpan, heightPx) {
   const normalized = normalizeSectionLayout({ colSpan, heightPx });
