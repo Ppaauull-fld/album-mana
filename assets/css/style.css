@@ -987,33 +987,54 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 
 
 
-/* ===== Fix viewer: ne plus couper certaines photos ===== */
-
-#photoViewer .box.viewer-box{
-  display:flex;
-  flex-direction:column;
-}
-
-#photoViewer .top{
-  flex: 0 0 auto;
-}
+/* =========
+   VIEWER (agrandissement photo)
+   ========= */
 
 #photoViewer .viewer-wrap{
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 20px;
+  height: calc(100vh - 140px); /* ajuste si besoin */
   display:flex;
   align-items:center;
   justify-content:center;
-  background: rgba(0,0,0,.25);
 }
 
-/* l’image doit toujours tenir dans la zone visible */
-#photoViewer #viewerImg{
+#photoViewer .viewer-wrap img{
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
-  width: auto;
-  height: auto;
   object-fit: contain;
+}
+
+/* =========
+   SLIDESHOW
+   ========= */
+
+#slideshow.modal .imgwrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+#slideshow.modal img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+
+
+
+/* bouton "Lancer un diaporama" */
+#startSlideshowBtn img{
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+/* bouton play/pause du diaporama */
+#togglePlayIcon{
+  width: 18px;
+  height: 18px;
   display:block;
 }
