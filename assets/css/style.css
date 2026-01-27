@@ -188,7 +188,7 @@ img{max-width:100%;display:block}
   .topbar-logo{height: 20px;}
 }
 
-/* ---------- Grid + Cards ---------- */
+/* ---------- Grid + Cards (ancien grid, conservé) ---------- */
 .grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr);
@@ -198,6 +198,68 @@ img{max-width:100%;display:block}
 @media (max-width: 1000px){ .grid{grid-template-columns: repeat(3, 1fr)} }
 @media (max-width: 740px){ .grid{grid-template-columns: repeat(2, 1fr)} }
 @media (max-width: 430px){ .grid{grid-template-columns: 1fr} }
+
+/* =========================================================
+   SECTIONS (Photos/Vidéos/Animées) + Drag&Drop
+   ========================================================= */
+.sections{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  margin-top: 18px;
+}
+
+.section-card{
+  background:#fff;
+  border: 1px solid rgba(0,0,0,.075);
+  box-shadow: 0 12px 26px rgba(0,0,0,.06);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* grille principale : pas de titre */
+.section-card.no-title .section-head{ display:none; }
+.section-card.no-title{ padding-top: 0; }
+
+.section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 10px;
+}
+
+.section-title{
+  font-weight: 750;
+  letter-spacing: -0.2px;
+  font-size: 16px;
+}
+
+.section-title[contenteditable="true"]{
+  outline:none;
+  padding: 6px 10px;
+  border-radius: 12px;
+}
+.section-title[contenteditable="true"]:focus{
+  box-shadow: 0 0 0 4px rgba(0,0,0,.08);
+}
+
+.section-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:16px;
+}
+@media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
+@media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
+@media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
+
+/* Drag feedback */
+.card.dragging{ opacity:.35; }
+.section-grid.drag-over{
+  outline: 2px dashed rgba(0,0,0,.25);
+  outline-offset: 6px;
+  border-radius: 18px;
+}
 
 .card{
   border-radius: 18px;
@@ -800,7 +862,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   white-space:nowrap;
   border:0;
 }
-
 
 /* Align icons : taille homogène dans les seg-btn tiny */
 .seg-btn.tiny .icon-img{

@@ -26,7 +26,9 @@
 
       <div class="actions">
         <input id="photoInput" type="file" accept="image/*" multiple hidden />
+
         <button id="addPhotoBtn" class="btn" type="button">＋ Ajouter une photo</button>
+        <button id="addSectionBtn" class="btn" type="button">＋ Nouvelle section</button>
 
         <button id="startSlideshowBtn" class="btn primary" type="button">
           <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" />
@@ -34,7 +36,8 @@
         </button>
       </div>
 
-      <div id="photosGrid" class="grid"></div>
+      <!-- Conteneur sections + grille principale (sans titre) -->
+      <div id="sectionsWrap" class="sections"></div>
     </div>
   </main>
 
@@ -78,10 +81,10 @@
           <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
             <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
           </a>
-          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
-             <img class="icon-img" src="../assets/img/icons/rotate.svg" alt="" />
-          </button>
 
+          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
+            <img class="icon-img" src="../assets/img/icons/rotate.svg" alt="" />
+          </button>
 
           <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
             <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />

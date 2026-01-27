@@ -13,9 +13,15 @@ import {
   updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-const grid = document.getElementById("photosGrid");
+const PHOTOS_COL = "photos";
+const SECTIONS_COL = "photoSections";
+const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestore)
+
+// UI (page)
+const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");
 const addBtn = document.getElementById("addPhotoBtn");
+const addSectionBtn = document.getElementById("addSectionBtn");
 const showBtn = document.getElementById("startSlideshowBtn");
 
 // Upload UI
@@ -41,15 +47,15 @@ const viewerRotate = document.getElementById("viewerRotate");
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
 const slideCounter = document.getElementById("slideCounter");
-
 const togglePlayBtn = document.getElementById("togglePlay");
 const togglePlayIcon = document.getElementById("togglePlayIcon");
-
 const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 
-let photos = [];
+// Data state
+let photos = [];        // tous les docs photos
+let sections = [];      // docs sections
 let queue = [];
 let idx = 0;
 let playing = true;
@@ -60,6 +66,9 @@ let pending = []; // [{file, url}]
 
 // viewer state
 let currentViewed = null; // {id, url, rotation?, ...}
+
+// drag state
+let draggedId = null;
 
 function clampRotation(deg) {
   const allowed = [0, 90, 180, 270];
@@ -86,25 +95,173 @@ function applyRotationThumb(imgEl, deg) {
   }
 }
 
-function render() {
-  grid.innerHTML = "";
+/* ---------------------------
+   Sections + rendu
+---------------------------- */
+
+function groupPhotos() {
+  const grouped = new Map();
+  grouped.set(UNASSIGNED, []);
+  for (const s of sections) grouped.set(s.id, []);
+
   for (const p of photos) {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "card card-btn";
-    card.title = "Ouvrir";
-
-    const img = document.createElement("img");
-    img.className = "thumb";
-    img.src = p.thumbUrl || p.url;
-    img.alt = "photo";
-
-    if (p.rotation) applyRotationThumb(img, p.rotation);
-
-    card.appendChild(img);
-    card.addEventListener("click", () => openViewer(p));
-    grid.appendChild(card);
+    const sid = p.sectionId;
+    if (!sid || !grouped.has(sid)) grouped.get(UNASSIGNED).push(p);
+    else grouped.get(sid).push(p);
   }
+
+  // tri par order asc (si absent, fallback createdAt)
+  for (const arr of grouped.values()) {
+    arr.sort((a, b) => {
+      const ao = (a.order ?? a.createdAt ?? 0);
+      const bo = (b.order ?? b.createdAt ?? 0);
+      return ao - bo;
+    });
+  }
+
+  return grouped;
+}
+
+function renderPhotoCard(p) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "card card-btn";
+  card.title = "Ouvrir";
+
+  const img = document.createElement("img");
+  img.className = "thumb";
+  img.src = p.thumbUrl || p.url;
+  img.alt = "photo";
+
+  if (p.rotation) applyRotationThumb(img, p.rotation);
+
+  card.appendChild(img);
+  card.addEventListener("click", () => openViewer(p));
+
+  // drag
+  card.dataset.id = p.id;
+  enableDnDForItem(card);
+
+  return card;
+}
+
+function renderSectionCard({ id, title, editable, hideTitle }, items) {
+  const card = document.createElement("div");
+  card.className = "section-card";
+  if (hideTitle) card.classList.add("no-title");
+
+  const head = document.createElement("div");
+  head.className = "section-head";
+
+  const t = document.createElement("div");
+  t.className = "section-title";
+  t.textContent = title || "";
+
+  if (editable) {
+    t.contentEditable = "true";
+    t.spellcheck = false;
+    t.addEventListener("blur", async () => {
+      const newTitle = (t.textContent || "").trim();
+      if (!newTitle) return;
+      try {
+        await updateDoc(doc(db, SECTIONS_COL, id), { title: newTitle });
+      } catch (e) {
+        alert("Impossible de renommer la section.");
+        console.error(e);
+      }
+    });
+  }
+
+  head.appendChild(t);
+
+  const grid = document.createElement("div");
+  grid.className = "section-grid";
+  grid.dataset.sectionId = id;
+
+  enableDnDForGrid(grid);
+
+  for (const p of items) {
+    grid.appendChild(renderPhotoCard(p));
+  }
+
+  card.appendChild(head);
+  card.appendChild(grid);
+  return card;
+}
+
+function renderAll() {
+  if (!sectionsWrap) return;
+
+  const grouped = groupPhotos();
+  sectionsWrap.innerHTML = "";
+
+  // Grille principale (sans titre)
+  sectionsWrap.appendChild(
+    renderSectionCard(
+      { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
+      grouped.get(UNASSIGNED) || []
+    )
+  );
+
+  // Sections créées (avec titres)
+  for (const s of sections) {
+    sectionsWrap.appendChild(
+      renderSectionCard(
+        { id: s.id, title: s.title || "Section", editable: true, hideTitle: false },
+        grouped.get(s.id) || []
+      )
+    );
+  }
+}
+
+/* ---------------------------
+   Drag & drop
+---------------------------- */
+
+function enableDnDForItem(el) {
+  el.draggable = true;
+
+  el.addEventListener("dragstart", (e) => {
+    draggedId = el.dataset.id;
+    el.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  });
+
+  el.addEventListener("dragend", () => {
+    el.classList.remove("dragging");
+    draggedId = null;
+  });
+}
+
+function enableDnDForGrid(grid) {
+  grid.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    grid.classList.add("drag-over");
+  });
+
+  grid.addEventListener("dragleave", () => {
+    grid.classList.remove("drag-over");
+  });
+
+  grid.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    grid.classList.remove("drag-over");
+    if (!draggedId) return;
+
+    const target = grid.dataset.sectionId; // UNASSIGNED ou id Firestore
+    const newSectionValue = (target === UNASSIGNED) ? null : target;
+
+    try {
+      // drop = on met à la fin via order = Date.now()
+      await updateDoc(doc(db, PHOTOS_COL, draggedId), {
+        sectionId: newSectionValue,
+        order: Date.now(),
+      });
+    } catch (err) {
+      alert("Impossible de déplacer la photo.");
+      console.error(err);
+    }
+  });
 }
 
 /* ---------------------------
@@ -152,7 +309,7 @@ viewerDelete?.addEventListener("click", async () => {
 
   try {
     viewerDelete.disabled = true;
-    await deleteDoc(doc(db, "photos", currentViewed.id));
+    await deleteDoc(doc(db, PHOTOS_COL, currentViewed.id));
     closeViewer();
   } catch (e) {
     alert("Suppression impossible : " + (e?.message || e));
@@ -172,7 +329,7 @@ viewerRotate?.addEventListener("click", async () => {
   applyRotation(viewerImg, newRot);
 
   try {
-    await updateDoc(doc(db, "photos", currentViewed.id), { rotation: newRot });
+    await updateDoc(doc(db, PHOTOS_COL, currentViewed.id), { rotation: newRot });
   } catch (e) {
     console.error("Rotation non sauvegardée", e);
     alert("Impossible de sauvegarder la rotation.");
@@ -301,12 +458,11 @@ function resetProgressUI() {
 function setUploadingState(isUploading) {
   addBtn.disabled = isUploading;
   showBtn.disabled = isUploading;
+  addSectionBtn.disabled = isUploading;
   uploadCancelBtn.disabled = isUploading;
 
   uploadStartBtn.disabled = isUploading || pending.length === 0;
 
-  // Le helper setBtnLoading met un spinner (si ton ui.js est bien celui du projet),
-  // mais on force aussi un fallback sans emoji.
   setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
   if (isUploading) {
     uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
@@ -359,9 +515,7 @@ function renderPending() {
     remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try {
-        URL.revokeObjectURL(pending[i].url);
-      } catch {}
+      try { URL.revokeObjectURL(pending[i].url); } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -384,9 +538,7 @@ input?.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try {
-      URL.revokeObjectURL(p.url);
-    } catch {}
+    try { URL.revokeObjectURL(p.url); } catch {}
   }
 
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -401,9 +553,7 @@ uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
   for (const p of pending) {
-    try {
-      URL.revokeObjectURL(p.url);
-    } catch {}
+    try { URL.revokeObjectURL(p.url); } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -438,9 +588,12 @@ uploadStartBtn?.addEventListener("click", async () => {
         onProgress: (ratio) => updateOverall(ratio, file.name),
       });
 
-      await addDoc(collection(db, "photos"), {
+      await addDoc(collection(db, PHOTOS_COL), {
         type: "photo",
         createdAt: Date.now(),
+        order: Date.now(),     // ordre éditable via drag&drop
+        sectionId: null,       // non classée au départ
+
         publicId: up.public_id,
         url: up.secure_url,
         thumbUrl: up.secure_url,
@@ -454,9 +607,7 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try {
-        URL.revokeObjectURL(p.url);
-      } catch {}
+      try { URL.revokeObjectURL(p.url); } catch {}
     }
     pending = [];
 
@@ -469,6 +620,25 @@ uploadStartBtn?.addEventListener("click", async () => {
   } catch (e) {
     setUploadingState(false);
     alert("Erreur upload : " + (e?.message || e));
+  }
+});
+
+/* ---------------------------
+   Sections: création + listeners Firestore
+---------------------------- */
+
+addSectionBtn?.addEventListener("click", async () => {
+  const title = prompt("Titre de la section ?");
+  if (!title) return;
+
+  try {
+    await addDoc(collection(db, SECTIONS_COL), {
+      title: title.trim(),
+      order: Date.now(),
+    });
+  } catch (e) {
+    alert("Impossible de créer la section.");
+    console.error(e);
   }
 });
 
@@ -492,12 +662,23 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+/* ---------------------------
+   Main
+---------------------------- */
+
 async function main() {
   await ensureAnonAuth();
-  const q = query(collection(db, "photos"), orderBy("createdAt", "desc"));
-  onSnapshot(q, (snap) => {
+
+  // Sections (uniquement celles créées)
+  onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
+    sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderAll();
+  });
+
+  // Photos : on trie par "order" (sinon ça ne peut pas être réarrangé)
+  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("order", "asc")), (snap) => {
     photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    render();
+    renderAll();
   });
 }
 
