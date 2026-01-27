@@ -675,8 +675,8 @@ async function main() {
     renderAll();
   });
 
-  // Photos : on trie par "order" (sinon ça ne peut pas être réarrangé)
-  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("order", "asc")), (snap) => {
+  // ✅ IMPORTANT: on écoute sur createdAt pour inclure les anciennes photos sans "order"
+  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
     photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAll();
   });
