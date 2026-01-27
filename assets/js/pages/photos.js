@@ -193,6 +193,7 @@ function enterSectionFullscreen(sectionId) {
   window.addEventListener("keydown", onFullscreenKeydown);
 }
 
+
 function exitSectionFullscreen() {
   if (!sectionsWrap) return;
 
