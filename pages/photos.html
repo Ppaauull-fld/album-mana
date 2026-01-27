@@ -10,13 +10,13 @@
 <body class="page">
   <header class="topbar">
     <div class="container inner">
-      <a class="back" href="../index.html"><span>‹</span> Retour</a>
+      <a class="back" href="../index.html" aria-label="Retour à l’accueil"><span aria-hidden="true">‹</span> Retour</a>
 
-      <div class="brand-mini">
+      <div class="brand-mini" aria-hidden="true">
         <img class="topbar-logo" src="../assets/img/logo-noir.svg" alt="Logo" />
       </div>
 
-      <div style="width:64px"></div>
+      <div style="width:64px" aria-hidden="true"></div>
     </div>
   </header>
 
@@ -32,12 +32,12 @@
 
         <!-- ✅ Arranger -->
         <button id="arrangeBtn" class="btn" type="button">
-          <img class="btn-icon" src="../assets/img/icons/move.svg" alt="" />
+          <img class="btn-icon" src="../assets/img/icons/move.svg" alt="" aria-hidden="true" />
           Arranger
         </button>
 
         <button id="startSlideshowBtn" class="btn primary" type="button">
-          <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" />
+          <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" aria-hidden="true" />
           Lancer un diaporama
         </button>
       </div>
@@ -48,7 +48,7 @@
   </main>
 
   <!-- ✅ Section picker (checkbox) -->
-  <div id="sectionPicker" class="modal" aria-hidden="true">
+  <div id="sectionPicker" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
     <div class="box picker-box">
       <div class="top">
         <div class="picker-title">
@@ -73,7 +73,7 @@
   </div>
 
   <!-- Upload modal -->
-  <div id="uploadModal" class="modal" aria-hidden="true">
+  <div id="uploadModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="box">
       <div class="top">
         <div class="upload-title">
@@ -104,21 +104,24 @@
   </div>
 
   <!-- Photo viewer (plein écran) -->
-  <div id="photoViewer" class="modal" aria-hidden="true">
+  <div id="photoViewer" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
     <div class="box viewer-box">
       <div class="top">
         <div id="viewerTitle" class="viewer-title">Photo</div>
         <div class="controls">
           <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
-            <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
+            <img class="icon-img" src="../assets/img/icons/download.svg" alt="" aria-hidden="true" />
+            <span class="sr-only">Télécharger</span>
           </a>
 
           <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
-            <img class="icon-img" src="../assets/img/icons/rotate.svg" alt="" />
+            <img class="icon-img" src="../assets/img/icons/rotate.svg" alt="" aria-hidden="true" />
+            <span class="sr-only">Tourner</span>
           </button>
 
           <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
-            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
+            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" aria-hidden="true" />
+            <span class="sr-only">Supprimer</span>
           </button>
 
           <button id="viewerClose" class="iconbtn" title="Fermer" type="button">✕</button>
@@ -132,7 +135,7 @@
   </div>
 
   <!-- Slideshow -->
-  <div id="slideshow" class="modal" aria-hidden="true">
+  <div id="slideshow" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="box">
       <div class="top">
         <div id="slideCounter">—</div>
@@ -140,7 +143,8 @@
           <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
 
           <button id="togglePlay" class="iconbtn" title="Pause" type="button">
-            <img id="togglePlayIcon" class="icon-img" src="../assets/img/icons/pause.svg" alt="" />
+            <img id="togglePlayIcon" class="icon-img" src="../assets/img/icons/pause.svg" alt="" aria-hidden="true" />
+            <span class="sr-only">Lecture / Pause</span>
           </button>
 
           <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
