@@ -145,22 +145,33 @@ function applyRotationThumb(imgEl, deg) {
 function updateMasonryRows(_cardEl, _forcedHeightPx = null) {}
 
 // --- Cloudinary: forcer un format compatible navigateur (résout HEIC sur Chrome) ---
+const CLD_CLOUD = "dpj33zjpk";
+
+// Fallback: transforme une URL existante si possible
 function cloudinaryWithTransform(url, transform = "f_auto,q_auto") {
   if (!url || typeof url !== "string") return url;
-  // Insère la transformation juste après /upload/
   if (!url.includes("/upload/")) return url;
   return url.replace("/upload/", `/upload/${transform}/`);
 }
 
-// Miniature carrée/raisonnable (optionnel mais conseillé)
-function cloudinaryThumb(url) {
-  // tu peux ajuster la taille si tu veux (ex: 600)
-  return cloudinaryWithTransform(url, "f_auto,q_auto,c_fill,w_600,h_600");
+// ✅ Robuste: reconstruit une URL Cloudinary "image/upload" à partir du publicId
+function cloudinaryFromPublicId(publicId, transform = "f_auto,q_auto") {
+  if (!publicId) return null;
+  return `https://res.cloudinary.com/${CLD_CLOUD}/image/upload/${transform}/${publicId}`;
 }
 
-// Image “plein écran”
-function cloudinaryFull(url) {
-  return cloudinaryWithTransform(url, "f_auto,q_auto");
+function bestThumb(p) {
+  return (
+    cloudinaryFromPublicId(p.publicId, "f_auto,q_auto,c_fill,w_600,h_600") ||
+    cloudinaryWithTransform(p.thumbUrl || p.url, "f_auto,q_auto,c_fill,w_600,h_600")
+  );
+}
+
+function bestFull(p) {
+  return (
+    cloudinaryFromPublicId(p.publicId, "f_auto,q_auto") ||
+    cloudinaryWithTransform(p.url, "f_auto,q_auto")
+  );
 }
 
 
@@ -329,7 +340,7 @@ function renderPhotoCard(p) {
 
   const img = document.createElement("img");
   img.className = "thumb";
-  img.src = cloudinaryThumb(p.thumbUrl || p.url);
+  img.src = bestThumb(p);
   img.alt = "photo";
   if (p.rotation) applyRotationThumb(img, p.rotation);
 
@@ -1330,10 +1341,10 @@ window.addEventListener("pointercancel", (e) => {
 function openViewer(photo) {
   currentViewed = { ...photo };
   viewerTitle.textContent = "Photo";
-  viewerImg.src = cloudinaryFull(photo.url);
+  viewerImg.src = bestFull(photo);
   applyRotation(viewerImg, photo.rotation || 0);
 
-  viewerDownload.href = cloudinaryFull(photo.url);
+  viewerDownload.href = bestFull(photo);
   viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
 
   viewer.classList.add("open");
@@ -1411,7 +1422,7 @@ function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
 
-  slideImg.src = cloudinaryFull(s.url);
+  slideImg.src = bestFull(s);
   slideCounter.textContent = `${idx + 1} / ${queue.length}`;
   applyRotation(slideImg, s.rotation || 0);
 }
