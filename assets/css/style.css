@@ -160,6 +160,13 @@ img{max-width:100%;display:block}
   font-size: 14px;
   letter-spacing:.1px;
   transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+
+  /* ✅ FIX: boutons avec icône fiables */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  line-height: 1;
 }
 .btn:hover{
   transform: translateY(-1px);
@@ -249,14 +256,13 @@ img{max-width:100%;display:block}
    SECTIONS + Grilles
    ========================================================= */
 
-/* Le wrap devient une "masonry light" en CSS grid */
-.sections{
+/* ✅ FIX IMPORTANT : #sectionsWrap est le vrai conteneur */
+.sections,
+#sectionsWrap{
   display:grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap:18px;
   margin-top: 18px;
-
-  /* important: évite des jumps pendant drag */
   align-items:start;
   grid-auto-flow: row dense;
 }
@@ -268,20 +274,15 @@ img{max-width:100%;display:block}
   border-radius: 18px;
   box-shadow: 0 12px 26px rgba(0,0,0,.06);
   overflow:hidden;
-
-  /* largeur contrôlée par span */
   grid-column: span var(--span, 12);
-
-  /* hauteur contrôlée par JS, sinon auto */
   height: var(--h, auto);
   min-height: 120px;
-
   position: relative;
 }
 
 .section-card.no-title .section-head{ display:none; }
 
-/* ✅ FIX: header stable (poignée + titre), pas de "space-between" */
+/* header stable (poignée + titre) */
 .section-head{
   display:flex;
   align-items:center;
@@ -302,7 +303,6 @@ img{max-width:100%;display:block}
   letter-spacing: -0.2px;
 }
 
-/* champ éditable */
 .section-title[contenteditable="true"]{
   padding: 6px 10px;
   border-radius: 12px;
@@ -329,7 +329,6 @@ img{max-width:100%;display:block}
 @media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
 @media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
 
-/* ✅ prépare l’animation (cartes qui se décalent) */
 .section-grid > .card-btn{
   will-change: transform;
 }
@@ -337,14 +336,10 @@ img{max-width:100%;display:block}
 /* =========================================================
    Drag helpers (global)
    ========================================================= */
-
-/* quand on drague: pas de sélection texte / pas d'effets iOS bizarres */
 body.drag-active{
   user-select: none;
   -webkit-user-select: none;
 }
-
-/* pendant drag, on veut un mouvement libre (diagonales) */
 body.drag-active .card-btn{
   touch-action: none;
 }
@@ -352,28 +347,17 @@ body.drag-active .card-btn{
 /* =========================================================
    Arrange mode (iPhone-like)
    ========================================================= */
-
-/* curseur move en mode arranger */
 body.page.arranging .card-btn{
   cursor: url("../img/icons/move.svg") 12 12, move;
-
-  /* ✅ en arrange, on veut un drag propre (pas de scroll) */
   touch-action: none;
 }
+.page.arranging .card-btn:focus{ outline: none; }
 
-/* on évite d'ouvrir le viewer en mode arranger (côté CSS seulement : JS gère le click) */
-.page.arranging .card-btn:focus{
-  outline: none;
-}
-
-/* ORIGINAL masqué pendant drag */
 .card-btn.dragging{
   opacity: 0;
   pointer-events: none;
 }
 
-/* ghost pendant déplacement
-   IMPORTANT: le ghost est un clone de .card (pas forcément .card-btn) */
 .drag-ghost{
   opacity:.88;
   transform: scale(.94);
@@ -381,18 +365,14 @@ body.page.arranging .card-btn{
   box-shadow: 0 24px 70px rgba(0,0,0,.22);
 }
 
-/* placeholder : doit matcher une carte (JS fixe width/height) */
 .drop-placeholder{
   border-radius: 18px;
   border: 2px dashed rgba(0,0,0,.18);
   background: rgba(0,0,0,.03);
-
-  /* IMPORTANT: pas d'aspect-ratio ici, sinon la taille diverge de la carte */
   width: 100%;
-  height: 260px; /* fallback si JS n'a pas encore set */
+  height: 260px;
 }
 
-/* highlight zone drop (si tu l’utilises) */
 .section-grid.drag-over{
   outline: 2px solid rgba(0,0,0,.10);
   outline-offset: -6px;
@@ -445,7 +425,6 @@ body.page.arranging .card-btn{
   background: rgba(0,0,0,.35);
 }
 
-/* IMPORTANT: on évite d'appliquer la transition aux icônes SVG (icon-img) */
 .modal img:not(.icon-img){
   max-width:100%;
   max-height:100%;
@@ -453,7 +432,6 @@ body.page.arranging .card-btn{
   transition: transform .18s ease;
 }
 
-/* icon buttons (centrage parfait) */
 .iconbtn{
   display:inline-flex;
   align-items:center;
@@ -702,7 +680,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 /* =========================================================
-   LIVRE D'OR – EDITOR (inchangé)
+   LIVRE D'OR – EDITOR
    ========================================================= */
 
 .guest-wrap{
@@ -713,7 +691,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background:#fff;
 }
 
-/* toolbar stable : left | middle | right */
 .guestbar-grid{
   display:grid;
   grid-template-columns: auto 1fr auto;
@@ -725,7 +702,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 .gb-left,.gb-mid,.gb-right{
-  min-width:0; /* Safari */
+  min-width:0;
   display:flex;
   align-items:center;
   gap:12px;
@@ -739,7 +716,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 .gb-right{ justify-content:flex-end; }
 
-/* sur mobile : on stack proprement */
 @media (max-width: 860px){
   .guestbar-grid{
     grid-template-columns: 1fr;
@@ -749,7 +725,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   .gb-right{ justify-content:flex-end; }
 }
 
-/* segmented (pill) */
 .segmented{
   display:inline-flex;
   align-items:center;
@@ -781,7 +756,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   font-size: 16px;
 }
 
-/* ✅ séparateur dans la barre style (B/I/U | align) */
 .seg-divider{
   width: 1px;
   height: 22px;
@@ -792,7 +766,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   align-self:center;
 }
 
-/* controls row (texte / dessin) */
 .control-row{
   display:flex;
   align-items:center;
@@ -805,7 +778,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   .control-row{ justify-content:flex-start; }
 }
 
-/* inputs propres (Safari friendly) */
 .mini-select,
 .mini-number,
 .mini-color{
@@ -821,7 +793,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 .mini-select{
   min-width: 170px;
-  padding-right: 34px; /* place pour la flèche */
+  padding-right: 34px;
   background-image:
     linear-gradient(45deg, transparent 50%, rgba(0,0,0,.55) 50%),
     linear-gradient(135deg, rgba(0,0,0,.55) 50%, transparent 50%);
@@ -832,17 +804,14 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background-repeat: no-repeat;
 }
 
-/* ✅ version compacte (export png/pdf) */
 .mini-select--compact{
   min-width: 92px;
   width: 92px;
   padding-right: 30px;
 }
 
-/* inputs number */
 .mini-number{ width: 86px; }
 
-/* ✅ color input plus joli (swatch) */
 .mini-color{
   width: 44px;
   padding: 0;
@@ -860,7 +829,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 10px;
 }
 
-/* ✅ focus ring propre */
 .mini-select:focus,
 .mini-number:focus,
 .mini-color:focus{
@@ -868,14 +836,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   box-shadow: 0 0 0 4px rgba(0,0,0,.08);
 }
 
-/* ✅ wrap export (select + bouton) */
 .export-wrap{
   display:inline-flex;
   align-items:center;
   gap:10px;
 }
 
-/* hint */
 .hint{
   position:absolute;
   left: 12px;
@@ -891,7 +857,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* canvas zone */
 .canvas-wrap.editor{
   position:relative;
   height: 72vh;
@@ -907,7 +872,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   touch-action: none;
 }
 
-/* editor flottant */
 .editor-shell{
   position:absolute;
   z-index: 10;
@@ -944,7 +908,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 /* =========================
    Icons (SVG) + spinner
    ========================= */
-
 .icon-img{
   width:18px;
   height:18px;
@@ -956,12 +919,13 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   filter: brightness(0) invert(1);
 }
 
+/* ✅ FIX: on garde .btn-icon cohérent avec .btn flex */
 .btn .btn-icon{
   width:18px;
   height:18px;
-  display:inline-block;
-  vertical-align:-3px;
-  margin-right:8px;
+  display:block;
+  flex: 0 0 18px;
+  margin-right: 0;
 }
 
 .icon-mirror{ transform: scaleX(-1); }
@@ -1003,8 +967,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 /* =========================================================
    Arrange: drag + resize des sections
    ========================================================= */
-
-/* poignée de déplacement de section (dans le header) */
 .section-move{
   display:inline-flex;
   align-items:center;
@@ -1015,11 +977,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.05);
   cursor: grab;
+  touch-action: none;
 }
 body.page.arranging .section-move{ cursor: grab; }
 body.page.arranging .section-move:active{ cursor: grabbing; }
 
-/* ghost + placeholder pour sections */
 .section-ghost{
   position: fixed;
   z-index: 9999;
@@ -1028,6 +990,7 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   box-shadow: 0 30px 90px rgba(0,0,0,.25);
   border-radius: 18px;
   opacity: .92;
+  will-change: transform, left, top;
 }
 
 .section-placeholder{
@@ -1039,7 +1002,6 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   height: var(--h, auto);
 }
 
-/* poignée resize bas-droite */
 .section-resize{
   position:absolute;
   right:10px;
@@ -1050,7 +1012,7 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   background: rgba(0,0,0,.06);
   border: 1px solid rgba(0,0,0,.10);
   cursor: nwse-resize;
-  display:none; /* visible uniquement en arrange */
+  display:none;
 }
 
 body.page.arranging .section-resize{

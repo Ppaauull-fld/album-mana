@@ -18,7 +18,7 @@ const SECTIONS_COL = "photoSections";
 const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestore)
 
 const LONG_PRESS_MS = 260; // mobile: évite drag involontaire pendant scroll
-const DRAG_START_PX = 8;   // seuil mouvement pour démarrer (desktop)
+const DRAG_START_PX = 8; // seuil mouvement pour démarrer (desktop)
 
 // Layout (sections)
 const GRID_COLS = 12;
@@ -35,7 +35,8 @@ const GALLERY_LAYOUT_KEY = "albumMana_galleryLayout_v1";
 let galleryLayout = { colSpan: 12, heightPx: null };
 try {
   const saved = JSON.parse(localStorage.getItem(GALLERY_LAYOUT_KEY) || "null");
-  if (saved && typeof saved === "object") galleryLayout = { ...galleryLayout, ...saved };
+  if (saved && typeof saved === "object")
+    galleryLayout = { ...galleryLayout, ...saved };
 } catch {}
 
 const sectionsWrap = document.getElementById("sectionsWrap");
@@ -74,15 +75,15 @@ const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 
-let photos = [];     // docs photos
-let sections = [];   // docs sections
+let photos = []; // docs photos
+let sections = []; // docs sections
 
 let queue = [];
 let idx = 0;
 let playing = true;
 let timer = null;
 
-let pending = [];      // upload queue
+let pending = []; // upload queue
 let currentViewed = null;
 
 // Arrange state
@@ -138,7 +139,9 @@ sectionResize = {
 }
 */
 
-function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
+}
 
 function nearestPreset(value, presets) {
   let best = presets[0];
@@ -194,8 +197,8 @@ function groupPhotos() {
 
   for (const arr of grouped.values()) {
     arr.sort((a, b) => {
-      const ao = (typeof a.order === "number" ? a.order : (a.createdAt ?? 0));
-      const bo = (typeof b.order === "number" ? b.order : (b.createdAt ?? 0));
+      const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
+      const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
       return ao - bo;
     });
   }
@@ -238,7 +241,10 @@ function getSectionLayout(id) {
 }
 
 function normalizeSectionLayout(lay) {
-  const span = nearestPreset(clamp(lay?.colSpan ?? 12, 1, GRID_COLS), SPAN_PRESETS);
+  const span = nearestPreset(
+    clamp(lay?.colSpan ?? 12, 1, GRID_COLS),
+    SPAN_PRESETS
+  );
   const rawH = typeof lay?.heightPx === "number" ? lay.heightPx : null;
 
   // ✅ hauteur aimantée, ou auto si null
@@ -471,7 +477,9 @@ function startAutoScroll() {
 function cancelDrag() {
   if (!drag) return;
 
-  try { if (drag.pressTimer) clearTimeout(drag.pressTimer); } catch {}
+  try {
+    if (drag.pressTimer) clearTimeout(drag.pressTimer);
+  } catch {}
   stopAutoScroll();
 
   if (drag.ghostEl) drag.ghostEl.remove();
@@ -540,7 +548,7 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
         rowTol: Math.max(12, r.height * 0.35),
       };
     })
-    .sort((a, b) => (a.r.top - b.r.top) || (a.r.left - b.r.left));
+    .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
 
   let beforeEl = null;
   for (const it of items) {
@@ -594,7 +602,9 @@ function onPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  try { cardEl.setPointerCapture(e.pointerId); } catch {}
+  try {
+    cardEl.setPointerCapture(e.pointerId);
+  } catch {}
 
   if (drag.pointerType === "touch") {
     drag.pressTimer = setTimeout(() => {
@@ -696,21 +706,28 @@ async function finalizeDrop(state) {
   let dropIndex = 0;
   for (const child of [...targetGrid.children]) {
     if (child === placeholder) break;
-    if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) {
+    if (
+      child.classList?.contains("card-btn") &&
+      !child.classList.contains("dragging")
+    ) {
       dropIndex++;
     }
   }
 
   const grouped = groupPhotos();
-  const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
+  const targetList = (grouped.get(targetSectionId) || []).filter(
+    (p) => p.id !== state.id
+  );
 
   const prev = dropIndex > 0 ? targetList[dropIndex - 1] : null;
   const next = dropIndex < targetList.length ? targetList[dropIndex] : null;
 
   const prevOrder =
-    prev && typeof prev.order === "number" ? prev.order : (prev?.createdAt ?? 0);
+    prev && typeof prev.order === "number" ? prev.order : prev?.createdAt ?? 0;
   const nextOrder =
-    next && typeof next.order === "number" ? next.order : (next?.createdAt ?? (prevOrder + 1000));
+    next && typeof next.order === "number"
+      ? next.order
+      : next?.createdAt ?? prevOrder + 1000;
 
   let newOrder;
 
@@ -721,7 +738,9 @@ async function finalizeDrop(state) {
 
   if (prev && next && Math.abs(nextOrder - prevOrder) < 0.000001) {
     try {
-      const renorm = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
+      const renorm = (grouped.get(targetSectionId) || []).filter(
+        (p) => p.id !== state.id
+      );
       renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
 
       const base = Date.now();
@@ -781,7 +800,9 @@ function onPointerUp(e) {
         alert("Impossible de déplacer la photo.");
       })
       .finally(() => {
-        try { placeholder.remove(); } catch {}
+        try {
+          placeholder.remove();
+        } catch {}
       });
   }
 }
@@ -908,7 +929,7 @@ function placeSectionPlaceholder(wrap, placeholderEl, x, y, draggedId) {
         rowTol: Math.max(18, r.height * 0.35),
       };
     })
-    .sort((a, b) => (a.r.top - b.r.top) || (a.r.left - b.r.left));
+    .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
 
   let beforeEl = null;
   for (const it of items) {
@@ -952,7 +973,9 @@ function onSectionPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  try { handle.setPointerCapture(e.pointerId); } catch {}
+  try {
+    handle.setPointerCapture(e.pointerId);
+  } catch {}
 }
 
 function startSectionDrag(sectionEl) {
@@ -963,6 +986,7 @@ function startSectionDrag(sectionEl) {
   sectionDrag.ghostEl = createSectionGhost(sectionEl);
   document.body.appendChild(sectionDrag.ghostEl);
 
+  // cache l'original, mais on le gardera dans le DOM
   sectionEl.style.opacity = "0";
   sectionEl.style.pointerEvents = "none";
 
@@ -1007,11 +1031,8 @@ function onSectionPointerMove(e) {
   );
 }
 
-async function finalizeSectionDrop(state) {
-  if (!state?.started) return;
-
-  const placeholder = state.placeholderEl;
-  const wrap = placeholder?.parentElement;
+// ✅ IMPORTANT: persiste l'ordre à partir du DOM RÉEL (après insertion)
+async function finalizeSectionDrop(wrap) {
   if (!wrap) return;
 
   const all = [...wrap.querySelectorAll(".section-card")];
@@ -1021,6 +1042,8 @@ async function finalizeSectionDrop(state) {
 
   for (const el of all) {
     const sid = el.dataset.sectionCardId;
+
+    // On ne persiste pas l'ordre du bucket logique (pas dans Firestore)
     if (!sid || sid === UNASSIGNED) continue;
 
     const ord = base + i * 1000;
@@ -1035,11 +1058,6 @@ function onSectionPointerUp(e) {
   if (e.pointerId !== sectionDrag.pointerId) return;
 
   const wasStarted = sectionDrag.started;
-  const state = {
-    id: sectionDrag.id,
-    started: sectionDrag.started,
-    placeholderEl: sectionDrag.placeholderEl,
-  };
 
   const id = sectionDrag.id;
   const ghost = sectionDrag.ghostEl;
@@ -1055,6 +1073,7 @@ function onSectionPointerUp(e) {
   const original = sectionsWrap?.querySelector(
     `.section-card[data-section-card-id="${id}"]`
   );
+
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -1062,15 +1081,24 @@ function onSectionPointerUp(e) {
 
   if (!wasStarted) return;
 
+  // ✅ FIX: insère l'élément ORIGINAL à la place du placeholder, puis persiste
   if (placeholder && placeholder.parentElement) {
-    finalizeSectionDrop(state)
-      .catch((err) => {
-        console.error(err);
-        alert("Impossible de déplacer la section.");
-      })
-      .finally(() => {
-        try { placeholder.remove(); } catch {}
-      });
+    const wrap = placeholder.parentElement;
+
+    if (original) {
+      wrap.insertBefore(original, placeholder);
+      original.style.opacity = "";
+      original.style.pointerEvents = "";
+    }
+
+    try {
+      placeholder.remove();
+    } catch {}
+
+    finalizeSectionDrop(wrap).catch((err) => {
+      console.error(err);
+      alert("Impossible de déplacer la section.");
+    });
   }
 }
 
@@ -1101,7 +1129,9 @@ async function persistSectionLayout(id, colSpan, heightPx) {
   if (id === UNASSIGNED) {
     galleryLayout.colSpan = normalized.colSpan;
     galleryLayout.heightPx = normalized.heightPx;
-    try { localStorage.setItem(GALLERY_LAYOUT_KEY, JSON.stringify(galleryLayout)); } catch {}
+    try {
+      localStorage.setItem(GALLERY_LAYOUT_KEY, JSON.stringify(galleryLayout));
+    } catch {}
     return;
   }
 
@@ -1138,7 +1168,9 @@ function onSectionResizeDown(e) {
     colW,
   };
 
-  try { handle.setPointerCapture(e.pointerId); } catch {}
+  try {
+    handle.setPointerCapture(e.pointerId);
+  } catch {}
   document.body.classList.add("drag-active");
 }
 
@@ -1159,7 +1191,11 @@ function onSectionResizeMove(e) {
 
   // ✅ largeur aimantée (4 / 8 / 12)
   const colUnit = sectionResize.colW + sectionResize.gap;
-  const approxSpan = clamp(Math.round((newW + sectionResize.gap) / colUnit), 1, GRID_COLS);
+  const approxSpan = clamp(
+    Math.round((newW + sectionResize.gap) / colUnit),
+    1,
+    GRID_COLS
+  );
   const span = nearestPreset(approxSpan, SPAN_PRESETS);
 
   // ✅ hauteur aimantée (260 / 360 / 480 / 620)
@@ -1183,24 +1219,28 @@ function onSectionResizeUp(e) {
   if (!sectionEl) return;
 
   // ✅ on relit et on persiste normalisé
-  const span = parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
+  const span =
+    parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
 
   const hRaw = sectionEl.style.getPropertyValue("--h");
   const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
 
-  persistSectionLayout(id, span, heightPx)
-    .catch((err) => {
-      console.error(err);
-      alert("Impossible de sauvegarder la taille de la section.");
-    });
+  persistSectionLayout(id, span, heightPx).catch((err) => {
+    console.error(err);
+    alert("Impossible de sauvegarder la taille de la section.");
+  });
 }
 
 /* ---------------------------
    Listeners (delegation)
 ---------------------------- */
 
-sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, { passive: false });
-sectionsWrap?.addEventListener("pointerdown", onSectionResizeDown, { passive: false });
+sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, {
+  passive: false,
+});
+sectionsWrap?.addEventListener("pointerdown", onSectionResizeDown, {
+  passive: false,
+});
 sectionsWrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
 
 window.addEventListener("pointermove", onSectionPointerMove, { passive: false });
@@ -1210,6 +1250,19 @@ window.addEventListener("pointermove", onPointerMove, { passive: false });
 window.addEventListener("pointerup", onSectionPointerUp);
 window.addEventListener("pointerup", onSectionResizeUp);
 window.addEventListener("pointerup", onPointerUp);
+
+// Bonus: robustesse si le pointer est annulé (mobile / navigateur)
+window.addEventListener("pointercancel", (e) => {
+  try {
+    onPointerUp(e);
+  } catch {}
+  try {
+    onSectionPointerUp(e);
+  } catch {}
+  try {
+    onSectionResizeUp(e);
+  } catch {}
+});
 
 /* ---------------------------
    Viewer
