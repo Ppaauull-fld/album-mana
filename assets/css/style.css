@@ -984,3 +984,20 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
     border-radius: 14px;
   }
 }
+
+
+
+/* Viewer : toujours voir l'image entière */
+#photoViewer .viewer-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+#photoViewer #viewerImg{
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: calc(100vh - 160px) !important;
+  object-fit: contain !important;
+}
