@@ -175,6 +175,9 @@ function enterSectionFullscreen(sectionId) {
 
   fullscreenSectionId = sectionId;
 
+  // 🔴 LIGNE MANQUANTE
+  document.body.appendChild(card);
+
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 
@@ -184,14 +187,18 @@ function enterSectionFullscreen(sectionId) {
   window.addEventListener("keydown", onFullscreenKeydown);
 }
 
+
 function exitSectionFullscreen() {
   if (!sectionsWrap) return;
 
   if (fullscreenSectionId) {
-    const card = sectionsWrap.querySelector(
+    const card = document.querySelector(
       `.section-card[data-section-card-id="${fullscreenSectionId}"]`
     );
-    if (card) card.classList.remove("is-fullscreen");
+    if (card) {
+      card.classList.remove("is-fullscreen");
+      sectionsWrap.appendChild(card); // 🔴 IMPORTANT
+    }
   }
 
   fullscreenSectionId = null;
@@ -205,6 +212,7 @@ function exitSectionFullscreen() {
 
   window.removeEventListener("keydown", onFullscreenKeydown);
 }
+
 
 /* ---------------------------
    Delete section (toujours dispo)

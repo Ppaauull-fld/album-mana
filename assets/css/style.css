@@ -277,6 +277,12 @@ img{max-width:100%;display:block}
 
 .section-card.no-title .section-head{ display:none; }
 
+/* Séparation claire entre la galerie et les sections */
+.section-card.no-title{
+  margin-bottom: 28px;
+}
+
+
 /* header stable (poignée + titre + actions) */
 .section-head{
   display:flex;
@@ -947,9 +953,8 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   display:none !important;
 }
 
-/* =========================================================
-   Fullscreen section
-   ========================================================= */
+/* ===== Fullscreen section ===== */
+
 .section-backdrop{
   position: fixed;
   inset: 0;
@@ -959,12 +964,23 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 
 .section-card.is-fullscreen{
   position: fixed;
-  inset: 18px;
+  inset: 24px;
   z-index: 9999;
-  overflow: auto;
+
+  background: #fff;
   border-radius: 18px;
+  overflow: auto;
+
+  max-width: none;
+  width: auto;
+  height: auto;
+
+  box-shadow: 0 40px 120px rgba(0,0,0,.55);
 }
 
 @media (max-width: 740px){
-  .section-card.is-fullscreen{ inset: 10px; }
+  .section-card.is-fullscreen{
+    inset: 10px;
+    border-radius: 14px;
+  }
 }
