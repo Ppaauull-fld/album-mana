@@ -304,14 +304,30 @@ img{max-width:100%;display:block}
   grid-template-columns: repeat(4, 1fr);
   gap:16px;
   min-height: 90px; /* important pour drop */
+  align-content: start; /* évite des comportements bizarres quand vide */
 }
 @media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
 @media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
 @media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
 
-/* ✅ prépare l’animation iPhone-like (cartes qui se décalent) */
-.section-grid > *{
-  transition: transform 180ms cubic-bezier(.2,.8,.2,1);
+/* ✅ prépare l’animation (cartes qui se décalent) */
+.section-grid > .card-btn{
+  will-change: transform;
+}
+
+/* =========================================================
+   Drag helpers (global)
+   ========================================================= */
+
+/* quand on drague: pas de sélection texte / pas d'effets iOS bizarres */
+body.drag-active{
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* pendant drag, on veut un mouvement libre (diagonales) */
+body.drag-active .card-btn{
+  touch-action: none;
 }
 
 /* =========================================================
@@ -331,31 +347,33 @@ body.page.arranging .card-btn{
   outline: none;
 }
 
-/* ghost pendant déplacement */
-.card-btn.drag-ghost{
-  opacity:.8;
-  transform: scale(.92);
-  z-index: 10;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+/* ORIGINAL masqué pendant drag */
+.card-btn.dragging{
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* placeholder qui prend EXACTEMENT la place d’une carte */
+/* ghost pendant déplacement
+   IMPORTANT: le ghost est un clone de .card (pas forcément .card-btn) */
+.drag-ghost{
+  opacity:.88;
+  transform: scale(.94);
+  z-index: 9999;
+  box-shadow: 0 24px 70px rgba(0,0,0,.22);
+}
+
+/* placeholder : doit matcher une carte (JS fixe width/height) */
 .drop-placeholder{
   border-radius: 18px;
   border: 2px dashed rgba(0,0,0,.18);
   background: rgba(0,0,0,.03);
 
-  /* ✅ robuste (évite hauteur fixe fragile) */
-  aspect-ratio: 1 / 1;
-  height: auto;
+  /* IMPORTANT: pas d'aspect-ratio ici, sinon la taille diverge de la carte */
+  width: 100%;
+  height: 260px; /* fallback si JS n'a pas encore set */
 }
 
-/* fallback si aspect-ratio n’est pas supporté (rare) */
-@supports not (aspect-ratio: 1 / 1){
-  .drop-placeholder{ height: 260px; }
-}
-
-/* highlight zone drop */
+/* highlight zone drop (si tu l’utilises) */
 .section-grid.drag-over{
   outline: 2px solid rgba(0,0,0,.10);
   outline-offset: -6px;

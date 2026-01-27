@@ -88,6 +88,8 @@ drag = {
 }
 */
 
+let autoScrollRaf = null;
+
 function clampRotation(deg) {
   const allowed = [0, 90, 180, 270];
   return allowed.includes(deg) ? deg : 0;
@@ -266,6 +268,8 @@ function getRects(container) {
 }
 
 function animateFLIP(container, before) {
+  if (!container || !before) return;
+
   const items = [...container.querySelectorAll(".card-btn")];
   for (const el of items) {
     const first = before.get(el);
@@ -275,6 +279,7 @@ function animateFLIP(container, before) {
     const dy = first.top - last.top;
     if (dx === 0 && dy === 0) continue;
 
+    // NOTE: on ne touche pas la rotation des thumbs : ici c'est l'élément button qui bouge
     el.style.transform = `translate(${dx}px, ${dy}px)`;
     el.style.transition = "transform 0s";
     requestAnimationFrame(() => {
@@ -297,12 +302,64 @@ function animateFLIP(container, before) {
    - mobile: long press
 ---------------------------- */
 
+function stopAutoScroll() {
+  if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+  autoScrollRaf = null;
+}
+
+function startAutoScroll() {
+  if (autoScrollRaf) return;
+
+  const step = () => {
+    if (!drag || !drag.started) {
+      stopAutoScroll();
+      return;
+    }
+
+    const edge = 90;     // zone proche des bords
+    const maxSpeed = 22; // px / frame approx
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    const x = drag.lastX;
+    const y = drag.lastY;
+
+    let vx = 0;
+    let vy = 0;
+
+    if (y < edge) vy = -maxSpeed * (1 - y / edge);
+    else if (y > H - edge) vy = maxSpeed * (1 - (H - y) / edge);
+
+    if (x < edge) vx = -maxSpeed * (1 - x / edge);
+    else if (x > W - edge) vx = maxSpeed * (1 - (W - x) / edge);
+
+    if (vx || vy) {
+      window.scrollBy(vx, vy);
+
+      // Après scroll, on repose le placeholder car les rects ont changé
+      const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
+      if (grid && drag.placeholderEl) {
+        if (drag.placeholderEl.parentElement !== grid) {
+          grid.appendChild(drag.placeholderEl);
+        }
+        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+      }
+    }
+
+    autoScrollRaf = requestAnimationFrame(step);
+  };
+
+  autoScrollRaf = requestAnimationFrame(step);
+}
+
 function cancelDrag() {
   if (!drag) return;
 
   try {
     if (drag.pressTimer) clearTimeout(drag.pressTimer);
   } catch {}
+
+  stopAutoScroll();
 
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
@@ -313,18 +370,20 @@ function cancelDrag() {
     original.classList.remove("dragging");
   }
 
+  document.body.classList.remove("drag-active");
+
   drag = null;
 }
 
 function createPlaceholderFromCard(cardEl) {
   const ph = document.createElement("div");
   ph.className = "drop-placeholder";
-  // hauteur auto si ton CSS change, sinon conserve
-  const thumb = cardEl.querySelector(".thumb");
-  if (thumb) {
-    const rect = thumb.getBoundingClientRect();
-    if (rect.height) ph.style.height = `${rect.height}px`;
-  }
+
+  // En grille, le placeholder doit matcher la carte, pas le thumb
+  const rect = cardEl.getBoundingClientRect();
+  if (rect.width) ph.style.width = `${rect.width}px`;
+  if (rect.height) ph.style.height = `${rect.height}px`;
+
   return ph;
 }
 
@@ -350,46 +409,44 @@ function gridFromPoint(x, y) {
   return el?.closest?.(".section-grid") || null;
 }
 
-function cardFromPoint(x, y) {
-  const el = document.elementFromPoint(x, y);
-  return el?.closest?.(".card-btn") || null;
-}
-
 function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
-  // Trouve la carte la plus proche du pointeur dans cette grille
   const cards = [...gridEl.querySelectorAll(".card-btn")].filter(
     (c) => c.dataset.id !== draggedId && !c.classList.contains("dragging")
   );
 
   if (!cards.length) {
-    // grille vide => placeholder direct
     if (placeholderEl.parentElement !== gridEl) gridEl.appendChild(placeholderEl);
     else if (gridEl.lastChild !== placeholderEl) gridEl.appendChild(placeholderEl);
     return;
   }
 
-  let closest = null;
-  let closestDist = Infinity;
+  // Tri stable en grille (top, puis left)
+  const items = cards
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        el,
+        r,
+        cx: r.left + r.width / 2,
+        cy: r.top + r.height / 2,
+        rowTol: Math.max(12, r.height * 0.35),
+      };
+    })
+    .sort((a, b) => (a.r.top - b.r.top) || (a.r.left - b.r.left));
 
-  for (const c of cards) {
-    const r = c.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
-    if (d < closestDist) {
-      closestDist = d;
-      closest = c;
+  let beforeEl = null;
+  for (const it of items) {
+    const sameRow = Math.abs(y - it.cy) <= it.rowTol;
+    if (y < it.cy || (sameRow && x < it.cx)) {
+      beforeEl = it.el;
+      break;
     }
   }
 
-  const r = closest.getBoundingClientRect();
-  // seuil “iphone-like” : selon si on est plutôt à gauche/droite de l’élément
-  const before = x < r.left + r.width / 2;
-
   const beforeRects = getRects(gridEl);
 
-  if (before) gridEl.insertBefore(placeholderEl, closest);
-  else gridEl.insertBefore(placeholderEl, closest.nextSibling);
+  if (!beforeEl) gridEl.appendChild(placeholderEl);
+  else gridEl.insertBefore(placeholderEl, beforeEl);
 
   animateFLIP(gridEl, beforeRects);
 }
@@ -400,8 +457,11 @@ function onPointerDown(e) {
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
 
-  // Empêche “click” fantôme sur iOS pendant drag
-  e.preventDefault();
+  // Desktop: empêche sélection / drag natif.
+  // Touch: on laisse le scroll fonctionner avant long-press
+  if ((e.pointerType || "mouse") !== "touch") {
+    e.preventDefault();
+  }
 
   const id = cardEl.dataset.id;
   const srcGrid = cardEl.closest(".section-grid");
@@ -427,7 +487,6 @@ function onPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  // capture
   try {
     cardEl.setPointerCapture(e.pointerId);
   } catch {}
@@ -446,34 +505,31 @@ function startDrag(cardEl) {
 
   drag.started = true;
 
-  // stop long press timer
   if (drag.pressTimer) {
     clearTimeout(drag.pressTimer);
     drag.pressTimer = null;
   }
 
-  // créer placeholder + ghost
   drag.placeholderEl = createPlaceholderFromCard(cardEl);
   drag.ghostEl = createGhostFromCard(cardEl);
 
   document.body.appendChild(drag.ghostEl);
 
-  // masquer l’original (tout en gardant sa place via placeholder)
   const beforeRects = getRects(drag.srcGrid);
   cardEl.classList.add("dragging");
 
+  // placeholder prend la place de la carte
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
-  // retirer la carte originale de son flux (on la laisse dans le DOM mais cachée visuellement)
-  // => on la garde pour que la page ne “saute” pas
-  // (elle reste à sa place, mais opacity via CSS)
   animateFLIP(drag.srcGrid, beforeRects);
 
-  // placer placeholder correctement dès le start
+  // placement initial
   placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
 
-  // pendant drag : on évite le scroll + sélection texte
-  document.documentElement.classList.add("noscroll");
-  document.body.classList.add("noscroll");
+  // IMPORTANT: pas de overflow:hidden (ça provoque des jumps iOS)
+  document.body.classList.add("drag-active");
+
+  // lance l’auto-scroll
+  startAutoScroll();
 }
 
 function onPointerMove(e) {
@@ -483,14 +539,12 @@ function onPointerMove(e) {
   drag.lastX = e.clientX;
   drag.lastY = e.clientY;
 
-  // si touch: avant long press, on laisse le scroll fonctionner tant que mouvement
-  // (si l’utilisateur scrolle, on annule le long press)
+  // touch: avant long press, si l'utilisateur scrolle -> on annule le long press
   if (!drag.started && drag.pointerType === "touch") {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
     const dist = Math.hypot(dx, dy);
     if (dist > 10) {
-      // utilisateur en scroll => annule long press
       if (drag.pressTimer) clearTimeout(drag.pressTimer);
       drag.pressTimer = null;
     }
@@ -518,52 +572,59 @@ function onPointerMove(e) {
   drag.ghostEl.style.left = `${x}px`;
   drag.ghostEl.style.top = `${y}px`;
 
-  // trouver la grille sous le pointeur (peut changer de section)
-  const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
+  // active l'auto scroll (si pas déjà)
+  startAutoScroll();
 
+  const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
   if (!grid) return;
 
-  // si on change de grille: déplacer placeholder + FLIP sur les 2 grilles
-  if (drag.placeholderEl.parentElement !== grid) {
-    const beforeOld = drag.placeholderEl.parentElement ? getRects(drag.placeholderEl.parentElement) : null;
+  // Si on change de grille: animer ancien + nouveau correctement
+  const oldParent = drag.placeholderEl.parentElement;
+  if (oldParent !== grid) {
+    const beforeOld = oldParent ? getRects(oldParent) : null;
     const beforeNew = getRects(grid);
 
     grid.appendChild(drag.placeholderEl);
 
-    if (beforeOld) animateFLIP(drag.placeholderEl.parentElement, beforeOld);
+    // IMPORTANT: animer l'ancien parent (on a gardé la ref)
+    animateFLIP(oldParent, beforeOld);
     animateFLIP(grid, beforeNew);
   }
 
-  // placer placeholder à l’endroit “iphone”
   placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
 }
 
-async function finalizeDrop() {
-  if (!drag || !drag.started) return;
+async function finalizeDrop(state) {
+  // state est une copie stable (drag est déjà null au moment où on drop)
+  if (!state || !state.started) return;
 
-  const placeholder = drag.placeholderEl;
-  const targetGrid = placeholder.parentElement?.closest(".section-grid");
+  const placeholder = state.placeholderEl;
+  const targetGrid = placeholder?.parentElement?.closest?.(".section-grid");
   if (!targetGrid) return;
 
   const targetSectionId = targetGrid.dataset.sectionId || UNASSIGNED;
   const newSectionValue = targetSectionId === UNASSIGNED ? null : targetSectionId;
 
-  // index de drop dans cette grille
-  const children = [...targetGrid.children];
-  const dropIndex = children.indexOf(placeholder);
+  // dropIndex logique: on compte uniquement les card-btn non-dragging avant le placeholder
+  let dropIndex = 0;
+  for (const child of [...targetGrid.children]) {
+    if (child === placeholder) break;
+    if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) {
+      dropIndex++;
+    }
+  }
 
   // liste des photos (data) dans la section cible (hors dragged)
   const grouped = groupPhotos();
-  const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== drag.id);
+  const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
 
-  // ordres voisins
   const prev = dropIndex > 0 ? targetList[dropIndex - 1] : null;
   const next = dropIndex < targetList.length ? targetList[dropIndex] : null;
 
   const prevOrder =
     prev && typeof prev.order === "number" ? prev.order : (prev?.createdAt ?? 0);
   const nextOrder =
-    next && typeof next.order === "number" ? next.order : (next?.createdAt ?? prevOrder + 1000);
+    next && typeof next.order === "number" ? next.order : (next?.createdAt ?? (prevOrder + 1000));
 
   let newOrder;
 
@@ -580,29 +641,25 @@ async function finalizeDrop() {
   // cas extrême: ordres trop proches => renormalise la section (rare)
   if (prev && next && Math.abs(nextOrder - prevOrder) < 0.000001) {
     try {
-      const renorm = (grouped.get(targetSectionId) || [])
-        .filter((p) => p.id !== drag.id);
+      const renorm = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
 
-      // on insère virtuellement l’item déplacé
-      renorm.splice(dropIndex, 0, { id: drag.id, createdAt: Date.now(), order: 0 });
+      renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
 
-      // réécrit des orders propres
       const base = Date.now();
       for (let i = 0; i < renorm.length; i++) {
         const pid = renorm[i].id;
         const ord = base + i * 1000;
         await updateDoc(doc(db, PHOTOS_COL, pid), { order: ord });
       }
-      // et on met sectionId sur le déplacé (ordre déjà ok)
-      await updateDoc(doc(db, PHOTOS_COL, drag.id), { sectionId: newSectionValue });
+
+      await updateDoc(doc(db, PHOTOS_COL, state.id), { sectionId: newSectionValue });
       return;
     } catch (e) {
       console.error("Renormalisation order failed", e);
     }
   }
 
-  // persist: sectionId + order
-  await updateDoc(doc(db, PHOTOS_COL, drag.id), {
+  await updateDoc(doc(db, PHOTOS_COL, state.id), {
     sectionId: newSectionValue,
     order: newOrder,
   });
@@ -612,18 +669,25 @@ function onPointerUp(e) {
   if (!drag) return;
   if (e.pointerId !== drag.pointerId) return;
 
-  // si pas démarré (tap / scroll), on annule juste
   const wasStarted = drag.started;
 
-  // cleanup UI tout de suite
+  // snapshot stable pour finalizeDrop (drag va être null)
+  const state = {
+    id: drag.id,
+    started: drag.started,
+    placeholderEl: drag.placeholderEl,
+  };
+
   const draggedId = drag.id;
   const ghost = drag.ghostEl;
   const placeholder = drag.placeholderEl;
 
-  // stop timer
   if (drag.pressTimer) clearTimeout(drag.pressTimer);
 
   drag = null;
+
+  stopAutoScroll();
+  document.body.classList.remove("drag-active");
 
   if (ghost) ghost.remove();
 
@@ -631,25 +695,15 @@ function onPointerUp(e) {
   const original = sectionsWrap?.querySelector(`.card-btn[data-id="${draggedId}"]`);
   if (original) original.classList.remove("dragging");
 
-  // si pas de drag, on laisse la page normale
   if (!wasStarted) return;
 
-  // on autorise de nouveau le scroll
-  document.documentElement.classList.remove("noscroll");
-  document.body.classList.remove("noscroll");
-
-  // on garde une référence placeholder si encore là
-  // (sinon snapshot aura re-render)
   if (placeholder && placeholder.parentElement) {
-    // on “finalize” en async
-    finalizeDrop()
+    finalizeDrop(state)
       .catch((err) => {
         console.error(err);
         alert("Impossible de déplacer la photo.");
       })
       .finally(() => {
-        // placeholder retiré au prochain render (snapshot),
-        // mais on le retire si encore présent
         try { placeholder.remove(); } catch {}
       });
   }
@@ -981,7 +1035,7 @@ uploadStartBtn?.addEventListener("click", async () => {
       await addDoc(collection(db, PHOTOS_COL), {
         type: "photo",
         createdAt: Date.now(),
-        order: Date.now(), // important pour persister le tri
+        order: Date.now(),
         sectionId: null,
 
         publicId: up.public_id,
@@ -1059,13 +1113,11 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  // Sections
   onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
     sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAll();
   });
 
-  // IMPORTANT: on garde createdAt pour inclure les anciennes photos sans order
   onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
     photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAll();
