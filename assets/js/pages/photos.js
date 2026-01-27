@@ -144,6 +144,26 @@ function applyRotationThumb(imgEl, deg) {
  */
 function updateMasonryRows(_cardEl, _forcedHeightPx = null) {}
 
+// --- Cloudinary: forcer un format compatible navigateur (résout HEIC sur Chrome) ---
+function cloudinaryWithTransform(url, transform = "f_auto,q_auto") {
+  if (!url || typeof url !== "string") return url;
+  // Insère la transformation juste après /upload/
+  if (!url.includes("/upload/")) return url;
+  return url.replace("/upload/", `/upload/${transform}/`);
+}
+
+// Miniature carrée/raisonnable (optionnel mais conseillé)
+function cloudinaryThumb(url) {
+  // tu peux ajuster la taille si tu veux (ex: 600)
+  return cloudinaryWithTransform(url, "f_auto,q_auto,c_fill,w_600,h_600");
+}
+
+// Image “plein écran”
+function cloudinaryFull(url) {
+  return cloudinaryWithTransform(url, "f_auto,q_auto");
+}
+
+
 /* ---------------------------
    Fullscreen section (maximize)
 ---------------------------- */
@@ -309,7 +329,7 @@ function renderPhotoCard(p) {
 
   const img = document.createElement("img");
   img.className = "thumb";
-  img.src = p.thumbUrl || p.url;
+  img.src = cloudinaryThumb(p.thumbUrl || p.url);
   img.alt = "photo";
   if (p.rotation) applyRotationThumb(img, p.rotation);
 
@@ -1310,10 +1330,10 @@ window.addEventListener("pointercancel", (e) => {
 function openViewer(photo) {
   currentViewed = { ...photo };
   viewerTitle.textContent = "Photo";
-  viewerImg.src = photo.url;
+  viewerImg.src = cloudinaryFull(photo.url);
   applyRotation(viewerImg, photo.rotation || 0);
 
-  viewerDownload.href = photo.url;
+  viewerDownload.href = cloudinaryFull(photo.url);
   viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
 
   viewer.classList.add("open");
@@ -1391,7 +1411,7 @@ function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
 
-  slideImg.src = s.url;
+  slideImg.src = cloudinaryFull(s.url);
   slideCounter.textContent = `${idx + 1} / ${queue.length}`;
   applyRotation(slideImg, s.rotation || 0);
 }
