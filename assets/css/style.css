@@ -281,10 +281,11 @@ img{max-width:100%;display:block}
 
 .section-card.no-title .section-head{ display:none; }
 
+/* ✅ FIX: header stable (poignée + titre), pas de "space-between" */
 .section-head{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:flex-start;
   gap:12px;
   padding: 14px 14px;
   border-bottom: 1px solid rgba(0,0,0,.06);
@@ -292,6 +293,8 @@ img{max-width:100%;display:block}
 }
 
 .section-title{
+  flex:1;
+  min-width:0;
   font-weight: 720;
   font-size: 16px;
   color: rgba(0,0,0,.86);
@@ -322,14 +325,6 @@ img{max-width:100%;display:block}
   min-height: 90px;
   align-content: start;
 }
-@media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
-@media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
-@media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
-
-.section-grid > .card-btn{ will-change: transform; }
-
-
-
 @media (max-width: 1000px){ .section-grid{grid-template-columns: repeat(3, 1fr)} }
 @media (max-width: 740px){ .section-grid{grid-template-columns: repeat(2, 1fr)} }
 @media (max-width: 430px){ .section-grid{grid-template-columns: 1fr} }
@@ -1004,7 +999,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   width: 18px;
   height: 18px;
 }
-
 
 /* =========================================================
    Arrange: drag + resize des sections

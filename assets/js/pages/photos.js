@@ -22,6 +22,15 @@ const DRAG_START_PX = 8;   // seuil mouvement pour démarrer (desktop)
 
 // Layout (sections)
 const GRID_COLS = 12;
+
+// ✅ Largeur aimantée: 1/3, 2/3, plein écran
+const SPAN_PRESETS = [4, 8, 12];
+
+// ✅ Hauteurs aimantées (px) — ajuste si tu veux
+const HEIGHT_PRESETS = [260, 360, 480, 620]; // "pas trop libre" + cohérent visuellement
+const MIN_HEIGHT = HEIGHT_PRESETS[0];
+const MAX_HEIGHT = HEIGHT_PRESETS[HEIGHT_PRESETS.length - 1];
+
 const GALLERY_LAYOUT_KEY = "albumMana_galleryLayout_v1";
 let galleryLayout = { colSpan: 12, heightPx: null };
 try {
@@ -113,6 +122,9 @@ sectionDrag = {
 }
 */
 
+// ✅ Auto-scroll pour sections (pour pouvoir déplacer bas/haut)
+let autoScrollSectionRaf = null;
+
 // Resize sections
 let sectionResize = null;
 /*
@@ -127,6 +139,19 @@ sectionResize = {
 */
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+function nearestPreset(value, presets) {
+  let best = presets[0];
+  let bestD = Infinity;
+  for (const p of presets) {
+    const d = Math.abs(value - p);
+    if (d < bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  return best;
+}
 
 function clampRotation(deg) {
   const allowed = [0, 90, 180, 270];
@@ -212,13 +237,26 @@ function getSectionLayout(id) {
   };
 }
 
+function normalizeSectionLayout(lay) {
+  const span = nearestPreset(clamp(lay?.colSpan ?? 12, 1, GRID_COLS), SPAN_PRESETS);
+  const rawH = typeof lay?.heightPx === "number" ? lay.heightPx : null;
+
+  // ✅ hauteur aimantée, ou auto si null
+  let h = null;
+  if (rawH != null) {
+    const clamped = clamp(rawH, MIN_HEIGHT, MAX_HEIGHT);
+    h = nearestPreset(clamped, HEIGHT_PRESETS);
+  }
+
+  return { colSpan: span, heightPx: h };
+}
+
 function applySectionLayout(cardEl, id) {
-  const lay = getSectionLayout(id);
-  const span = clamp(lay.colSpan ?? 12, 1, GRID_COLS);
-  cardEl.style.setProperty("--span", String(span));
+  const lay = normalizeSectionLayout(getSectionLayout(id));
+  cardEl.style.setProperty("--span", String(lay.colSpan));
 
   if (lay.heightPx && typeof lay.heightPx === "number") {
-    cardEl.style.setProperty("--h", `${Math.max(120, Math.round(lay.heightPx))}px`);
+    cardEl.style.setProperty("--h", `${Math.round(lay.heightPx)}px`);
   } else {
     cardEl.style.setProperty("--h", "auto");
   }
@@ -296,7 +334,6 @@ function renderAll() {
   const grouped = groupPhotos();
   sectionsWrap.innerHTML = "";
 
-  // Grille principale (sans titre)
   sectionsWrap.appendChild(
     renderSectionCard(
       { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
@@ -304,7 +341,6 @@ function renderAll() {
     )
   );
 
-  // Sections créées
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
@@ -322,6 +358,8 @@ function renderAll() {
 function setArranging(on) {
   arranging = !!on;
 
+  // ✅ compat CSS: si ton CSS utilise body.page.arranging
+  document.body.classList.add("page");
   document.body.classList.toggle("arranging", arranging);
 
   if (arrangeBtn) {
@@ -434,7 +472,6 @@ function cancelDrag() {
   if (!drag) return;
 
   try { if (drag.pressTimer) clearTimeout(drag.pressTimer); } catch {}
-
   stopAutoScroll();
 
   if (drag.ghostEl) drag.ghostEl.remove();
@@ -750,15 +787,70 @@ function onPointerUp(e) {
 }
 
 /* ---------------------------
-   Drag SECTIONS
+   Drag SECTIONS + auto-scroll
 ---------------------------- */
+
+function stopAutoScrollSection() {
+  if (autoScrollSectionRaf) cancelAnimationFrame(autoScrollSectionRaf);
+  autoScrollSectionRaf = null;
+}
+
+function startAutoScrollSection() {
+  if (autoScrollSectionRaf) return;
+
+  const step = () => {
+    if (!sectionDrag || !sectionDrag.started) {
+      stopAutoScrollSection();
+      return;
+    }
+
+    const edge = 90;
+    const maxSpeed = 22;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    const x = sectionDrag.lastX;
+    const y = sectionDrag.lastY;
+
+    let vx = 0;
+    let vy = 0;
+
+    if (y < edge) vy = -maxSpeed * (1 - y / edge);
+    else if (y > H - edge) vy = maxSpeed * (1 - (H - y) / edge);
+
+    if (x < edge) vx = -maxSpeed * (1 - x / edge);
+    else if (x > W - edge) vx = maxSpeed * (1 - (W - x) / edge);
+
+    if (vx || vy) {
+      window.scrollBy(vx, vy);
+      if (sectionDrag?.placeholderEl) {
+        placeSectionPlaceholder(
+          sectionsWrap,
+          sectionDrag.placeholderEl,
+          sectionDrag.lastX,
+          sectionDrag.lastY,
+          sectionDrag.id
+        );
+      }
+    }
+
+    autoScrollSectionRaf = requestAnimationFrame(step);
+  };
+
+  autoScrollSectionRaf = requestAnimationFrame(step);
+}
 
 function cancelSectionDrag() {
   if (!sectionDrag) return;
+
+  stopAutoScrollSection();
+
   if (sectionDrag.ghostEl) sectionDrag.ghostEl.remove();
   if (sectionDrag.placeholderEl) sectionDrag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
+  const original = sectionsWrap?.querySelector(
+    `.section-card[data-section-card-id="${sectionDrag.id}"]`
+  );
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -877,6 +969,7 @@ function startSectionDrag(sectionEl) {
   sectionEl.parentElement.insertBefore(sectionDrag.placeholderEl, sectionEl);
 
   document.body.classList.add("drag-active");
+  startAutoScrollSection();
 }
 
 function onSectionPointerMove(e) {
@@ -891,7 +984,9 @@ function onSectionPointerMove(e) {
     const dy = sectionDrag.lastY - sectionDrag.startY;
     if (Math.hypot(dx, dy) < 6) return;
 
-    const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
+    const sectionEl = sectionsWrap?.querySelector(
+      `.section-card[data-section-card-id="${sectionDrag.id}"]`
+    );
     if (sectionEl) startSectionDrag(sectionEl);
   }
 
@@ -902,7 +997,14 @@ function onSectionPointerMove(e) {
   sectionDrag.ghostEl.style.left = `${x}px`;
   sectionDrag.ghostEl.style.top = `${y}px`;
 
-  placeSectionPlaceholder(sectionsWrap, sectionDrag.placeholderEl, sectionDrag.lastX, sectionDrag.lastY, sectionDrag.id);
+  startAutoScrollSection();
+  placeSectionPlaceholder(
+    sectionsWrap,
+    sectionDrag.placeholderEl,
+    sectionDrag.lastX,
+    sectionDrag.lastY,
+    sectionDrag.id
+  );
 }
 
 async function finalizeSectionDrop(state) {
@@ -914,7 +1016,6 @@ async function finalizeSectionDrop(state) {
 
   const all = [...wrap.querySelectorAll(".section-card")];
 
-  // réécrit les orders pour toutes les sections (robuste)
   const base = Date.now();
   let i = 0;
 
@@ -934,7 +1035,11 @@ function onSectionPointerUp(e) {
   if (e.pointerId !== sectionDrag.pointerId) return;
 
   const wasStarted = sectionDrag.started;
-  const state = { id: sectionDrag.id, started: sectionDrag.started, placeholderEl: sectionDrag.placeholderEl };
+  const state = {
+    id: sectionDrag.id,
+    started: sectionDrag.started,
+    placeholderEl: sectionDrag.placeholderEl,
+  };
 
   const id = sectionDrag.id;
   const ghost = sectionDrag.ghostEl;
@@ -942,11 +1047,14 @@ function onSectionPointerUp(e) {
 
   sectionDrag = null;
 
+  stopAutoScrollSection();
   document.body.classList.remove("drag-active");
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
+  const original = sectionsWrap?.querySelector(
+    `.section-card[data-section-card-id="${id}"]`
+  );
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -967,7 +1075,7 @@ function onSectionPointerUp(e) {
 }
 
 /* ---------------------------
-   Resize SECTIONS
+   Resize SECTIONS (aimanté)
 ---------------------------- */
 
 function cancelSectionResize() {
@@ -988,13 +1096,19 @@ function computeGridMetrics() {
 }
 
 async function persistSectionLayout(id, colSpan, heightPx) {
+  const normalized = normalizeSectionLayout({ colSpan, heightPx });
+
   if (id === UNASSIGNED) {
-    galleryLayout.colSpan = colSpan;
-    galleryLayout.heightPx = heightPx;
+    galleryLayout.colSpan = normalized.colSpan;
+    galleryLayout.heightPx = normalized.heightPx;
     try { localStorage.setItem(GALLERY_LAYOUT_KEY, JSON.stringify(galleryLayout)); } catch {}
     return;
   }
-  await updateDoc(doc(db, SECTIONS_COL, id), { colSpan, heightPx });
+
+  await updateDoc(doc(db, SECTIONS_COL, id), {
+    colSpan: normalized.colSpan,
+    heightPx: normalized.heightPx,
+  });
 }
 
 function onSectionResizeDown(e) {
@@ -1032,20 +1146,27 @@ function onSectionResizeMove(e) {
   if (!sectionResize) return;
   if (e.pointerId !== sectionResize.pointerId) return;
 
-  const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionResize.id}"]`);
+  const sectionEl = sectionsWrap?.querySelector(
+    `.section-card[data-section-card-id="${sectionResize.id}"]`
+  );
   if (!sectionEl) return;
 
   const dx = e.clientX - sectionResize.startX;
   const dy = e.clientY - sectionResize.startY;
 
   const newW = Math.max(220, sectionResize.startW + dx);
-  const newH = Math.max(140, sectionResize.startH + dy);
+  const newH = clamp(sectionResize.startH + dy, MIN_HEIGHT, MAX_HEIGHT);
 
+  // ✅ largeur aimantée (4 / 8 / 12)
   const colUnit = sectionResize.colW + sectionResize.gap;
-  const span = clamp(Math.round((newW + sectionResize.gap) / colUnit), 1, GRID_COLS);
+  const approxSpan = clamp(Math.round((newW + sectionResize.gap) / colUnit), 1, GRID_COLS);
+  const span = nearestPreset(approxSpan, SPAN_PRESETS);
+
+  // ✅ hauteur aimantée (260 / 360 / 480 / 620)
+  const hSnap = nearestPreset(newH, HEIGHT_PRESETS);
 
   sectionEl.style.setProperty("--span", String(span));
-  sectionEl.style.setProperty("--h", `${Math.round(newH)}px`);
+  sectionEl.style.setProperty("--h", `${Math.round(hSnap)}px`);
 }
 
 function onSectionResizeUp(e) {
@@ -1056,10 +1177,14 @@ function onSectionResizeUp(e) {
   sectionResize = null;
   document.body.classList.remove("drag-active");
 
-  const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
+  const sectionEl = sectionsWrap?.querySelector(
+    `.section-card[data-section-card-id="${id}"]`
+  );
   if (!sectionEl) return;
 
+  // ✅ on relit et on persiste normalisé
   const span = parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
+
   const hRaw = sectionEl.style.getPropertyValue("--h");
   const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
 
