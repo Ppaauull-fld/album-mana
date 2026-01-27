@@ -23,13 +23,17 @@ const DRAG_START_PX = 8; // seuil mouvement pour démarrer (desktop)
 // Layout (sections)
 const GRID_COLS = 12;
 
-// ✅ Largeur aimantée: 1/3, 2/3, plein écran
+// Largeur aimantée: 1/3, 2/3, plein écran
 const SPAN_PRESETS = [4, 8, 12];
 
-// ✅ Hauteurs aimantées (px) — ajuste si tu veux
-const HEIGHT_PRESETS = [260, 360, 480, 620]; // "pas trop libre" + cohérent visuellement
+// Hauteurs aimantées (px)
+const HEIGHT_PRESETS = [260, 360, 480, 620];
 const MIN_HEIGHT = HEIGHT_PRESETS[0];
 const MAX_HEIGHT = HEIGHT_PRESETS[HEIGHT_PRESETS.length - 1];
+
+// Masonry (doit matcher le CSS)
+const MASONRY_ROW = 10; // grid-auto-rows: 10px;
+const FALLBACK_GAP = 18; // gap: 18px;
 
 const GALLERY_LAYOUT_KEY = "albumMana_galleryLayout_v1";
 let galleryLayout = { colSpan: 12, heightPx: null };
@@ -123,7 +127,6 @@ sectionDrag = {
 }
 */
 
-// ✅ Auto-scroll pour sections (pour pouvoir déplacer bas/haut)
 let autoScrollSectionRaf = null;
 
 // Resize sections
@@ -180,6 +183,37 @@ function applyRotationThumb(imgEl, deg) {
   }
 }
 
+function getWrapGap() {
+  try {
+    if (!sectionsWrap) return FALLBACK_GAP;
+    const cs = getComputedStyle(sectionsWrap);
+    const g =
+      parseFloat(cs.gap || cs.rowGap || cs.columnGap || `${FALLBACK_GAP}`) ||
+      FALLBACK_GAP;
+    return g;
+  } catch {
+    return FALLBACK_GAP;
+  }
+}
+
+function updateMasonryRows(cardEl, forcedHeightPx = null) {
+  if (!cardEl) return;
+
+  const gap = getWrapGap();
+
+  if (typeof forcedHeightPx === "number" && !Number.isNaN(forcedHeightPx)) {
+    const rows = Math.ceil((forcedHeightPx + gap) / MASONRY_ROW);
+    cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    const h = cardEl.getBoundingClientRect().height || 0;
+    const rows = Math.ceil((h + gap) / MASONRY_ROW);
+    cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
+  });
+}
+
 /* ---------------------------
    Grouping + render
 ---------------------------- */
@@ -197,10 +231,11 @@ function groupPhotos() {
 
   for (const arr of grouped.values()) {
     arr.sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
-      const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
-      return ao - bo;
-    });
+  const ao = typeof a.order === "number" ? a.order : (a.createdAt ?? 0);
+  const bo = typeof b.order === "number" ? b.order : (b.createdAt ?? 0);
+  return ao - bo;
+});
+
   }
 
   return grouped;
@@ -247,7 +282,6 @@ function normalizeSectionLayout(lay) {
   );
   const rawH = typeof lay?.heightPx === "number" ? lay.heightPx : null;
 
-  // ✅ hauteur aimantée, ou auto si null
   let h = null;
   if (rawH != null) {
     const clamped = clamp(rawH, MIN_HEIGHT, MAX_HEIGHT);
@@ -266,6 +300,8 @@ function applySectionLayout(cardEl, id) {
   } else {
     cardEl.style.setProperty("--h", "auto");
   }
+
+  updateMasonryRows(cardEl, lay.heightPx ?? null);
 }
 
 function renderSectionCard({ id, title, editable, hideTitle }, items) {
@@ -280,7 +316,6 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   const head = document.createElement("div");
   head.className = "section-head";
 
-  // Move handle
   const move = document.createElement("button");
   move.type = "button";
   move.className = "section-move";
@@ -316,13 +351,19 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   head.appendChild(move);
   head.appendChild(t);
 
+  // Expand / collapse (double-clic sur le header hors titre éditable)
+  head.addEventListener("dblclick", (e) => {
+    if (e.target?.closest?.('.section-title[contenteditable="true"]')) return;
+    card.classList.toggle("is-expanded");
+    updateMasonryRows(card, null);
+  });
+
   const grid = document.createElement("div");
   grid.className = "section-grid";
   grid.dataset.sectionId = id;
 
   for (const p of items) grid.appendChild(renderPhotoCard(p));
 
-  // Resize handle (bottom-right)
   const resize = document.createElement("div");
   resize.className = "section-resize";
   resize.dataset.sectionResize = "1";
@@ -350,27 +391,63 @@ function renderAll() {
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
-        { id: s.id, title: s.title || "Section", editable: true, hideTitle: false },
+        {
+          id: s.id,
+          title: s.title || "Section",
+          editable: true,
+          hideTitle: false,
+        },
         grouped.get(s.id) || []
       )
     );
   }
+
+  // recalc masonry pour tout ce qui est en "auto"
+  requestAnimationFrame(() => {
+    const all = [...sectionsWrap.querySelectorAll(".section-card")];
+    for (const el of all) updateMasonryRows(el, null);
+  });
 }
 
 /* ---------------------------
    Arrange mode (ON/OFF)
 ---------------------------- */
 
+function ensureArrangeLabelSpan() {
+  if (!arrangeBtn) return null;
+
+  let label = arrangeBtn.querySelector("[data-arrange-label]");
+  if (label) return label;
+
+  label = document.createElement("span");
+  label.setAttribute("data-arrange-label", "");
+
+  // récupère les textes existants (si le bouton n’avait pas de span)
+  const textNodes = [...arrangeBtn.childNodes].filter(
+    (n) => n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim()
+  );
+
+  if (textNodes.length) {
+    label.textContent = textNodes.map((n) => n.textContent).join(" ").trim();
+    for (const n of textNodes) n.remove();
+  } else {
+    label.textContent = "";
+  }
+
+  arrangeBtn.appendChild(label);
+  return label;
+}
+
 function setArranging(on) {
   arranging = !!on;
 
-  // ✅ compat CSS: si ton CSS utilise body.page.arranging
   document.body.classList.add("page");
   document.body.classList.toggle("arranging", arranging);
 
   if (arrangeBtn) {
     arrangeBtn.classList.toggle("primary", arranging);
-    arrangeBtn.textContent = arranging ? "Terminer" : "Arranger";
+    const label = ensureArrangeLabelSpan();
+    if (label) label.textContent = arranging ? "Terminer" : "Arranger";
   }
 
   if (!arranging) {
@@ -464,7 +541,13 @@ function startAutoScroll() {
         if (drag.placeholderEl.parentElement !== grid) {
           grid.appendChild(drag.placeholderEl);
         }
-        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+        placePlaceholder(
+          grid,
+          drag.placeholderEl,
+          drag.lastX,
+          drag.lastY,
+          drag.id
+        );
       }
     }
 
@@ -887,8 +970,19 @@ function createSectionPlaceholder(sectionEl) {
 
   const span = sectionEl.style.getPropertyValue("--span") || "12";
   const h = sectionEl.style.getPropertyValue("--h") || "auto";
+  const rows = sectionEl.style.getPropertyValue("--rows") || "";
+
   ph.style.setProperty("--span", span);
   ph.style.setProperty("--h", h);
+
+  if (rows) {
+    ph.style.setProperty("--rows", rows);
+  } else {
+    const gap = getWrapGap();
+    const r = sectionEl.getBoundingClientRect();
+    const calcRows = Math.ceil((r.height + gap) / MASONRY_ROW);
+    ph.style.setProperty("--rows", String(Math.max(1, calcRows)));
+  }
 
   const r = sectionEl.getBoundingClientRect();
   ph.style.minHeight = `${Math.max(120, Math.round(r.height))}px`;
@@ -986,7 +1080,6 @@ function startSectionDrag(sectionEl) {
   sectionDrag.ghostEl = createSectionGhost(sectionEl);
   document.body.appendChild(sectionDrag.ghostEl);
 
-  // cache l'original, mais on le gardera dans le DOM
   sectionEl.style.opacity = "0";
   sectionEl.style.pointerEvents = "none";
 
@@ -1031,7 +1124,6 @@ function onSectionPointerMove(e) {
   );
 }
 
-// ✅ IMPORTANT: persiste l'ordre à partir du DOM RÉEL (après insertion)
 async function finalizeSectionDrop(wrap) {
   if (!wrap) return;
 
@@ -1042,8 +1134,6 @@ async function finalizeSectionDrop(wrap) {
 
   for (const el of all) {
     const sid = el.dataset.sectionCardId;
-
-    // On ne persiste pas l'ordre du bucket logique (pas dans Firestore)
     if (!sid || sid === UNASSIGNED) continue;
 
     const ord = base + i * 1000;
@@ -1081,7 +1171,6 @@ function onSectionPointerUp(e) {
 
   if (!wasStarted) return;
 
-  // ✅ FIX: insère l'élément ORIGINAL à la place du placeholder, puis persiste
   if (placeholder && placeholder.parentElement) {
     const wrap = placeholder.parentElement;
 
@@ -1089,6 +1178,7 @@ function onSectionPointerUp(e) {
       wrap.insertBefore(original, placeholder);
       original.style.opacity = "";
       original.style.pointerEvents = "";
+      updateMasonryRows(original, null);
     }
 
     try {
@@ -1189,7 +1279,6 @@ function onSectionResizeMove(e) {
   const newW = Math.max(220, sectionResize.startW + dx);
   const newH = clamp(sectionResize.startH + dy, MIN_HEIGHT, MAX_HEIGHT);
 
-  // ✅ largeur aimantée (4 / 8 / 12)
   const colUnit = sectionResize.colW + sectionResize.gap;
   const approxSpan = clamp(
     Math.round((newW + sectionResize.gap) / colUnit),
@@ -1197,12 +1286,11 @@ function onSectionResizeMove(e) {
     GRID_COLS
   );
   const span = nearestPreset(approxSpan, SPAN_PRESETS);
-
-  // ✅ hauteur aimantée (260 / 360 / 480 / 620)
   const hSnap = nearestPreset(newH, HEIGHT_PRESETS);
 
   sectionEl.style.setProperty("--span", String(span));
   sectionEl.style.setProperty("--h", `${Math.round(hSnap)}px`);
+  updateMasonryRows(sectionEl, hSnap);
 }
 
 function onSectionResizeUp(e) {
@@ -1218,17 +1306,18 @@ function onSectionResizeUp(e) {
   );
   if (!sectionEl) return;
 
-  // ✅ on relit et on persiste normalisé
   const span =
     parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
 
   const hRaw = sectionEl.style.getPropertyValue("--h");
   const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
 
-  persistSectionLayout(id, span, heightPx).catch((err) => {
-    console.error(err);
-    alert("Impossible de sauvegarder la taille de la section.");
-  });
+  persistSectionLayout(id, span, heightPx)
+    .then(() => updateMasonryRows(sectionEl, heightPx))
+    .catch((err) => {
+      console.error(err);
+      alert("Impossible de sauvegarder la taille de la section.");
+    });
 }
 
 /* ---------------------------
@@ -1251,7 +1340,6 @@ window.addEventListener("pointerup", onSectionPointerUp);
 window.addEventListener("pointerup", onSectionResizeUp);
 window.addEventListener("pointerup", onPointerUp);
 
-// Bonus: robustesse si le pointer est annulé (mobile / navigateur)
 window.addEventListener("pointercancel", (e) => {
   try {
     onPointerUp(e);
@@ -1416,7 +1504,7 @@ prevSlideBtn?.addEventListener("click", prev);
 togglePlayBtn?.addEventListener("click", () => {
   playing = !playing;
   syncPlayIcon();
-});
+}); 
 
 /* ---------------------------
    Upload modal
