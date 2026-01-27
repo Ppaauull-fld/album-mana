@@ -1042,3 +1042,22 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   height: 18px;
   display:block;
 }
+
+
+
+
+
+
+/* Diaporama : force la taille des icônes Play/Pause */
+#togglePlay{
+  width: 44px;   /* optionnel (si tu veux un cercle un peu plus grand) */
+  height: 44px;  /* optionnel */
+}
+
+#togglePlay img,
+#togglePlayIcon{
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  object-fit: contain !important;
+}
