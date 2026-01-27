@@ -378,10 +378,11 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   head.appendChild(move);
   head.appendChild(t);
 
-  // Expand / collapse (double-clic sur le header hors titre éditable)
   head.addEventListener("dblclick", (e) => {
     if (e.target?.closest?.('.section-title[contenteditable="true"]')) return;
     card.classList.toggle("is-expanded");
+
+    // Recalc stable
     updateMasonryRows(card, null);
     requestAnimationFrame(() => refreshAllMasonry());
   });
@@ -400,8 +401,25 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   card.appendChild(grid);
   card.appendChild(resize);
 
+  // ✅ IMPORTANT: quand les images finissent de charger, la hauteur change.
+  // Sans ça, Safari/Chrome peuvent garder un --rows trop grand => gros vide.
+  const imgs = grid.querySelectorAll("img");
+  for (const im of imgs) {
+    if (im.complete) {
+      requestAnimationFrame(() => refreshAllMasonry());
+      continue;
+    }
+  im.addEventListener("load", () => refreshAllMasonry(), { once: true });
+  im.addEventListener("error", () => refreshAllMasonry(), { once: true });
+  }
+
+
+  // ✅ Recalc après insertion DOM (1 frame)
+  requestAnimationFrame(() => updateMasonryRows(card, null));
+
   return card;
 }
+
 
 function renderAll() {
   if (!sectionsWrap) return;
@@ -430,9 +448,15 @@ function renderAll() {
     );
   }
 
-  // recalc masonry (stable) après injection DOM
-  requestAnimationFrame(() => refreshAllMasonry());
+  // ✅ Injecte les boutons header (maximize / delete) après le DOM
+  requestAnimationFrame(() => {
+    ensureSectionHeaderActions();
+
+    // ✅ Double RAF = ultra stable Safari/Chrome pour le masonry
+    requestAnimationFrame(() => refreshAllMasonry());
+  });
 }
+
 
 /* ---------------------------
    Arrange mode (ON/OFF)
@@ -1378,6 +1402,13 @@ window.addEventListener("pointerup", onSectionPointerUp);
 window.addEventListener("pointerup", onSectionResizeUp);
 window.addEventListener("pointerup", onPointerUp);
 
+window.addEventListener("resize", () => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => refreshAllMasonry());
+  });
+});
+
+
 window.addEventListener("pointercancel", (e) => {
   try {
     onPointerUp(e);
@@ -1389,11 +1420,6 @@ window.addEventListener("pointercancel", (e) => {
     onSectionResizeUp(e);
   } catch {}
 });
-
-/* ====== STOP ICI (milieu) ======
-   La suite (Viewer / Slideshow / Upload / Sections delete + Maximize / Main)
-   -> je te la rédige quand tu me dis "go pour la deuxième moitié".
-*/
 
 
 /* ---------------------------
@@ -1970,30 +1996,16 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  onSnapshot(
-    query(collection(db, SECTIONS_COL), orderBy("order", "asc")),
-    (snap) => {
-      sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-      // Après renderAll, on injecte les actions header + masonry stable
-      requestAnimationFrame(() => {
-        ensureSectionHeaderActions();
-        refreshAllMasonry();
-      });
-    }
-  );
+onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
+  sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderAll();
+});
 
-  onSnapshot(
-    query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")),
-    (snap) => {
-      photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-      requestAnimationFrame(() => {
-        ensureSectionHeaderActions();
-        refreshAllMasonry();
-      });
-    }
-  );
+onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
+  photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderAll();
+});
+
 }
 
 main();
