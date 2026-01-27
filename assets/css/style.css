@@ -1071,7 +1071,10 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 .ui-modal { position: fixed; inset: 0; display: none; z-index: 99999; }
 .ui-modal[aria-hidden="false"] { display: block; }
 
-.ui-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.ui-modal__backdrop {
+  background: rgba(0,0,0,.75);
+}
+
 
 .ui-modal__panel{
   position: absolute; left: 50%; top: 50%;
@@ -1111,3 +1114,19 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   justify-content: flex-end;
 }
 .btn.danger{ background: #c43b3b; color:#fff; }
+
+
+
+.ui-modal__actions .btn {
+  background: rgba(255,255,255,.10);
+  color: #fff;
+}
+
+.ui-modal__actions .btn:hover {
+  background: rgba(255,255,255,.18);
+}
+
+.ui-modal__actions .btn.primary {
+  background: #fff;
+  color: #000;
+}
