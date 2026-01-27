@@ -168,6 +168,10 @@ function enterSectionFullscreen(sectionId) {
 
   exitSectionFullscreen();
 
+  const btn = card.querySelector(".section-maximize");
+if (btn) btn.title = "Réduire";
+
+
   const card = sectionsWrap.querySelector(
     `.section-card[data-section-card-id="${sectionId}"]`
   );
@@ -183,6 +187,11 @@ function enterSectionFullscreen(sectionId) {
 
   document.body.appendChild(ensureSectionBackdrop());
   card.classList.add("is-fullscreen");
+  const icon = card.querySelector("[data-maximize-icon]");
+if (icon) {
+  icon.src = "../assets/img/icons/minimize.svg";
+}
+
 
   window.addEventListener("keydown", onFullscreenKeydown);
 }
@@ -197,6 +206,15 @@ function exitSectionFullscreen() {
     );
     if (card) {
       card.classList.remove("is-fullscreen");
+      const icon = card.querySelector("[data-maximize-icon]");
+if (icon) {
+  icon.src = "../assets/img/icons/maximize.svg";
+}
+
+const btn = card.querySelector(".section-maximize");
+if (btn) btn.title = "Agrandir";
+
+
       sectionsWrap.appendChild(card); // 🔴 IMPORTANT
     }
   }
@@ -361,13 +379,21 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   actions.className = "section-actions";
 
   const maxBtn = document.createElement("button");
-  maxBtn.type = "button";
-  maxBtn.className = "iconbtn";
-  maxBtn.title = "Agrandir";
-  maxBtn.innerHTML = `
-    <img class="icon-img" src="../assets/img/icons/maximize.svg" alt="" aria-hidden="true" />
-    <span class="sr-only">Agrandir</span>
-  `;
+maxBtn.type = "button";
+maxBtn.className = "iconbtn section-maximize";
+maxBtn.title = "Agrandir";
+maxBtn.dataset.sectionMaximize = "1";
+maxBtn.innerHTML = `
+  <img
+    class="icon-img"
+    data-maximize-icon
+    src="../assets/img/icons/maximize.svg"
+    alt=""
+    aria-hidden="true"
+  />
+  <span class="sr-only">Agrandir</span>
+`;
+
   maxBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
