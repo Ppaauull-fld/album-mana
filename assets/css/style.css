@@ -259,7 +259,7 @@ img{max-width:100%;display:block}
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap:18px;
   margin-top: 18px;
-  align-items:start;
+  align-items:stretch;
 
   /* ✅ base masonry */
   grid-auto-rows: 10px;
