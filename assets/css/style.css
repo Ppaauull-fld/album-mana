@@ -263,7 +263,7 @@ img{max-width:100%;display:block}
 
   /* ✅ base masonry */
   grid-auto-rows: 10px;
-  grid-auto-flow: row dense;
+  grid-auto-flow: row;
 }
 
 /* ✅ Pendant Arranger : désactive le dense (sinon ordre visuel instable) */
