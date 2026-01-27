@@ -11,6 +11,9 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  where,
+  getDocs,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const PHOTOS_COL = "photos";
@@ -196,22 +199,47 @@ function getWrapGap() {
   }
 }
 
+/**
+ * IMPORTANT:
+ * - Ne PAS utiliser getBoundingClientRect().height pour calculer --rows
+ *   car la hauteur est déjà influencée par --rows => boucle d’amplification.
+ * - Utiliser scrollHeight (stable) ou la hauteur forcée (resize).
+ */
 function updateMasonryRows(cardEl, forcedHeightPx = null) {
   if (!cardEl) return;
 
   const gap = getWrapGap();
 
+  // 1) Si on force une hauteur, on calcule directement
   if (typeof forcedHeightPx === "number" && !Number.isNaN(forcedHeightPx)) {
     const rows = Math.ceil((forcedHeightPx + gap) / MASONRY_ROW);
     cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
     return;
   }
 
+  // 2) Si le card a un --h en px, on s’aligne dessus (évite boucle)
+  const hVar = (cardEl.style.getPropertyValue("--h") || "").trim();
+  if (hVar.endsWith("px")) {
+    const hPx = parseInt(hVar, 10);
+    if (!Number.isNaN(hPx)) {
+      const rows = Math.ceil((hPx + gap) / MASONRY_ROW);
+      cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
+      return;
+    }
+  }
+
+  // 3) Sinon mesurer le contenu (scrollHeight), pas la box rendue
   requestAnimationFrame(() => {
-    const h = cardEl.getBoundingClientRect().height || 0;
+    const h = cardEl.scrollHeight || 0;
     const rows = Math.ceil((h + gap) / MASONRY_ROW);
     cardEl.style.setProperty("--rows", String(Math.max(1, rows)));
   });
+}
+
+function refreshAllMasonry() {
+  if (!sectionsWrap) return;
+  const cards = [...sectionsWrap.querySelectorAll(".section-card, .section-placeholder")];
+  for (const c of cards) updateMasonryRows(c, null);
 }
 
 /* ---------------------------
@@ -231,11 +259,10 @@ function groupPhotos() {
 
   for (const arr of grouped.values()) {
     arr.sort((a, b) => {
-  const ao = typeof a.order === "number" ? a.order : (a.createdAt ?? 0);
-  const bo = typeof b.order === "number" ? b.order : (b.createdAt ?? 0);
-  return ao - bo;
-});
-
+      const ao = typeof a.order === "number" ? a.order : (a.createdAt ?? 0);
+      const bo = typeof b.order === "number" ? b.order : (b.createdAt ?? 0);
+      return ao - bo;
+    });
   }
 
   return grouped;
@@ -356,6 +383,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
     if (e.target?.closest?.('.section-title[contenteditable="true"]')) return;
     card.classList.toggle("is-expanded");
     updateMasonryRows(card, null);
+    requestAnimationFrame(() => refreshAllMasonry());
   });
 
   const grid = document.createElement("div");
@@ -402,11 +430,8 @@ function renderAll() {
     );
   }
 
-  // recalc masonry pour tout ce qui est en "auto"
-  requestAnimationFrame(() => {
-    const all = [...sectionsWrap.querySelectorAll(".section-card")];
-    for (const el of all) updateMasonryRows(el, null);
-  });
+  // recalc masonry (stable) après injection DOM
+  requestAnimationFrame(() => refreshAllMasonry());
 }
 
 /* ---------------------------
@@ -455,6 +480,9 @@ function setArranging(on) {
     cancelSectionDrag();
     cancelSectionResize();
   }
+
+  // important: recalcul global après changement mode (Safari/Chrome)
+  requestAnimationFrame(() => refreshAllMasonry());
 }
 
 arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
@@ -568,7 +596,9 @@ function cancelDrag() {
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
+  const original = sectionsWrap?.querySelector(
+    `.card-btn[data-id="${drag.id}"]`
+  );
   if (original) original.classList.remove("dragging");
 
   document.body.classList.remove("drag-active");
@@ -886,6 +916,7 @@ function onPointerUp(e) {
         try {
           placeholder.remove();
         } catch {}
+        requestAnimationFrame(() => refreshAllMasonry());
       });
   }
 }
@@ -978,12 +1009,10 @@ function createSectionPlaceholder(sectionEl) {
   if (rows) {
     ph.style.setProperty("--rows", rows);
   } else {
-    const gap = getWrapGap();
-    const r = sectionEl.getBoundingClientRect();
-    const calcRows = Math.ceil((r.height + gap) / MASONRY_ROW);
-    ph.style.setProperty("--rows", String(Math.max(1, calcRows)));
+    updateMasonryRows(ph, null);
   }
 
+  // hauteur mini pour réserver l'espace
   const r = sectionEl.getBoundingClientRect();
   ph.style.minHeight = `${Math.max(120, Math.round(r.height))}px`;
 
@@ -1185,10 +1214,14 @@ function onSectionPointerUp(e) {
       placeholder.remove();
     } catch {}
 
-    finalizeSectionDrop(wrap).catch((err) => {
-      console.error(err);
-      alert("Impossible de déplacer la section.");
-    });
+    finalizeSectionDrop(wrap)
+      .catch((err) => {
+        console.error(err);
+        alert("Impossible de déplacer la section.");
+      })
+      .finally(() => {
+        requestAnimationFrame(() => refreshAllMasonry());
+      });
   }
 }
 
@@ -1290,6 +1323,8 @@ function onSectionResizeMove(e) {
 
   sectionEl.style.setProperty("--span", String(span));
   sectionEl.style.setProperty("--h", `${Math.round(hSnap)}px`);
+
+  // important: rows calculées depuis hSnap, stable
   updateMasonryRows(sectionEl, hSnap);
 }
 
@@ -1313,7 +1348,10 @@ function onSectionResizeUp(e) {
   const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
 
   persistSectionLayout(id, span, heightPx)
-    .then(() => updateMasonryRows(sectionEl, heightPx))
+    .then(() => {
+      updateMasonryRows(sectionEl, heightPx);
+      requestAnimationFrame(() => refreshAllMasonry());
+    })
     .catch((err) => {
       console.error(err);
       alert("Impossible de sauvegarder la taille de la section.");
@@ -1351,6 +1389,12 @@ window.addEventListener("pointercancel", (e) => {
     onSectionResizeUp(e);
   } catch {}
 });
+
+/* ====== STOP ICI (milieu) ======
+   La suite (Viewer / Slideshow / Upload / Sections delete + Maximize / Main)
+   -> je te la rédige quand tu me dis "go pour la deuxième moitié".
+*/
+
 
 /* ---------------------------
    Viewer
@@ -1504,7 +1548,7 @@ prevSlideBtn?.addEventListener("click", prev);
 togglePlayBtn?.addEventListener("click", () => {
   playing = !playing;
   syncPlayIcon();
-}); 
+});
 
 /* ---------------------------
    Upload modal
@@ -1597,7 +1641,9 @@ function renderPending() {
     remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      try {
+        URL.revokeObjectURL(pending[i].url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -1620,7 +1666,9 @@ input?.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
 
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -1635,7 +1683,9 @@ uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -1689,7 +1739,9 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try { URL.revokeObjectURL(p.url); } catch {}
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
     }
     pending = [];
 
@@ -1727,12 +1779,177 @@ addSectionBtn?.addEventListener("click", async () => {
 });
 
 /* ---------------------------
+   Sections: actions (Maximize + Delete) + Fullscreen modal
+   - Ces actions doivent fonctionner tout le temps (pas seulement en mode Arranger)
+---------------------------- */
+
+let sectionModal = null;
+
+function ensureSectionModal() {
+  if (sectionModal) return sectionModal;
+
+  const overlay = document.createElement("div");
+  overlay.className = "section-modal";
+  overlay.innerHTML = `
+    <div class="section-modal-panel">
+      <div class="section-modal-head">
+        <div class="section-modal-title"></div>
+        <button type="button" class="btn section-modal-close">Fermer</button>
+      </div>
+      <div class="section-modal-grid"></div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeSectionFullscreen();
+  });
+  overlay
+    .querySelector(".section-modal-close")
+    .addEventListener("click", closeSectionFullscreen);
+
+  document.body.appendChild(overlay);
+  sectionModal = overlay;
+  return overlay;
+}
+
+function openSectionFullscreen(sectionId) {
+  const overlay = ensureSectionModal();
+  const titleEl = overlay.querySelector(".section-modal-title");
+  const gridEl = overlay.querySelector(".section-modal-grid");
+
+  const card = sectionsWrap?.querySelector(
+    `.section-card[data-section-card-id="${sectionId}"]`
+  );
+  const title =
+    card?.querySelector(".section-title")?.textContent?.trim() || "Section";
+
+  titleEl.textContent = title;
+  gridEl.innerHTML = "";
+
+  const items = photos.filter(
+    (p) => (p.sectionId || UNASSIGNED) === (sectionId || UNASSIGNED)
+  );
+
+  for (const p of items) gridEl.appendChild(renderPhotoCard(p));
+
+  overlay.classList.add("open");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closeSectionFullscreen() {
+  if (!sectionModal) return;
+  sectionModal.classList.remove("open");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+}
+
+async function deleteSectionAndUnassignPhotos(sectionId) {
+  if (!sectionId || sectionId === UNASSIGNED) return;
+
+  // Récupère toutes les photos de cette section
+  const q = query(collection(db, PHOTOS_COL), where("sectionId", "==", sectionId));
+  const snap = await getDocs(q);
+
+  const batch = writeBatch(db);
+
+  // Désassigne les photos -> galerie
+  snap.forEach((d) => {
+    batch.update(doc(db, PHOTOS_COL, d.id), { sectionId: null });
+  });
+
+  // Supprime la section
+  batch.delete(doc(db, SECTIONS_COL, sectionId));
+
+  await batch.commit();
+}
+
+function ensureSectionHeaderActions() {
+  // Injecte les boutons (maximize + delete) si non présents
+  // NOTE: nécessite assets/img/icons/maximize.svg
+  if (!sectionsWrap) return;
+
+  const cards = [...sectionsWrap.querySelectorAll(".section-card")];
+  for (const card of cards) {
+    const head = card.querySelector(".section-head");
+    if (!head) continue;
+
+    if (head.querySelector(".section-actions")) continue;
+
+    const sid = card.dataset.sectionCardId;
+    const isEditable = sid && sid !== UNASSIGNED;
+
+    const actions = document.createElement("div");
+    actions.className = "section-actions";
+
+    const maxBtn = document.createElement("button");
+    maxBtn.type = "button";
+    maxBtn.className = "section-action-btn";
+    maxBtn.title = "Agrandir";
+    maxBtn.dataset.sectionMax = "1";
+    maxBtn.innerHTML = `<img alt="" aria-hidden="true" src="../assets/img/icons/maximize.svg">`;
+    actions.appendChild(maxBtn);
+
+    if (isEditable) {
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "section-action-btn danger";
+      delBtn.title = "Supprimer la section";
+      delBtn.dataset.sectionDelete = "1";
+      delBtn.innerHTML = `<img alt="" aria-hidden="true" src="../assets/img/icons/delete.svg">`;
+      actions.appendChild(delBtn);
+    }
+
+    head.appendChild(actions);
+  }
+}
+
+// Click delegation pour maximize / delete
+sectionsWrap?.addEventListener("click", async (e) => {
+  const card = e.target?.closest?.(".section-card");
+  if (!card) return;
+
+  const sid = card.dataset.sectionCardId;
+
+  const maxBtn = e.target?.closest?.('[data-section-max="1"]');
+  if (maxBtn) {
+    e.preventDefault();
+    if (arranging) return; // évite conflit avec drag/resize
+    openSectionFullscreen(sid);
+    return;
+  }
+
+  const delBtn = e.target?.closest?.('[data-section-delete="1"]');
+  if (delBtn) {
+    e.preventDefault();
+    if (!sid || sid === UNASSIGNED) return;
+
+    const title = card.querySelector(".section-title")?.textContent?.trim() || "cette section";
+    const ok = confirm(
+      `Supprimer "${title}" ?\nLes photos seront déplacées dans la galerie.`
+    );
+    if (!ok) return;
+
+    try {
+      await deleteSectionAndUnassignPhotos(sid);
+    } catch (err) {
+      console.error(err);
+      alert("Impossible de supprimer la section.");
+    }
+  }
+});
+
+/* ---------------------------
    Keyboard shortcuts
 ---------------------------- */
 
 document.addEventListener("keydown", (e) => {
   if (viewer.classList.contains("open")) {
     if (e.key === "Escape") closeViewer();
+    return;
+  }
+  if (sectionModal?.classList?.contains("open")) {
+    if (e.key === "Escape") closeSectionFullscreen();
     return;
   }
   if (slideshow.classList.contains("open")) {
@@ -1753,15 +1970,30 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
-    sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
+  onSnapshot(
+    query(collection(db, SECTIONS_COL), orderBy("order", "asc")),
+    (snap) => {
+      sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+      // Après renderAll, on injecte les actions header + masonry stable
+      requestAnimationFrame(() => {
+        ensureSectionHeaderActions();
+        refreshAllMasonry();
+      });
+    }
+  );
 
-  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
-    photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderAll();
-  });
+  onSnapshot(
+    query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")),
+    (snap) => {
+      photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderAll();
+      requestAnimationFrame(() => {
+        ensureSectionHeaderActions();
+        refreshAllMasonry();
+      });
+    }
+  );
 }
 
 main();

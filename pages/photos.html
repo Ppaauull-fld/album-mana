@@ -4,52 +4,110 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Photos — album-mana</title>
+
   <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
 
 <body class="page">
+  <!-- ======================================================
+       TOP BAR
+       ====================================================== -->
   <header class="topbar">
     <div class="container inner">
-      <a class="back" href="../index.html" aria-label="Retour à l’accueil"><span aria-hidden="true">‹</span> Retour</a>
+      <a class="back" href="../index.html" aria-label="Retour à l’accueil">
+        <span aria-hidden="true">‹</span> Retour
+      </a>
 
       <div class="brand-mini" aria-hidden="true">
-        <img class="topbar-logo" src="../assets/img/logo-noir.svg" alt="Logo" />
+        <img
+          class="topbar-logo"
+          src="../assets/img/logo-noir.svg"
+          alt=""
+          decoding="async"
+        />
       </div>
 
       <div style="width:64px" aria-hidden="true"></div>
     </div>
   </header>
 
+  <!-- ======================================================
+       MAIN
+       ====================================================== -->
   <main class="section">
     <div class="container">
       <h1 class="h1">Photos</h1>
 
+      <!-- Actions -->
       <div class="actions">
-        <input id="photoInput" type="file" accept="image/*" multiple hidden />
+        <input
+          id="photoInput"
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+        />
 
-        <button id="addPhotoBtn" class="btn" type="button">＋ Ajouter une photo</button>
-        <button id="addSectionBtn" class="btn" type="button">＋ Nouvelle section</button>
+        <button id="addPhotoBtn" class="btn" type="button">
+          ＋ Ajouter une photo
+        </button>
 
-        <!-- ✅ Arranger -->
-      <button id="arrangeBtn" class="btn" type="button">
-          <img class="btn-icon" src="../assets/img/icons/grid.svg" alt="" aria-hidden="true" />
+        <button id="addSectionBtn" class="btn" type="button">
+          ＋ Nouvelle section
+        </button>
+
+        <!-- ✅ Arranger (icône toujours présente dans le DOM) -->
+        <button
+          id="arrangeBtn"
+          class="btn"
+          type="button"
+          aria-pressed="false"
+        >
+          <img
+            class="btn-icon"
+            src="../assets/img/icons/grid.svg"
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+          />
           <span data-arrange-label>Arranger</span>
-      </button>
-
+        </button>
 
         <button id="startSlideshowBtn" class="btn primary" type="button">
-          <img class="btn-icon" src="../assets/img/icons/play.svg" alt="" aria-hidden="true" />
+          <img
+            class="btn-icon"
+            src="../assets/img/icons/play.svg"
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+          />
           Lancer un diaporama
         </button>
       </div>
 
-      <!-- Conteneur sections + grille principale (sans titre) -->
-      <div id="sectionsWrap" class="sections"></div>
+      <!-- ==================================================
+           SECTIONS (masonry)
+           ================================================== -->
+      <div
+        id="sectionsWrap"
+        class="sections"
+        aria-live="polite"
+        aria-busy="false"
+      ></div>
     </div>
   </main>
 
-  <!-- ✅ Section picker (checkbox) -->
-  <div id="sectionPicker" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+  <!-- ======================================================
+       SECTION PICKER
+       ====================================================== -->
+  <div
+    id="sectionPicker"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pickerTitle"
+  >
     <div class="box picker-box">
       <div class="top">
         <div class="picker-title">
@@ -57,15 +115,29 @@
           <div id="pickerSub" class="upload-sub">0 sélectionnée</div>
         </div>
         <div class="controls">
-          <button id="pickerCancel" class="iconbtn" title="Fermer" type="button">✕</button>
+          <button
+            id="pickerCancel"
+            class="iconbtn"
+            title="Fermer"
+            type="button"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
       <div class="picker-body">
         <div class="picker-actions">
-          <button id="pickerSelectAll" class="btn" type="button">Tout sélectionner</button>
-          <button id="pickerClear" class="btn" type="button">Tout enlever</button>
-          <button id="pickerApply" class="btn primary" type="button">Ajouter à la section</button>
+          <button id="pickerSelectAll" class="btn" type="button">
+            Tout sélectionner
+          </button>
+          <button id="pickerClear" class="btn" type="button">
+            Tout enlever
+          </button>
+          <button id="pickerApply" class="btn primary" type="button">
+            Ajouter à la section
+          </button>
         </div>
 
         <div id="pickerGrid" class="picker-grid"></div>
@@ -73,8 +145,16 @@
     </div>
   </div>
 
-  <!-- Upload modal -->
-  <div id="uploadModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <!-- ======================================================
+       UPLOAD MODAL
+       ====================================================== -->
+  <div
+    id="uploadModal"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+  >
     <div class="box">
       <div class="top">
         <div class="upload-title">
@@ -82,7 +162,15 @@
           <div id="uploadCount" class="upload-sub">0 fichier</div>
         </div>
         <div class="controls">
-          <button id="uploadCancelBtn" class="iconbtn" title="Annuler" type="button">✕</button>
+          <button
+            id="uploadCancelBtn"
+            class="iconbtn"
+            title="Annuler"
+            type="button"
+            aria-label="Annuler"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
@@ -91,41 +179,108 @@
 
         <div class="upload-progress">
           <div class="upload-progress-row">
-            <progress id="uploadProgressBar" value="0" max="100"></progress>
-            <div id="uploadProgressText" class="upload-progress-text">0 / 0</div>
+            <progress
+              id="uploadProgressBar"
+              value="0"
+              max="100"
+            ></progress>
+            <div
+              id="uploadProgressText"
+              class="upload-progress-text"
+            >
+              0 / 0
+            </div>
           </div>
-          <div id="uploadProgressDetail" class="upload-progress-detail">—</div>
+          <div
+            id="uploadProgressDetail"
+            class="upload-progress-detail"
+          >
+            —
+          </div>
         </div>
 
         <div class="upload-actions">
-          <button id="uploadStartBtn" class="btn primary" type="button">Envoyer</button>
+          <button
+            id="uploadStartBtn"
+            class="btn primary"
+            type="button"
+          >
+            Envoyer
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Photo viewer (plein écran) -->
-  <div id="photoViewer" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+  <!-- ======================================================
+       PHOTO VIEWER
+       ====================================================== -->
+  <div
+    id="photoViewer"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="viewerTitle"
+  >
     <div class="box viewer-box">
       <div class="top">
         <div id="viewerTitle" class="viewer-title">Photo</div>
         <div class="controls">
-          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
-            <img class="icon-img" src="../assets/img/icons/download.svg" alt="" aria-hidden="true" />
+          <a
+            id="viewerDownload"
+            class="iconbtn"
+            title="Télécharger"
+            download
+          >
+            <img
+              class="icon-img"
+              src="../assets/img/icons/download.svg"
+              alt=""
+              aria-hidden="true"
+            />
             <span class="sr-only">Télécharger</span>
           </a>
 
-          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
-            <img class="icon-img" src="../assets/img/icons/rotate.svg" alt="" aria-hidden="true" />
+          <button
+            id="viewerRotate"
+            class="iconbtn"
+            title="Tourner"
+            type="button"
+          >
+            <img
+              class="icon-img"
+              src="../assets/img/icons/rotate.svg"
+              alt=""
+              aria-hidden="true"
+            />
             <span class="sr-only">Tourner</span>
           </button>
 
-          <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
-            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" aria-hidden="true" />
+          <button
+            id="viewerDelete"
+            class="iconbtn danger"
+            title="Supprimer"
+            type="button"
+          >
+            <img
+              class="icon-img"
+              src="../assets/img/icons/delete.svg"
+              alt=""
+              aria-hidden="true"
+            />
             <span class="sr-only">Supprimer</span>
           </button>
 
-          <button id="viewerClose" class="iconbtn" title="Fermer" type="button">✕</button>
+          <button
+            id="viewerClose"
+            class="iconbtn"
+            title="Fermer"
+            type="button"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
@@ -135,29 +290,73 @@
     </div>
   </div>
 
-  <!-- Slideshow -->
-  <div id="slideshow" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <!-- ======================================================
+       SLIDESHOW
+       ====================================================== -->
+  <div
+    id="slideshow"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+  >
     <div class="box">
       <div class="top">
         <div id="slideCounter">—</div>
         <div class="controls">
-          <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
+          <button
+            id="prevSlide"
+            class="iconbtn"
+            title="Précédent"
+            type="button"
+          >
+            ‹
+          </button>
 
-          <button id="togglePlay" class="iconbtn" title="Pause" type="button">
-            <img id="togglePlayIcon" class="icon-img" src="../assets/img/icons/pause.svg" alt="" aria-hidden="true" />
+          <button
+            id="togglePlay"
+            class="iconbtn"
+            title="Pause"
+            type="button"
+          >
+            <img
+              id="togglePlayIcon"
+              class="icon-img"
+              src="../assets/img/icons/pause.svg"
+              alt=""
+              aria-hidden="true"
+            />
             <span class="sr-only">Lecture / Pause</span>
           </button>
 
-          <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
-          <button id="closeShow" class="iconbtn" title="Fermer" type="button">✕</button>
+          <button
+            id="nextSlide"
+            class="iconbtn"
+            title="Suivant"
+            type="button"
+          >
+            ›
+          </button>
+
+          <button
+            id="closeShow"
+            class="iconbtn"
+            title="Fermer"
+            type="button"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
         </div>
       </div>
+
       <div class="imgwrap">
         <img id="slideImg" alt="diaporama" />
       </div>
     </div>
   </div>
 
+  <!-- JS -->
   <script type="module" src="../assets/js/pages/photos.js"></script>
 </body>
 </html>
