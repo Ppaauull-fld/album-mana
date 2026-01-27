@@ -54,8 +54,8 @@ const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 
 // Data state
-let photos = [];        // tous les docs photos
-let sections = [];      // docs sections
+let photos = []; // tous les docs photos
+let sections = []; // docs sections
 let queue = [];
 let idx = 0;
 let playing = true;
@@ -113,8 +113,8 @@ function groupPhotos() {
   // tri par order asc (si absent, fallback createdAt)
   for (const arr of grouped.values()) {
     arr.sort((a, b) => {
-      const ao = (a.order ?? a.createdAt ?? 0);
-      const bo = (b.order ?? b.createdAt ?? 0);
+      const ao = a.order ?? a.createdAt ?? 0;
+      const bo = b.order ?? b.createdAt ?? 0;
       return ao - bo;
     });
   }
@@ -249,7 +249,7 @@ function enableDnDForGrid(grid) {
     if (!draggedId) return;
 
     const target = grid.dataset.sectionId; // UNASSIGNED ou id Firestore
-    const newSectionValue = (target === UNASSIGNED) ? null : target;
+    const newSectionValue = target === UNASSIGNED ? null : target;
 
     try {
       // drop = on met à la fin via order = Date.now()
@@ -515,7 +515,9 @@ function renderPending() {
     remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
-      try { URL.revokeObjectURL(pending[i].url); } catch {}
+      try {
+        URL.revokeObjectURL(pending[i].url);
+      } catch {}
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
@@ -538,7 +540,9 @@ input?.addEventListener("change", async () => {
   if (!files.length) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
 
   pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -553,7 +557,9 @@ uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
   for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
+    try {
+      URL.revokeObjectURL(p.url);
+    } catch {}
   }
   pending = [];
   resetProgressUI();
@@ -588,11 +594,13 @@ uploadStartBtn?.addEventListener("click", async () => {
         onProgress: (ratio) => updateOverall(ratio, file.name),
       });
 
+      const now = Date.now();
+
       await addDoc(collection(db, PHOTOS_COL), {
         type: "photo",
-        createdAt: Date.now(),
-        order: Date.now(),     // ordre éditable via drag&drop
-        sectionId: null,       // non classée au départ
+        createdAt: now,
+        order: now, // ordre éditable via drag&drop
+        sectionId: null, // non classée au départ
 
         publicId: up.public_id,
         url: up.secure_url,
@@ -607,7 +615,9 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
 
     for (const p of pending) {
-      try { URL.revokeObjectURL(p.url); } catch {}
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
     }
     pending = [];
 
@@ -632,12 +642,14 @@ addSectionBtn?.addEventListener("click", async () => {
   if (!title) return;
 
   try {
+    const now = Date.now();
     await addDoc(collection(db, SECTIONS_COL), {
       title: title.trim(),
-      order: Date.now(),
+      order: now,
+      createdAt: now, // fallback si orderBy pose problème
     });
   } catch (e) {
-    alert("Impossible de créer la section.");
+    alert("Impossible de créer la section : " + (e?.message || e));
     console.error(e);
   }
 });
@@ -669,13 +681,18 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  // Sections (uniquement celles créées)
-  onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
+  // ✅ Sections : pas de orderBy côté Firestore (plus robuste), tri côté JS
+  onSnapshot(collection(db, SECTIONS_COL), (snap) => {
     sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    sections.sort((a, b) => {
+      const ao = a.order ?? a.createdAt ?? 0;
+      const bo = b.order ?? b.createdAt ?? 0;
+      return ao - bo;
+    });
     renderAll();
   });
 
-  // ✅ IMPORTANT: on écoute sur createdAt pour inclure les anciennes photos sans "order"
+  // ✅ Photos : on écoute sur createdAt pour inclure les anciennes photos sans "order"
   onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
     photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAll();
