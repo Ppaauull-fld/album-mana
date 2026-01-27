@@ -20,6 +20,15 @@ const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestor
 const LONG_PRESS_MS = 260; // mobile: évite drag involontaire pendant scroll
 const DRAG_START_PX = 8;   // seuil mouvement pour démarrer (desktop)
 
+// Layout (sections)
+const GRID_COLS = 12;
+const GALLERY_LAYOUT_KEY = "albumMana_galleryLayout_v1";
+let galleryLayout = { colSpan: 12, heightPx: null };
+try {
+  const saved = JSON.parse(localStorage.getItem(GALLERY_LAYOUT_KEY) || "null");
+  if (saved && typeof saved === "object") galleryLayout = { ...galleryLayout, ...saved };
+} catch {}
+
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");
 const addBtn = document.getElementById("addPhotoBtn");
@@ -70,7 +79,7 @@ let currentViewed = null;
 // Arrange state
 let arranging = false;
 
-// Drag runtime state (custom)
+// Drag photos
 let drag = null;
 /*
 drag = {
@@ -89,6 +98,35 @@ drag = {
 */
 
 let autoScrollRaf = null;
+
+// Drag sections
+let sectionDrag = null;
+/*
+sectionDrag = {
+  id,
+  pointerId,
+  startX,startY,lastX,lastY,
+  started,
+  ghostEl,
+  placeholderEl,
+  offsetX,offsetY,
+}
+*/
+
+// Resize sections
+let sectionResize = null;
+/*
+sectionResize = {
+  id,
+  pointerId,
+  startX,startY,
+  startW,startH,
+  colW,
+  gap,
+}
+*/
+
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
 function clampRotation(deg) {
   const allowed = [0, 90, 180, 270];
@@ -157,7 +195,6 @@ function renderPhotoCard(p) {
   card.appendChild(img);
 
   card.addEventListener("click", () => {
-    // IMPORTANT : en mode Arrange, un tap ne doit pas ouvrir le viewer
     if (arranging) return;
     openViewer(p);
   });
@@ -165,13 +202,47 @@ function renderPhotoCard(p) {
   return card;
 }
 
+function getSectionLayout(id) {
+  if (id === UNASSIGNED) return galleryLayout;
+
+  const s = sections.find((x) => x.id === id);
+  return {
+    colSpan: typeof s?.colSpan === "number" ? s.colSpan : 12,
+    heightPx: typeof s?.heightPx === "number" ? s.heightPx : null,
+  };
+}
+
+function applySectionLayout(cardEl, id) {
+  const lay = getSectionLayout(id);
+  const span = clamp(lay.colSpan ?? 12, 1, GRID_COLS);
+  cardEl.style.setProperty("--span", String(span));
+
+  if (lay.heightPx && typeof lay.heightPx === "number") {
+    cardEl.style.setProperty("--h", `${Math.max(120, Math.round(lay.heightPx))}px`);
+  } else {
+    cardEl.style.setProperty("--h", "auto");
+  }
+}
+
 function renderSectionCard({ id, title, editable, hideTitle }, items) {
   const card = document.createElement("div");
   card.className = "section-card";
+  card.dataset.sectionCardId = id;
+
+  applySectionLayout(card, id);
+
   if (hideTitle) card.classList.add("no-title");
 
   const head = document.createElement("div");
   head.className = "section-head";
+
+  // Move handle
+  const move = document.createElement("button");
+  move.type = "button";
+  move.className = "section-move";
+  move.title = "Déplacer la section";
+  move.textContent = "⋮⋮";
+  move.dataset.sectionMove = "1";
 
   const t = document.createElement("div");
   t.className = "section-title";
@@ -198,16 +269,24 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
     });
   }
 
+  head.appendChild(move);
   head.appendChild(t);
 
   const grid = document.createElement("div");
   grid.className = "section-grid";
-  grid.dataset.sectionId = id; // UNASSIGNED ou id firestore
+  grid.dataset.sectionId = id;
 
   for (const p of items) grid.appendChild(renderPhotoCard(p));
 
+  // Resize handle (bottom-right)
+  const resize = document.createElement("div");
+  resize.className = "section-resize";
+  resize.dataset.sectionResize = "1";
+
   card.appendChild(head);
   card.appendChild(grid);
+  card.appendChild(resize);
+
   return card;
 }
 
@@ -225,7 +304,7 @@ function renderAll() {
     )
   );
 
-  // Sections créées (avec titres)
+  // Sections créées
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
@@ -250,14 +329,17 @@ function setArranging(on) {
     arrangeBtn.textContent = arranging ? "Terminer" : "Arranger";
   }
 
-  // sécurité : si on sort du mode arrange en plein drag
-  if (!arranging) cancelDrag();
+  if (!arranging) {
+    cancelDrag();
+    cancelSectionDrag();
+    cancelSectionResize();
+  }
 }
 
 arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
 
 /* ---------------------------
-   FLIP animation helper
+   FLIP animation helper (photos)
 ---------------------------- */
 
 function getRects(container) {
@@ -279,7 +361,6 @@ function animateFLIP(container, before) {
     const dy = first.top - last.top;
     if (dx === 0 && dy === 0) continue;
 
-    // NOTE: on ne touche pas la rotation des thumbs : ici c'est l'élément button qui bouge
     el.style.transform = `translate(${dx}px, ${dy}px)`;
     el.style.transition = "transform 0s";
     requestAnimationFrame(() => {
@@ -297,9 +378,7 @@ function animateFLIP(container, before) {
 }
 
 /* ---------------------------
-   Custom drag (Pointer Events)
-   - actif uniquement si arranging === true
-   - mobile: long press
+   Drag PHOTOS (Pointer Events)
 ---------------------------- */
 
 function stopAutoScroll() {
@@ -316,8 +395,8 @@ function startAutoScroll() {
       return;
     }
 
-    const edge = 90;     // zone proche des bords
-    const maxSpeed = 22; // px / frame approx
+    const edge = 90;
+    const maxSpeed = 22;
     const W = window.innerWidth;
     const H = window.innerHeight;
 
@@ -336,7 +415,6 @@ function startAutoScroll() {
     if (vx || vy) {
       window.scrollBy(vx, vy);
 
-      // Après scroll, on repose le placeholder car les rects ont changé
       const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
       if (grid && drag.placeholderEl) {
         if (drag.placeholderEl.parentElement !== grid) {
@@ -355,20 +433,15 @@ function startAutoScroll() {
 function cancelDrag() {
   if (!drag) return;
 
-  try {
-    if (drag.pressTimer) clearTimeout(drag.pressTimer);
-  } catch {}
+  try { if (drag.pressTimer) clearTimeout(drag.pressTimer); } catch {}
 
   stopAutoScroll();
 
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
 
-  // ré-afficher l’original
   const original = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
-  if (original) {
-    original.classList.remove("dragging");
-  }
+  if (original) original.classList.remove("dragging");
 
   document.body.classList.remove("drag-active");
 
@@ -379,7 +452,6 @@ function createPlaceholderFromCard(cardEl) {
   const ph = document.createElement("div");
   ph.className = "drop-placeholder";
 
-  // En grille, le placeholder doit matcher la carte, pas le thumb
   const rect = cardEl.getBoundingClientRect();
   if (rect.width) ph.style.width = `${rect.width}px`;
   if (rect.height) ph.style.height = `${rect.height}px`;
@@ -398,7 +470,7 @@ function createGhostFromCard(cardEl) {
   ghost.style.height = `${rect.height}px`;
   ghost.style.zIndex = 9999;
   ghost.style.pointerEvents = "none";
-  ghost.style.transform = "scale(0.94)"; // “rétrécit la photo”
+  ghost.style.transform = "scale(0.94)";
   ghost.style.boxShadow = "0 24px 70px rgba(0,0,0,.22)";
   ghost.style.borderRadius = "18px";
   return ghost;
@@ -420,7 +492,6 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
     return;
   }
 
-  // Tri stable en grille (top, puis left)
   const items = cards
     .map((el) => {
       const r = el.getBoundingClientRect();
@@ -453,12 +524,11 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
 
 function onPointerDown(e) {
   if (!arranging) return;
+  if (sectionDrag || sectionResize) return;
 
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
 
-  // Desktop: empêche sélection / drag natif.
-  // Touch: on laisse le scroll fonctionner avant long-press
   if ((e.pointerType || "mouse") !== "touch") {
     e.preventDefault();
   }
@@ -487,11 +557,8 @@ function onPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  try {
-    cardEl.setPointerCapture(e.pointerId);
-  } catch {}
+  try { cardEl.setPointerCapture(e.pointerId); } catch {}
 
-  // Mobile: long press obligatoire
   if (drag.pointerType === "touch") {
     drag.pressTimer = setTimeout(() => {
       if (!drag) return;
@@ -518,17 +585,12 @@ function startDrag(cardEl) {
   const beforeRects = getRects(drag.srcGrid);
   cardEl.classList.add("dragging");
 
-  // placeholder prend la place de la carte
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
   animateFLIP(drag.srcGrid, beforeRects);
 
-  // placement initial
   placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
 
-  // IMPORTANT: pas de overflow:hidden (ça provoque des jumps iOS)
   document.body.classList.add("drag-active");
-
-  // lance l’auto-scroll
   startAutoScroll();
 }
 
@@ -539,46 +601,37 @@ function onPointerMove(e) {
   drag.lastX = e.clientX;
   drag.lastY = e.clientY;
 
-  // touch: avant long press, si l'utilisateur scrolle -> on annule le long press
   if (!drag.started && drag.pointerType === "touch") {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 10) {
+    if (Math.hypot(dx, dy) > 10) {
       if (drag.pressTimer) clearTimeout(drag.pressTimer);
       drag.pressTimer = null;
     }
     return;
   }
 
-  // desktop: démarre si dépasse le seuil
   if (!drag.started && drag.pointerType !== "touch") {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
-    const dist = Math.hypot(dx, dy);
-    if (dist >= DRAG_START_PX) {
+    if (Math.hypot(dx, dy) >= DRAG_START_PX) {
       const cardEl = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
       if (cardEl) startDrag(cardEl);
-    } else {
-      return;
-    }
+    } else return;
   }
 
   if (!drag.started) return;
 
-  // bouger ghost
   const x = drag.lastX - drag.offsetX;
   const y = drag.lastY - drag.offsetY;
   drag.ghostEl.style.left = `${x}px`;
   drag.ghostEl.style.top = `${y}px`;
 
-  // active l'auto scroll (si pas déjà)
   startAutoScroll();
 
   const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
   if (!grid) return;
 
-  // Si on change de grille: animer ancien + nouveau correctement
   const oldParent = drag.placeholderEl.parentElement;
   if (oldParent !== grid) {
     const beforeOld = oldParent ? getRects(oldParent) : null;
@@ -586,7 +639,6 @@ function onPointerMove(e) {
 
     grid.appendChild(drag.placeholderEl);
 
-    // IMPORTANT: animer l'ancien parent (on a gardé la ref)
     animateFLIP(oldParent, beforeOld);
     animateFLIP(grid, beforeNew);
   }
@@ -595,7 +647,6 @@ function onPointerMove(e) {
 }
 
 async function finalizeDrop(state) {
-  // state est une copie stable (drag est déjà null au moment où on drop)
   if (!state || !state.started) return;
 
   const placeholder = state.placeholderEl;
@@ -605,7 +656,6 @@ async function finalizeDrop(state) {
   const targetSectionId = targetGrid.dataset.sectionId || UNASSIGNED;
   const newSectionValue = targetSectionId === UNASSIGNED ? null : targetSectionId;
 
-  // dropIndex logique: on compte uniquement les card-btn non-dragging avant le placeholder
   let dropIndex = 0;
   for (const child of [...targetGrid.children]) {
     if (child === placeholder) break;
@@ -614,7 +664,6 @@ async function finalizeDrop(state) {
     }
   }
 
-  // liste des photos (data) dans la section cible (hors dragged)
   const grouped = groupPhotos();
   const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
 
@@ -628,21 +677,14 @@ async function finalizeDrop(state) {
 
   let newOrder;
 
-  if (!prev && !next) {
-    newOrder = Date.now();
-  } else if (!prev && next) {
-    newOrder = nextOrder - 1000;
-  } else if (prev && !next) {
-    newOrder = prevOrder + 1000;
-  } else {
-    newOrder = (prevOrder + nextOrder) / 2;
-  }
+  if (!prev && !next) newOrder = Date.now();
+  else if (!prev && next) newOrder = nextOrder - 1000;
+  else if (prev && !next) newOrder = prevOrder + 1000;
+  else newOrder = (prevOrder + nextOrder) / 2;
 
-  // cas extrême: ordres trop proches => renormalise la section (rare)
   if (prev && next && Math.abs(nextOrder - prevOrder) < 0.000001) {
     try {
       const renorm = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
-
       renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
 
       const base = Date.now();
@@ -671,7 +713,6 @@ function onPointerUp(e) {
 
   const wasStarted = drag.started;
 
-  // snapshot stable pour finalizeDrop (drag va être null)
   const state = {
     id: drag.id,
     started: drag.started,
@@ -691,7 +732,6 @@ function onPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  // remettre l’original visible
   const original = sectionsWrap?.querySelector(`.card-btn[data-id="${draggedId}"]`);
   if (original) original.classList.remove("dragging");
 
@@ -709,9 +749,341 @@ function onPointerUp(e) {
   }
 }
 
-// delegation sur tout le wrap
+/* ---------------------------
+   Drag SECTIONS
+---------------------------- */
+
+function cancelSectionDrag() {
+  if (!sectionDrag) return;
+  if (sectionDrag.ghostEl) sectionDrag.ghostEl.remove();
+  if (sectionDrag.placeholderEl) sectionDrag.placeholderEl.remove();
+
+  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
+  if (original) {
+    original.style.opacity = "";
+    original.style.pointerEvents = "";
+  }
+
+  document.body.classList.remove("drag-active");
+  sectionDrag = null;
+}
+
+function createSectionPlaceholder(sectionEl) {
+  const ph = document.createElement("div");
+  ph.className = "section-placeholder";
+
+  const span = sectionEl.style.getPropertyValue("--span") || "12";
+  const h = sectionEl.style.getPropertyValue("--h") || "auto";
+  ph.style.setProperty("--span", span);
+  ph.style.setProperty("--h", h);
+
+  const r = sectionEl.getBoundingClientRect();
+  ph.style.minHeight = `${Math.max(120, Math.round(r.height))}px`;
+
+  return ph;
+}
+
+function createSectionGhost(sectionEl) {
+  const rect = sectionEl.getBoundingClientRect();
+  const ghost = sectionEl.cloneNode(true);
+  ghost.classList.add("section-ghost");
+  ghost.style.position = "fixed";
+  ghost.style.left = `${rect.left}px`;
+  ghost.style.top = `${rect.top}px`;
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  return ghost;
+}
+
+function placeSectionPlaceholder(wrap, placeholderEl, x, y, draggedId) {
+  const cards = [...wrap.querySelectorAll(".section-card")].filter(
+    (c) => c.dataset.sectionCardId !== draggedId
+  );
+
+  if (!cards.length) {
+    wrap.appendChild(placeholderEl);
+    return;
+  }
+
+  const items = cards
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        el,
+        r,
+        cx: r.left + r.width / 2,
+        cy: r.top + r.height / 2,
+        rowTol: Math.max(18, r.height * 0.35),
+      };
+    })
+    .sort((a, b) => (a.r.top - b.r.top) || (a.r.left - b.r.left));
+
+  let beforeEl = null;
+  for (const it of items) {
+    const sameRow = Math.abs(y - it.cy) <= it.rowTol;
+    if (y < it.cy || (sameRow && x < it.cx)) {
+      beforeEl = it.el;
+      break;
+    }
+  }
+
+  if (!beforeEl) wrap.appendChild(placeholderEl);
+  else wrap.insertBefore(placeholderEl, beforeEl);
+}
+
+function onSectionPointerDown(e) {
+  if (!arranging) return;
+  if (drag || sectionResize) return;
+
+  const handle = e.target?.closest?.('[data-section-move="1"]');
+  if (!handle) return;
+
+  const sectionEl = handle.closest(".section-card");
+  if (!sectionEl) return;
+
+  e.preventDefault();
+
+  const id = sectionEl.dataset.sectionCardId;
+  const rect = sectionEl.getBoundingClientRect();
+
+  sectionDrag = {
+    id,
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    lastX: e.clientX,
+    lastY: e.clientY,
+    started: false,
+    ghostEl: null,
+    placeholderEl: null,
+    offsetX: e.clientX - rect.left,
+    offsetY: e.clientY - rect.top,
+  };
+
+  try { handle.setPointerCapture(e.pointerId); } catch {}
+}
+
+function startSectionDrag(sectionEl) {
+  if (!sectionDrag || sectionDrag.started) return;
+  sectionDrag.started = true;
+
+  sectionDrag.placeholderEl = createSectionPlaceholder(sectionEl);
+  sectionDrag.ghostEl = createSectionGhost(sectionEl);
+  document.body.appendChild(sectionDrag.ghostEl);
+
+  sectionEl.style.opacity = "0";
+  sectionEl.style.pointerEvents = "none";
+
+  sectionEl.parentElement.insertBefore(sectionDrag.placeholderEl, sectionEl);
+
+  document.body.classList.add("drag-active");
+}
+
+function onSectionPointerMove(e) {
+  if (!sectionDrag) return;
+  if (e.pointerId !== sectionDrag.pointerId) return;
+
+  sectionDrag.lastX = e.clientX;
+  sectionDrag.lastY = e.clientY;
+
+  if (!sectionDrag.started) {
+    const dx = sectionDrag.lastX - sectionDrag.startX;
+    const dy = sectionDrag.lastY - sectionDrag.startY;
+    if (Math.hypot(dx, dy) < 6) return;
+
+    const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
+    if (sectionEl) startSectionDrag(sectionEl);
+  }
+
+  if (!sectionDrag.started) return;
+
+  const x = sectionDrag.lastX - sectionDrag.offsetX;
+  const y = sectionDrag.lastY - sectionDrag.offsetY;
+  sectionDrag.ghostEl.style.left = `${x}px`;
+  sectionDrag.ghostEl.style.top = `${y}px`;
+
+  placeSectionPlaceholder(sectionsWrap, sectionDrag.placeholderEl, sectionDrag.lastX, sectionDrag.lastY, sectionDrag.id);
+}
+
+async function finalizeSectionDrop(state) {
+  if (!state?.started) return;
+
+  const placeholder = state.placeholderEl;
+  const wrap = placeholder?.parentElement;
+  if (!wrap) return;
+
+  const all = [...wrap.querySelectorAll(".section-card")];
+
+  // réécrit les orders pour toutes les sections (robuste)
+  const base = Date.now();
+  let i = 0;
+
+  for (const el of all) {
+    const sid = el.dataset.sectionCardId;
+    if (!sid || sid === UNASSIGNED) continue;
+
+    const ord = base + i * 1000;
+    i++;
+
+    await updateDoc(doc(db, SECTIONS_COL, sid), { order: ord });
+  }
+}
+
+function onSectionPointerUp(e) {
+  if (!sectionDrag) return;
+  if (e.pointerId !== sectionDrag.pointerId) return;
+
+  const wasStarted = sectionDrag.started;
+  const state = { id: sectionDrag.id, started: sectionDrag.started, placeholderEl: sectionDrag.placeholderEl };
+
+  const id = sectionDrag.id;
+  const ghost = sectionDrag.ghostEl;
+  const placeholder = sectionDrag.placeholderEl;
+
+  sectionDrag = null;
+
+  document.body.classList.remove("drag-active");
+
+  if (ghost) ghost.remove();
+
+  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
+  if (original) {
+    original.style.opacity = "";
+    original.style.pointerEvents = "";
+  }
+
+  if (!wasStarted) return;
+
+  if (placeholder && placeholder.parentElement) {
+    finalizeSectionDrop(state)
+      .catch((err) => {
+        console.error(err);
+        alert("Impossible de déplacer la section.");
+      })
+      .finally(() => {
+        try { placeholder.remove(); } catch {}
+      });
+  }
+}
+
+/* ---------------------------
+   Resize SECTIONS
+---------------------------- */
+
+function cancelSectionResize() {
+  if (!sectionResize) return;
+  document.body.classList.remove("drag-active");
+  sectionResize = null;
+}
+
+function computeGridMetrics() {
+  const cs = getComputedStyle(sectionsWrap);
+  const gap = parseFloat(cs.gap || cs.columnGap || "18") || 18;
+  const wrapRect = sectionsWrap.getBoundingClientRect();
+
+  const totalGap = gap * (GRID_COLS - 1);
+  const colW = (wrapRect.width - totalGap) / GRID_COLS;
+
+  return { gap, colW };
+}
+
+async function persistSectionLayout(id, colSpan, heightPx) {
+  if (id === UNASSIGNED) {
+    galleryLayout.colSpan = colSpan;
+    galleryLayout.heightPx = heightPx;
+    try { localStorage.setItem(GALLERY_LAYOUT_KEY, JSON.stringify(galleryLayout)); } catch {}
+    return;
+  }
+  await updateDoc(doc(db, SECTIONS_COL, id), { colSpan, heightPx });
+}
+
+function onSectionResizeDown(e) {
+  if (!arranging) return;
+  if (drag || sectionDrag) return;
+
+  const handle = e.target?.closest?.('[data-section-resize="1"]');
+  if (!handle) return;
+
+  const sectionEl = handle.closest(".section-card");
+  if (!sectionEl) return;
+
+  e.preventDefault();
+
+  const id = sectionEl.dataset.sectionCardId;
+  const r = sectionEl.getBoundingClientRect();
+  const { gap, colW } = computeGridMetrics();
+
+  sectionResize = {
+    id,
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    startW: r.width,
+    startH: r.height,
+    gap,
+    colW,
+  };
+
+  try { handle.setPointerCapture(e.pointerId); } catch {}
+  document.body.classList.add("drag-active");
+}
+
+function onSectionResizeMove(e) {
+  if (!sectionResize) return;
+  if (e.pointerId !== sectionResize.pointerId) return;
+
+  const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionResize.id}"]`);
+  if (!sectionEl) return;
+
+  const dx = e.clientX - sectionResize.startX;
+  const dy = e.clientY - sectionResize.startY;
+
+  const newW = Math.max(220, sectionResize.startW + dx);
+  const newH = Math.max(140, sectionResize.startH + dy);
+
+  const colUnit = sectionResize.colW + sectionResize.gap;
+  const span = clamp(Math.round((newW + sectionResize.gap) / colUnit), 1, GRID_COLS);
+
+  sectionEl.style.setProperty("--span", String(span));
+  sectionEl.style.setProperty("--h", `${Math.round(newH)}px`);
+}
+
+function onSectionResizeUp(e) {
+  if (!sectionResize) return;
+  if (e.pointerId !== sectionResize.pointerId) return;
+
+  const id = sectionResize.id;
+  sectionResize = null;
+  document.body.classList.remove("drag-active");
+
+  const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
+  if (!sectionEl) return;
+
+  const span = parseInt(sectionEl.style.getPropertyValue("--span") || "12", 10) || 12;
+  const hRaw = sectionEl.style.getPropertyValue("--h");
+  const heightPx = hRaw && hRaw.endsWith("px") ? parseInt(hRaw, 10) : null;
+
+  persistSectionLayout(id, span, heightPx)
+    .catch((err) => {
+      console.error(err);
+      alert("Impossible de sauvegarder la taille de la section.");
+    });
+}
+
+/* ---------------------------
+   Listeners (delegation)
+---------------------------- */
+
+sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, { passive: false });
+sectionsWrap?.addEventListener("pointerdown", onSectionResizeDown, { passive: false });
 sectionsWrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
+
+window.addEventListener("pointermove", onSectionPointerMove, { passive: false });
+window.addEventListener("pointermove", onSectionResizeMove, { passive: false });
 window.addEventListener("pointermove", onPointerMove, { passive: false });
+
+window.addEventListener("pointerup", onSectionPointerUp);
+window.addEventListener("pointerup", onSectionResizeUp);
 window.addEventListener("pointerup", onPointerUp);
 
 /* ---------------------------
@@ -1079,6 +1451,8 @@ addSectionBtn?.addEventListener("click", async () => {
     await addDoc(collection(db, SECTIONS_COL), {
       title: title.trim(),
       order: Date.now(),
+      colSpan: 12,
+      heightPx: null,
     });
   } catch (e) {
     alert("Impossible de créer la section.");
