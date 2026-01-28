@@ -1467,12 +1467,28 @@ viewerRotate?.addEventListener("click", async () => {
   }
 });
 
+
+
+
+
 /* -------------------- Slideshow (picker + sections + galerie + shuffle) -------------------- */
+/*
+  ✅ Corrigé:
+  - Le picker n’apparaît QUE s’il y a un vrai choix (plus d’1 source possible).
+  - Une source = (Galerie avec au moins 1 photo) OU (une Section avec au moins 1 photo).
+  - "Toutes les sections" n’apparaît que s’il y a au moins 2 sections avec photos.
+  - Si totalSources === 1 -> lancement direct sans choix.
+  - Le picker n’affiche que les sections qui ont au moins 1 photo.
+  - Les compteurs/labels se basent sur les sources possibles, pas sur sections.length.
+  - Shuffle: à chaque clic on bascule (ordre <-> aléatoire) + redémarre à 1/X.
+  - Icône inversée conservée: shuffle OFF => icône shuffle (car action = passer en aléatoire),
+    shuffle ON  => icône play    (car action = repasser dans l’ordre)
+*/
 
 let slideshowSelection = {
   includeGallery: true,
-  sectionIds: [], // vide => "toutes les sections" (si includeAllSections=true)
-  includeAllSections: true,
+  sectionIds: [],            // utilisé seulement si includeAllSections=false
+  includeAllSections: true,  // true => toutes les sections disponibles
 };
 
 function shuffle(arr) {
@@ -1484,11 +1500,83 @@ function shuffle(arr) {
   return a;
 }
 
+/* ---------- Availability (sources possibles) ---------- */
+
+function getSlideshowAvailability() {
+  const grouped = groupPhotos();
+
+  const galleryPhotos = grouped.get(UNASSIGNED) || [];
+  const galleryAvailable = galleryPhotos.length > 0;
+
+  const availableSectionIds = [];
+  for (const s of sections) {
+    const n = (grouped.get(s.id) || []).length;
+    if (n > 0) availableSectionIds.push(s.id);
+  }
+
+  const totalSources = (galleryAvailable ? 1 : 0) + availableSectionIds.length;
+
+  return {
+    grouped,
+    galleryAvailable,
+    availableSectionIds,
+    totalSources,
+  };
+}
+
+function normalizeSelectionToAvailability() {
+  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
+
+  // Galerie
+  if (!galleryAvailable) slideshowSelection.includeGallery = false;
+
+  // Sections
+  const allowed = new Set(availableSectionIds);
+
+  if (slideshowSelection.includeAllSections) {
+    // ok
+    slideshowSelection.sectionIds = [];
+  } else {
+    // garder uniquement celles disponibles
+    slideshowSelection.sectionIds = (slideshowSelection.sectionIds || []).filter((id) =>
+      allowed.has(id)
+    );
+  }
+
+  // Si aucune section dispo, forcer allSections=false et sectionIds=[]
+  if (availableSectionIds.length === 0) {
+    slideshowSelection.includeAllSections = false;
+    slideshowSelection.sectionIds = [];
+  }
+
+  // Si au moins une section dispo et rien n’est sélectionné côté sections,
+  // on remet "toutes les sections" par défaut (plus simple UX).
+  if (availableSectionIds.length > 0) {
+    const hasSomeSections =
+      slideshowSelection.includeAllSections ||
+      (slideshowSelection.sectionIds || []).length > 0;
+
+    if (!hasSomeSections) {
+      slideshowSelection.includeAllSections = true;
+      slideshowSelection.sectionIds = [];
+    }
+  }
+
+  // Si plus rien du tout (galerie false + sections none), on remet un défaut possible
+  if (!slideshowSelection.includeGallery && availableSectionIds.length === 0) {
+    // rien à faire ici, openShowFromSelection gèrera l’erreur
+  }
+}
+
+/* ---------- Queue building (from selection) ---------- */
+
 function getQueueForSelection(sel) {
   const grouped = groupPhotos(); // déjà trié à l’intérieur
   const out = [];
 
-  if (sel?.includeGallery) {
+  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
+
+  if (sel?.includeGallery && galleryAvailable) {
     out.push(...(grouped.get(UNASSIGNED) || []));
   }
 
@@ -1496,6 +1584,7 @@ function getQueueForSelection(sel) {
   const allowed = new Set(sel?.sectionIds || []);
 
   for (const s of sections) {
+    if (!availableSectionIds.includes(s.id)) continue; // section vide => ignorée
     if (includeAll || allowed.has(s.id)) {
       out.push(...(grouped.get(s.id) || []));
     }
@@ -1508,7 +1597,10 @@ function getQueueForSelection(sel) {
 
 function openShowPicker() {
   if (!slideshowPicker) return;
+
+  normalizeSelectionToAvailability();
   renderShowPickerList();
+
   slideshowPicker.classList.add("open");
   slideshowPicker.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
@@ -1517,6 +1609,7 @@ function openShowPicker() {
 
 function closeShowPicker() {
   if (!slideshowPicker) return;
+
   slideshowPicker.classList.remove("open");
   slideshowPicker.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
@@ -1526,11 +1619,19 @@ function closeShowPicker() {
 function updateShowPickerSub() {
   if (!showPickerSub) return;
 
-  const g = slideshowSelection.includeGallery ? 1 : 0;
+  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
+
+  const g = slideshowSelection.includeGallery && galleryAvailable ? 1 : 0;
+
   const includeAll = !!slideshowSelection.includeAllSections;
-  const nSections = includeAll ? sections.length : (slideshowSelection.sectionIds || []).length;
+  const nSections = includeAll
+    ? availableSectionIds.length
+    : (slideshowSelection.sectionIds || []).filter((id) =>
+        availableSectionIds.includes(id)
+      ).length;
 
   const total = g + nSections;
+
   showPickerSub.textContent =
     total === 0 ? "0 sélectionnée" : `${total} sélectionnée${total > 1 ? "s" : ""}`;
 }
@@ -1538,37 +1639,60 @@ function updateShowPickerSub() {
 function renderShowPickerList() {
   if (!showPickerList) return;
 
+  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
+
   showPickerList.innerHTML = "";
+  showPickerList.classList.add("show-picker-list");
 
   const includeAll = !!slideshowSelection.includeAllSections;
 
-  // Galerie
-  const gItem = document.createElement("label");
-  gItem.className = "show-picker-item";
-  gItem.innerHTML = `
-    <input type="checkbox" data-kind="gallery" ${slideshowSelection.includeGallery ? "checked" : ""} />
-    <div class="label">
-      <strong>Galerie</strong>
-      <span>Photos non assignées</span>
-    </div>
-  `;
-  showPickerList.appendChild(gItem);
+  // Galerie (uniquement si elle a des photos)
+  if (galleryAvailable) {
+    const gItem = document.createElement("label");
+    gItem.className = "show-picker-item";
+    gItem.innerHTML = `
+      <input type="checkbox" data-kind="gallery" ${slideshowSelection.includeGallery ? "checked" : ""} />
+      <div class="label">
+        <strong>Galerie</strong>
+        <span>Photos non assignées</span>
+      </div>
+    `;
+    showPickerList.appendChild(gItem);
+  } else {
+    slideshowSelection.includeGallery = false;
+  }
 
-  // "Toutes les sections"
-  const allItem = document.createElement("label");
-  allItem.className = "show-picker-item";
-  allItem.innerHTML = `
-    <input type="checkbox" data-kind="allSections" ${includeAll ? "checked" : ""} />
-    <div class="label">
-      <strong>Toutes les sections</strong>
-      <span>Inclut chaque section</span>
-    </div>
-  `;
-  showPickerList.appendChild(allItem);
+  // "Toutes les sections" (uniquement si au moins 2 sections non vides)
+  const canShowAllSections = availableSectionIds.length >= 2;
+  if (canShowAllSections) {
+    const allItem = document.createElement("label");
+    allItem.className = "show-picker-item";
+    allItem.innerHTML = `
+      <input type="checkbox" data-kind="allSections" ${includeAll ? "checked" : ""} />
+      <div class="label">
+        <strong>Toutes les sections</strong>
+        <span>Inclut chaque section</span>
+      </div>
+    `;
+    showPickerList.appendChild(allItem);
+  } else {
+    // si 0 ou 1 section dispo, ce mode n’apporte rien
+    slideshowSelection.includeAllSections = false;
+    // si 1 seule section dispo, on la sélectionne par défaut
+    if (availableSectionIds.length === 1) {
+      slideshowSelection.sectionIds = [availableSectionIds[0]];
+    } else {
+      slideshowSelection.sectionIds = [];
+    }
+  }
 
-  // Sections
+  // Sections (uniquement celles qui ont des photos)
   for (const s of sections) {
-    const checked = includeAll ? true : (slideshowSelection.sectionIds || []).includes(s.id);
+    if (!availableSectionIds.includes(s.id)) continue;
+
+    const checked = includeAll
+      ? true
+      : (slideshowSelection.sectionIds || []).includes(s.id);
 
     const item = document.createElement("label");
     item.className = "show-picker-item";
@@ -1576,7 +1700,11 @@ function renderShowPickerList() {
     item.style.pointerEvents = includeAll ? "none" : "auto";
 
     item.innerHTML = `
-      <input type="checkbox" data-kind="section" data-id="${s.id}" ${checked ? "checked" : ""} ${includeAll ? "disabled" : ""} />
+      <input type="checkbox"
+             data-kind="section"
+             data-id="${s.id}"
+             ${checked ? "checked" : ""}
+             ${includeAll ? "disabled" : ""} />
       <div class="label">
         <strong>${String(s.title || "Section").replaceAll("<", "&lt;")}</strong>
         <span>Section</span>
@@ -1585,6 +1713,7 @@ function renderShowPickerList() {
     showPickerList.appendChild(item);
   }
 
+  // Delegation
   showPickerList.onchange = (e) => {
     const cb = e.target;
     if (!(cb instanceof HTMLInputElement)) return;
@@ -1616,6 +1745,7 @@ function renderShowPickerList() {
       slideshowSelection.sectionIds = [...set];
 
       updateShowPickerSub();
+      return;
     }
   };
 
@@ -1632,9 +1762,18 @@ showPickerClear?.addEventListener("click", () => {
 });
 
 showPickerSelectAll?.addEventListener("click", () => {
-  slideshowSelection.includeGallery = true;
-  slideshowSelection.includeAllSections = true;
-  slideshowSelection.sectionIds = [];
+  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
+
+  slideshowSelection.includeGallery = galleryAvailable;
+  // toutes les sections dispo (seulement si ça a un sens)
+  if (availableSectionIds.length >= 2) {
+    slideshowSelection.includeAllSections = true;
+    slideshowSelection.sectionIds = [];
+  } else {
+    slideshowSelection.includeAllSections = false;
+    slideshowSelection.sectionIds = availableSectionIds.slice(0, 1);
+  }
+
   renderShowPickerList();
 });
 
@@ -1654,17 +1793,21 @@ function syncShuffleUI() {
   const img = shuffleBtn.querySelector("img");
   if (img) {
     img.src = useShuffle
-      ? "../assets/img/icons/play.svg"
-      : "../assets/img/icons/shuffle.svg";
+      ? "../assets/img/icons/play.svg"      // aléatoire actif => action = repasser ordre
+      : "../assets/img/icons/shuffle.svg";  // ordre actif   => action = passer en aléatoire
   }
 
   shuffleBtn.title = useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire";
-  shuffleBtn.setAttribute("aria-label", useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire");
+  shuffleBtn.setAttribute(
+    "aria-label",
+    useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire"
+  );
 }
 
 /* ---------- Queue + navigation ---------- */
 
 function rebuildBaseQueueFromSelection() {
+  normalizeSelectionToAvailability();
   baseQueue = getQueueForSelection(slideshowSelection);
 }
 
@@ -1690,9 +1833,7 @@ function next() {
   idx++;
 
   if (idx >= queue.length) {
-    if (useShuffle) {
-      queue = shuffle(baseQueue);
-    }
+    if (useShuffle) queue = shuffle(baseQueue);
     idx = 0;
   }
 
@@ -1731,7 +1872,7 @@ function openShowFromSelection() {
   rebuildBaseQueueFromSelection();
 
   if (!baseQueue.length) {
-    alert("Aucune photo dans la sélection. Coche la galerie et/ou des sections.");
+    alert("Aucune photo dans la sélection.");
     return;
   }
 
@@ -1748,6 +1889,34 @@ function openShowFromSelection() {
   startAuto();
 }
 
+function openShowSmart() {
+  const { totalSources, galleryAvailable, availableSectionIds } =
+    getSlideshowAvailability();
+
+  if (totalSources === 0) {
+    alert("Ajoute d'abord quelques photos.");
+    return;
+  }
+
+  // Un seul choix => lancement direct
+  if (totalSources === 1) {
+    if (galleryAvailable) {
+      slideshowSelection = { includeGallery: true, includeAllSections: false, sectionIds: [] };
+    } else {
+      slideshowSelection = {
+        includeGallery: false,
+        includeAllSections: false,
+        sectionIds: [availableSectionIds[0]],
+      };
+    }
+    openShowFromSelection();
+    return;
+  }
+
+  // Plusieurs choix => picker
+  openShowPicker();
+}
+
 function closeShow() {
   slideshow?.classList.remove("open");
   stopAuto();
@@ -1755,8 +1924,8 @@ function closeShow() {
 
 /* ---------- Listeners ---------- */
 
-// Le bouton principal ouvre le picker (pas le show direct)
-showBtn?.addEventListener("click", openShowPicker);
+// Le bouton principal lance direct si 0/1 choix, sinon ouvre le picker
+showBtn?.addEventListener("click", openShowSmart);
 
 closeShowBtn?.addEventListener("click", closeShow);
 nextSlideBtn?.addEventListener("click", next);
