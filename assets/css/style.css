@@ -676,7 +676,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain !important;
 }
 
-/* Shuffle icon size + active state (UNIQUE: plus de doublon) */
+/* Shuffle icon size + active state */
 #shuffleBtn{ width: 44px; height: 44px; }
 #shuffleBtn .icon-img{
   width: 18px !important;
@@ -878,12 +878,41 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   outline-offset: -2px;
 }
 
-/* ✅ Slideshow picker: meilleure “signature” (comme les autres panneaux) */
-#slideshowPicker .box{ width: min(920px, 100%); }
-#slideshowPicker .picker-body{ padding: 18px; }
+/* ✅ Slideshow picker: même style que les panneaux UI (confirm/prompt) */
+#slideshowPicker .box{
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 18px;
+}
+#slideshowPicker .top{
+  padding: 14px 16px;
+  background: rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+#slideshowPicker .picker-body{ padding: 16px; }
 #slideshowPicker .picker-actions{ margin-bottom: 14px; }
 
-/* La liste (on cible aussi #showPickerList au cas où la classe manque) */
+/* Boutons lisibles (texte blanc + primary blanc) */
+#slideshowPicker .picker-actions .btn{
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+  box-shadow: 0 14px 40px rgba(0,0,0,.18);
+}
+#slideshowPicker .picker-actions .btn:hover{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.24);
+}
+#slideshowPicker .picker-actions .btn.primary{
+  background: #fff;
+  color: #000;
+  border: 1px solid rgba(255,255,255,.65);
+  box-shadow: 0 18px 55px rgba(0,0,0,.22);
+}
+#slideshowPicker .picker-actions .btn.primary:hover{
+  background: rgba(255,255,255,.92);
+}
+
+/* Liste */
 .show-picker-list,
 #showPickerList{
   display:flex;
@@ -891,7 +920,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   gap:12px;
 }
 
-/* Item plus “premium” et plus proche du reste */
 .show-picker-item{
   display:flex;
   align-items:center;
@@ -901,7 +929,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 18px;
 
   border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.07);
+  background: rgba(255,255,255,.08);
 
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -911,7 +939,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 .show-picker-item:hover{
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.10);
+  background: rgba(255,255,255,.12);
   border-color: rgba(255,255,255,.22);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 18px 55px rgba(0,0,0,.26);
 }
@@ -929,15 +957,15 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .show-picker-item .label strong{
   font-size:15px;
   font-weight:740;
-  color: rgba(255,255,255,.92);
+  color: rgba(255,255,255,.94);
   line-height:1.15;
 }
 .show-picker-item .label span{
   font-size:12px;
-  color: rgba(255,255,255,.70);
+  color: rgba(255,255,255,.72);
 }
 
-/* Mobile: boutons plus naturels */
+/* Mobile: actions plus naturelles */
 @media (max-width: 740px){
   #slideshowPicker .picker-actions{
     justify-content:flex-start;
@@ -1216,7 +1244,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-top-color: transparent;
   display:inline-block;
   vertical-align:-3px;
-  margin-right:8pxz;
+  margin-right:8px; /* ✅ fix typo */
   animation: spin .8s linear infinite;
 }
 @keyframes spin{ to{ transform: rotate(360deg); } }
@@ -1415,3 +1443,202 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   color:#fff;
 }
 .btn.danger:hover{ background: #d24646; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   Slideshow picker = IDENTIQUE aux panneaux UI (confirm/prompt)
+   Cible : #slideshowPicker (qui est un .modal)
+   ============================================================ */
+
+/* Backdrop identique au ui-modal */
+#slideshowPicker.modal{
+  background: rgba(0,0,0,.58);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 16px;
+}
+
+/* Panel identique à .ui-modal__panel */
+#slideshowPicker .box{
+  margin: auto;
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 18px;
+  overflow: hidden;
+
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 22px 70px rgba(0,0,0,.40), inset 0 1px 0 rgba(255,255,255,.05);
+
+  backdrop-filter: blur(var(--glass-blur-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+
+  position: relative;
+}
+#slideshowPicker .box::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background: var(--glass-highlight);
+  opacity:.40;
+  pointer-events:none;
+  mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
+}
+
+/* Header identique à .ui-modal__head */
+#slideshowPicker .top{
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: #fff;
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Titre + sous-titre : même hiérarchie que ui-modal */
+#slideshowPicker .top h2,
+#slideshowPicker .top .title,
+#slideshowPicker .top .picker-title{
+  font-weight: 740;
+  font-size: 16px;
+  margin: 0;
+  line-height: 1.15;
+}
+#slideshowPicker .top .subtitle,
+#slideshowPicker .top small,
+#slideshowPicker .top .count{
+  display:block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,.72);
+}
+
+/* Corps : comme ui-modal__message */
+#slideshowPicker .picker-body{
+  padding: 14px 16px 0 16px;
+  color: rgba(255,255,255,.86);
+}
+
+/* Actions : comme ui-modal__actions */
+#slideshowPicker .picker-actions{
+  margin: 0;
+  padding: 14px 16px 16px;
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+}
+
+/* Boutons : EXACTEMENT comme ui-modal__actions .btn */
+#slideshowPicker .picker-actions .btn{
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+
+  box-shadow: 0 14px 40px rgba(0,0,0,.20);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+#slideshowPicker .picker-actions .btn:hover{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.24);
+  transform: translateY(var(--lift));
+}
+#slideshowPicker .picker-actions .btn:active{
+  transform: translateY(0px);
+  background: rgba(255,255,255,.20);
+}
+
+/* Primary : blanc (comme le bouton “Supprimer” qui ressort) */
+#slideshowPicker .picker-actions .btn.primary{
+  background: #fff;
+  color: #000;
+  border: 1px solid rgba(255,255,255,.65);
+  box-shadow: 0 18px 55px rgba(0,0,0,.22);
+}
+#slideshowPicker .picker-actions .btn.primary:hover{
+  background: rgba(255,255,255,.92);
+}
+
+/* Liste : on la traite comme une “zone message” */
+#slideshowPicker .show-picker-list,
+#slideshowPicker #showPickerList{
+  padding: 0 16px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+/* Items : même douceur + plus lisible (moins “gris sale”) */
+#slideshowPicker .show-picker-item{
+  display:flex;
+  align-items:center;
+  gap:14px;
+
+  padding: 14px 14px;
+  border-radius: 16px;
+
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 14px 44px rgba(0,0,0,.18);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+#slideshowPicker .show-picker-item:hover{
+  background: rgba(255,255,255,.14);
+  border-color: rgba(255,255,255,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 55px rgba(0,0,0,.22);
+  transform: translateY(var(--lift));
+}
+
+/* Texte : même contraste que les autres panels */
+#slideshowPicker .show-picker-item .label strong{
+  font-size: 15px;
+  font-weight: 740;
+  color: #fff;
+}
+#slideshowPicker .show-picker-item .label span{
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+}
+
+/* Checkbox : cohérent et plus visible */
+#slideshowPicker .show-picker-item input{
+  width:22px;
+  height:22px;
+  accent-color: #fff;
+}
+
+/* Close : même rendu que les panels (iconbtn déjà OK, on force un peu) */
+#slideshowPicker .top .iconbtn{
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+/* Mobile: actions comme ui-modal */
+@media (max-width: 740px){
+  #slideshowPicker .picker-actions{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+}
