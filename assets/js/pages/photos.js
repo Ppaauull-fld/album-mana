@@ -1504,6 +1504,43 @@ function buildQueue({ keepCurrent = false } = {}) {
   }
 }
 
+function rebuildQueuePreserveIndex() {
+  const desiredIndex = idx;
+  const current = queue[desiredIndex] || null;
+
+  baseQueue = getGalleryOrderQueue();
+  if (!baseQueue.length) {
+    queue = [];
+    idx = 0;
+    return;
+  }
+
+  const nextQueue = useShuffle ? shuffle(baseQueue) : baseQueue.slice();
+
+  if (!current) {
+    queue = nextQueue;
+    idx = 0;
+    return;
+  }
+
+  const currentId = current.id;
+  const found = nextQueue.findIndex((p) => p.id === currentId);
+
+  if (found === -1) {
+    queue = nextQueue;
+    idx = 0;
+    return;
+  }
+
+  const target = Math.max(0, Math.min(desiredIndex, nextQueue.length - 1));
+  const [item] = nextQueue.splice(found, 1);
+  nextQueue.splice(target, 0, item);
+
+  queue = nextQueue;
+  idx = target;
+}
+
+
 function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
@@ -1593,11 +1630,12 @@ shuffleBtn?.addEventListener("click", () => {
   useShuffle = !useShuffle;
   syncShuffleUI();
 
-  if (slideshow?.classList.contains("open")) {
-    buildQueue({ keepCurrent: true });
+  if (slideshow.classList.contains("open")) {
+    rebuildQueuePreserveIndex();
     showSlide();
   }
 });
+
 
 /* -------------------- Upload modal -------------------- */
 
