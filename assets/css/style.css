@@ -182,7 +182,7 @@ img{max-width:100%;display:block}
   position:absolute;
   inset:0;
   pointer-events:none;
-  background: linear-gradient(180deg, rgba(255,255,255,.40), rgba(255,255,255,0));
+  background: linear-gradient(180deg, rgba(255,255,255,.40), rgba(255, 255, 255, 0.152));
   opacity:.55;
 }
 .topbar .inner{
