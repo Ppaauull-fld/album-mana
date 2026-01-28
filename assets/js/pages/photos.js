@@ -1473,16 +1473,13 @@ viewerRotate?.addEventListener("click", async () => {
 
 /* -------------------- Slideshow (picker + sections + galerie + shuffle) -------------------- */
 /*
-  ✅ Corrigé:
-  - Le picker n’apparaît QUE s’il y a un vrai choix (plus d’1 source possible).
-  - Une source = (Galerie avec au moins 1 photo) OU (une Section avec au moins 1 photo).
-  - "Toutes les sections" n’apparaît que s’il y a au moins 2 sections avec photos.
-  - Si totalSources === 1 -> lancement direct sans choix.
-  - Le picker n’affiche que les sections qui ont au moins 1 photo.
-  - Les compteurs/labels se basent sur les sources possibles, pas sur sections.length.
-  - Shuffle: à chaque clic on bascule (ordre <-> aléatoire) + redémarre à 1/X.
-  - Icône inversée conservée: shuffle OFF => icône shuffle (car action = passer en aléatoire),
-    shuffle ON  => icône play    (car action = repasser dans l’ordre)
+  ✅ Corrigé (notamment ton bug "Tout enlever" qui re-sélectionne quand même une section) :
+  - AUCUNE auto-sélection dans le picker (sinon "Tout enlever" est cassé).
+  - Auto-lancement direct uniquement via openShowSmart() quand totalSources === 1.
+  - "Toutes les sections" n’apparaît que s’il y a ≥ 2 sections avec photos.
+  - Le picker n’affiche QUE les sources disponibles (galerie si non vide + sections non vides).
+  - Shuffle : toggle + restart 1/X à chaque clic.
+  - Icône inversée conservée.
 */
 
 let slideshowSelection = {
@@ -1524,7 +1521,11 @@ function getSlideshowAvailability() {
   };
 }
 
-function normalizeSelectionToAvailability() {
+/**
+ * Normalise la sélection par rapport à ce qui existe (évite les ids morts / galerie vide).
+ * ⚠️ IMPORTANT : allowAutoPick=false pour le picker, sinon "Tout enlever" se recoche tout seul.
+ */
+function normalizeSelectionToAvailability({ allowAutoPick = false } = {}) {
   const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
 
   // Galerie
@@ -1534,47 +1535,53 @@ function normalizeSelectionToAvailability() {
   const allowed = new Set(availableSectionIds);
 
   if (slideshowSelection.includeAllSections) {
-    // ok
     slideshowSelection.sectionIds = [];
   } else {
-    // garder uniquement celles disponibles
     slideshowSelection.sectionIds = (slideshowSelection.sectionIds || []).filter((id) =>
       allowed.has(id)
     );
   }
 
-  // Si aucune section dispo, forcer allSections=false et sectionIds=[]
+  // Si aucune section dispo => pas de mode allSections
   if (availableSectionIds.length === 0) {
     slideshowSelection.includeAllSections = false;
     slideshowSelection.sectionIds = [];
   }
 
-  // Si au moins une section dispo et rien n’est sélectionné côté sections,
-  // on remet "toutes les sections" par défaut (plus simple UX).
-  if (availableSectionIds.length > 0) {
+  // Si "Toutes les sections" n'a pas de sens (0 ou 1 section dispo), on coupe.
+  if (availableSectionIds.length < 2) {
+    slideshowSelection.includeAllSections = false;
+  }
+
+  // ✅ Auto-pick UNIQUEMENT si explicitement demandé (en pratique: pas dans le picker)
+  if (allowAutoPick) {
     const hasSomeSections =
       slideshowSelection.includeAllSections ||
       (slideshowSelection.sectionIds || []).length > 0;
 
-    if (!hasSomeSections) {
-      slideshowSelection.includeAllSections = true;
-      slideshowSelection.sectionIds = [];
+    // Si sections dispo mais rien sélectionné côté sections, choisir quelque chose
+    if (availableSectionIds.length > 0 && !hasSomeSections) {
+      if (availableSectionIds.length >= 2) {
+        slideshowSelection.includeAllSections = true;
+        slideshowSelection.sectionIds = [];
+      } else {
+        slideshowSelection.includeAllSections = false;
+        slideshowSelection.sectionIds = [availableSectionIds[0]];
+      }
     }
-  }
 
-  // Si plus rien du tout (galerie false + sections none), on remet un défaut possible
-  if (!slideshowSelection.includeGallery && availableSectionIds.length === 0) {
-    // rien à faire ici, openShowFromSelection gèrera l’erreur
+    // Si rien (galerie off + pas de section) mais galerie dispo, on peut remettre la galerie
+    if (!slideshowSelection.includeGallery && availableSectionIds.length === 0 && galleryAvailable) {
+      slideshowSelection.includeGallery = true;
+    }
   }
 }
 
 /* ---------- Queue building (from selection) ---------- */
 
 function getQueueForSelection(sel) {
-  const grouped = groupPhotos(); // déjà trié à l’intérieur
+  const { grouped, galleryAvailable, availableSectionIds } = getSlideshowAvailability();
   const out = [];
-
-  const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
 
   if (sel?.includeGallery && galleryAvailable) {
     out.push(...(grouped.get(UNASSIGNED) || []));
@@ -1585,9 +1592,7 @@ function getQueueForSelection(sel) {
 
   for (const s of sections) {
     if (!availableSectionIds.includes(s.id)) continue; // section vide => ignorée
-    if (includeAll || allowed.has(s.id)) {
-      out.push(...(grouped.get(s.id) || []));
-    }
+    if (includeAll || allowed.has(s.id)) out.push(...(grouped.get(s.id) || []));
   }
 
   return out;
@@ -1598,7 +1603,8 @@ function getQueueForSelection(sel) {
 function openShowPicker() {
   if (!slideshowPicker) return;
 
-  normalizeSelectionToAvailability();
+  // ✅ pas d’auto-pick dans le picker
+  normalizeSelectionToAvailability({ allowAutoPick: false });
   renderShowPickerList();
 
   slideshowPicker.classList.add("open");
@@ -1644,6 +1650,10 @@ function renderShowPickerList() {
   showPickerList.innerHTML = "";
   showPickerList.classList.add("show-picker-list");
 
+  // Si "toutes les sections" n’a pas de sens => on le force off, mais ⚠️ sans auto-cocher une section
+  const canShowAllSections = availableSectionIds.length >= 2;
+  if (!canShowAllSections) slideshowSelection.includeAllSections = false;
+
   const includeAll = !!slideshowSelection.includeAllSections;
 
   // Galerie (uniquement si elle a des photos)
@@ -1662,8 +1672,7 @@ function renderShowPickerList() {
     slideshowSelection.includeGallery = false;
   }
 
-  // "Toutes les sections" (uniquement si au moins 2 sections non vides)
-  const canShowAllSections = availableSectionIds.length >= 2;
+  // "Toutes les sections" (uniquement si ≥ 2 sections non vides)
   if (canShowAllSections) {
     const allItem = document.createElement("label");
     allItem.className = "show-picker-item";
@@ -1675,15 +1684,6 @@ function renderShowPickerList() {
       </div>
     `;
     showPickerList.appendChild(allItem);
-  } else {
-    // si 0 ou 1 section dispo, ce mode n’apporte rien
-    slideshowSelection.includeAllSections = false;
-    // si 1 seule section dispo, on la sélectionne par défaut
-    if (availableSectionIds.length === 1) {
-      slideshowSelection.sectionIds = [availableSectionIds[0]];
-    } else {
-      slideshowSelection.sectionIds = [];
-    }
   }
 
   // Sections (uniquement celles qui ont des photos)
@@ -1754,6 +1754,7 @@ function renderShowPickerList() {
 
 showPickerCancel?.addEventListener("click", closeShowPicker);
 
+// ✅ "Tout enlever" : ne doit plus re-cocher une section automatiquement
 showPickerClear?.addEventListener("click", () => {
   slideshowSelection.includeGallery = false;
   slideshowSelection.includeAllSections = false;
@@ -1765,13 +1766,14 @@ showPickerSelectAll?.addEventListener("click", () => {
   const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
 
   slideshowSelection.includeGallery = galleryAvailable;
-  // toutes les sections dispo (seulement si ça a un sens)
+
   if (availableSectionIds.length >= 2) {
     slideshowSelection.includeAllSections = true;
     slideshowSelection.sectionIds = [];
   } else {
     slideshowSelection.includeAllSections = false;
-    slideshowSelection.sectionIds = availableSectionIds.slice(0, 1);
+    // on coche la seule section si elle existe (c’est logique pour "Tout sélectionner")
+    slideshowSelection.sectionIds = availableSectionIds.length === 1 ? [availableSectionIds[0]] : [];
   }
 
   renderShowPickerList();
@@ -1806,13 +1808,13 @@ function syncShuffleUI() {
 
 /* ---------- Queue + navigation ---------- */
 
-function rebuildBaseQueueFromSelection() {
-  normalizeSelectionToAvailability();
+function rebuildBaseQueueFromSelection({ allowAutoPick = false } = {}) {
+  normalizeSelectionToAvailability({ allowAutoPick });
   baseQueue = getQueueForSelection(slideshowSelection);
 }
 
 function restartFromBeginning() {
-  rebuildBaseQueueFromSelection();
+  rebuildBaseQueueFromSelection({ allowAutoPick: false });
   queue = useShuffle ? shuffle(baseQueue) : baseQueue.slice();
   idx = 0;
 }
@@ -1869,10 +1871,11 @@ function syncPlayIcon() {
 /* ---------- Open/Close slideshow ---------- */
 
 function openShowFromSelection() {
-  rebuildBaseQueueFromSelection();
+  // ✅ depuis le picker: PAS d’auto-pick, sinon "tout enlever" devient impossible
+  rebuildBaseQueueFromSelection({ allowAutoPick: false });
 
   if (!baseQueue.length) {
-    alert("Aucune photo dans la sélection.");
+    alert("Aucune photo dans la sélection. Coche la galerie et/ou des sections.");
     return;
   }
 
@@ -1890,18 +1893,21 @@ function openShowFromSelection() {
 }
 
 function openShowSmart() {
-  const { totalSources, galleryAvailable, availableSectionIds } =
-    getSlideshowAvailability();
+  const { totalSources, galleryAvailable, availableSectionIds } = getSlideshowAvailability();
 
   if (totalSources === 0) {
     alert("Ajoute d'abord quelques photos.");
     return;
   }
 
-  // Un seul choix => lancement direct
+  // ✅ Un seul choix => lancement direct
   if (totalSources === 1) {
     if (galleryAvailable) {
-      slideshowSelection = { includeGallery: true, includeAllSections: false, sectionIds: [] };
+      slideshowSelection = {
+        includeGallery: true,
+        includeAllSections: false,
+        sectionIds: [],
+      };
     } else {
       slideshowSelection = {
         includeGallery: false,
@@ -1909,11 +1915,25 @@ function openShowSmart() {
         sectionIds: [availableSectionIds[0]],
       };
     }
-    openShowFromSelection();
+    // ici c’est ok (sélection déjà explicite)
+    rebuildBaseQueueFromSelection({ allowAutoPick: false });
+    if (!baseQueue.length) {
+      alert("Ajoute d'abord quelques photos.");
+      return;
+    }
+    useShuffle = false;
+    syncShuffleUI();
+    queue = baseQueue.slice();
+    idx = 0;
+    slideshow?.classList.add("open");
+    playing = true;
+    syncPlayIcon();
+    showSlide();
+    startAuto();
     return;
   }
 
-  // Plusieurs choix => picker
+  // ✅ Plusieurs choix => picker
   openShowPicker();
 }
 
