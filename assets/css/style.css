@@ -188,11 +188,33 @@ img{max-width:100%;display:block}
   box-shadow:none;
 }
 
+/* Accessibilité focus (sans casser le design) */
+.btn:focus-visible,
+.iconbtn:focus-visible,
+.card-btn:focus-visible{
+  outline: 3px solid rgba(0,0,0,.22);
+  outline-offset: 3px;
+}
+
 @media (max-width: 740px){
   .actions{margin-top: 10px; justify-content:flex-start; flex-wrap:wrap}
   .h1{font-size: 34px}
-  .topbar-logo{height: 20px;}
+  /* ton 20px rend le logo illisible, on garde petit mais visible */
+  .topbar-logo{height: 34px;}
 }
+
+/* =========================================================
+   Grille legacy (si utilisée ailleurs)
+   ========================================================= */
+.grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:16px;
+  margin-top: 18px;
+}
+@media (max-width: 1000px){ .grid{grid-template-columns: repeat(3, 1fr)} }
+@media (max-width: 740px){ .grid{grid-template-columns: repeat(2, 1fr)} }
+@media (max-width: 430px){ .grid{grid-template-columns: 1fr} }
 
 /* =========================================================
    Cards
@@ -251,8 +273,6 @@ img{max-width:100%;display:block}
 
 /* =========================================================
    SECTIONS + Grilles (VERTICAL STACK)
-   - plus de masonry
-   - sections empilées sous la galerie
    ========================================================= */
 
 .sections,
@@ -277,13 +297,12 @@ img{max-width:100%;display:block}
 
 .section-card.no-title .section-head{ display:none; }
 
-/* Séparation claire entre la galerie et les sections */
+/* Séparation galerie / sections */
 .section-card.no-title{
   margin-bottom: 28px;
 }
 
-
-/* header stable (poignée + titre + actions) */
+/* header (poignée + titre + actions) */
 .section-head{
   display:flex;
   align-items:center;
@@ -319,7 +338,7 @@ img{max-width:100%;display:block}
   align-items:center;
 }
 
-/* Dans les sections (fond clair), les iconbtn doivent être "light" */
+/* iconbtn dans header clair */
 .section-head .iconbtn{
   width:34px;
   height:34px;
@@ -339,7 +358,7 @@ img{max-width:100%;display:block}
   background: rgba(255,80,80,.14);
 }
 
-/* Grille photos à l’intérieur d’une section */
+/* Grille dans une section */
 .section-grid{
   padding: 14px;
   display:grid;
@@ -371,7 +390,8 @@ body.drag-active .card-btn{
    Arrange mode (iPhone-like)
    ========================================================= */
 body.page.arranging .card-btn{
-  cursor: url("../img/icons/move.svg") 12 12, move;
+  /* FIX chemin icône */
+  cursor: url("../assets/img/icons/move.svg") 12 12, move;
   touch-action: none;
 }
 .page.arranging .card-btn:focus{ outline: none; }
@@ -388,7 +408,7 @@ body.page.arranging .card-btn{
   box-shadow: 0 24px 70px rgba(0,0,0,.22);
 }
 
-/* placeholder photos */
+/* placeholder items */
 .drop-placeholder{
   border-radius: 18px;
   border: 2px dashed rgba(0,0,0,.18);
@@ -496,7 +516,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
-/* Viewer plein écran */
+/* Viewer */
 .viewer-box{
   width: min(1100px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
@@ -516,8 +536,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 22px;
   box-shadow: 0 30px 80px rgba(0,0,0,.55);
 }
-
-
 
 .viewer-wrap video{
   width: 100%;
@@ -606,7 +624,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .upload-actions{ margin-top: 14px; display:flex; justify-content:flex-end; }
 
 /* =========================================================
-   Picker (checkbox modal)
+   Picker
    ========================================================= */
 .picker-box{ width:min(1100px, 100%); }
 .picker-body{ padding: 14px; color: rgba(255,255,255,.88); }
@@ -854,7 +872,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .canvas-disabled{ pointer-events: none; }
 
 /* =========================
-   Icons (SVG) + spinner
+   Icons + spinner
    ========================= */
 .icon-img{
   width:18px;
@@ -912,10 +930,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 /* =========================================================
-   Arrange: réordonner sections (pas de resize)
+   Arrange: réordonner sections
    ========================================================= */
 
-/* poignée : cachée hors Arranger, visible en Arranger */
+/* poignée */
 .section-move{
   display:none;
   align-items:center;
@@ -933,7 +951,7 @@ body.page.arranging .section-move{
 }
 body.page.arranging .section-move:active{ cursor: grabbing; }
 
-/* ghost + placeholder pour le reorder */
+/* ghost + placeholder */
 .section-ghost{
   position: fixed;
   z-index: 9999;
@@ -952,13 +970,12 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   min-height: 120px;
 }
 
-/* resize : supprimé */
+/* resize supprimé */
 .section-resize{
   display:none !important;
 }
 
 /* ===== Fullscreen section ===== */
-
 .section-backdrop{
   position: fixed;
   inset: 0;
@@ -989,14 +1006,11 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   }
 }
 
-
-
 /* =========
    VIEWER (agrandissement photo)
    ========= */
-
 #photoViewer .viewer-wrap{
-  height: calc(100vh - 140px); /* ajuste si besoin */
+  height: calc(100vh - 140px);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1013,7 +1027,6 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 /* =========
    SLIDESHOW
    ========= */
-
 #slideshow.modal .imgwrap{
   display:flex;
   align-items:center;
@@ -1025,9 +1038,6 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   height: 100%;
   object-fit: contain;
 }
-
-
-
 
 /* bouton "Lancer un diaporama" */
 #startSlideshowBtn img{
@@ -1043,15 +1053,10 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   display:block;
 }
 
-
-
-
-
-
-/* Diaporama : force la taille des icônes Play/Pause */
+/* force la taille des icônes Play/Pause */
 #togglePlay{
-  width: 44px;   /* optionnel (si tu veux un cercle un peu plus grand) */
-  height: 44px;  /* optionnel */
+  width: 44px;
+  height: 44px;
 }
 
 #togglePlay img,
@@ -1062,22 +1067,32 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   object-fit: contain !important;
 }
 
+/* =========================================================
+   UI MODAL (confirm/prompt) — corrigé
+   ========================================================= */
+.ui-modal{
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 99999;
+  pointer-events: none;
+}
 
+.ui-modal[aria-hidden="false"]{
+  display: block;
+  pointer-events: auto;
+}
 
-
-
-
-
-.ui-modal { position: fixed; inset: 0; display: none; z-index: 99999; }
-.ui-modal[aria-hidden="false"] { display: block; }
-
-.ui-modal__backdrop {
+.ui-modal__backdrop{
+  position: fixed;
+  inset: 0;
   background: rgba(0,0,0,.75);
 }
 
-
 .ui-modal__panel{
-  position: absolute; left: 50%; top: 50%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
   width: min(520px, calc(100vw - 32px));
   background: #0f0f10;
@@ -1088,15 +1103,22 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 }
 
 .ui-modal__head{
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   padding: 14px 16px;
   border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
 .ui-modal__title{ font-weight: 700; font-size: 16px; }
-.ui-modal__message{ padding: 14px 16px; color: rgba(255,255,255,.85); line-height: 1.35; }
+.ui-modal__message{
+  padding: 14px 16px;
+  color: rgba(255,255,255,.85);
+  line-height: 1.35;
+}
 
 .ui-modal__field{ padding: 0 16px 14px; }
+
 .ui-input{
   width: 100%;
   padding: 12px 12px;
@@ -1109,24 +1131,27 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 .ui-input:focus{ border-color: rgba(255,255,255,.28); }
 
 .ui-modal__actions{
-  display:flex; gap: 10px;
+  display:flex;
+  gap: 10px;
   padding: 14px 16px 16px;
   justify-content: flex-end;
 }
-.btn.danger{ background: #c43b3b; color:#fff; }
 
-
-
-.ui-modal__actions .btn {
+.ui-modal__actions .btn{
   background: rgba(255,255,255,.10);
   color: #fff;
 }
 
-.ui-modal__actions .btn:hover {
+.ui-modal__actions .btn:hover{
   background: rgba(255,255,255,.18);
 }
 
-.ui-modal__actions .btn.primary {
+.ui-modal__actions .btn.primary{
   background: #fff;
   color: #000;
+}
+
+.btn.danger{
+  background: #c43b3b;
+  color:#fff;
 }

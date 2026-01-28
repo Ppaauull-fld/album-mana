@@ -13,13 +13,9 @@
       <a class="back" href="../index.html"><span>‹</span> Retour</a>
 
       <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
-  <img
-    class="topbar-logo"
-    src="../assets/img/logo-noir.svg"
-    alt="Accueil"
-  />
-</a>
-
+        <img class="topbar-logo" src="../assets/img/logo-noir.svg" alt="Accueil" />
+      </a>
+    </div>
   </header>
 
   <main class="section">
@@ -29,9 +25,16 @@
       <div class="actions">
         <input id="animatedInput" type="file" accept="video/*,image/gif" multiple hidden />
         <button id="addAnimatedBtn" class="btn" type="button">＋ Ajouter</button>
+
+        <button id="addSectionBtn" class="btn" type="button">＋ Nouvelle section</button>
+
+        <button id="arrangeBtn" class="btn" type="button" aria-pressed="false">
+          <img class="btn-icon" src="../assets/img/icons/grid.svg" alt="" aria-hidden="true" decoding="async" />
+          <span data-arrange-label>Arranger</span>
+        </button>
       </div>
 
-      <div id="animatedGrid" class="grid"></div>
+      <div id="sectionsWrap" class="sections" aria-live="polite" aria-busy="false"></div>
     </div>
   </main>
 
@@ -76,7 +79,6 @@
             <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
           </a>
 
-
           <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
             <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
           </button>
@@ -88,6 +90,29 @@
       <div class="viewer-wrap">
         <img id="viewerGif" alt="gif" style="display:none" />
         <video id="viewerVideo" controls playsinline style="display:none"></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- uiModal (confirm / prompt) -->
+  <div id="uiModal" class="ui-modal" aria-hidden="true">
+    <div class="ui-modal__backdrop" data-close="1"></div>
+
+    <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
+      <div class="ui-modal__head">
+        <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
+        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">✕</button>
+      </div>
+
+      <div id="uiModalMessage" class="ui-modal__message"></div>
+
+      <div id="uiModalFieldWrap" class="ui-modal__field" style="display:none;">
+        <input id="uiModalInput" class="ui-input" type="text" />
+      </div>
+
+      <div class="ui-modal__actions">
+        <button id="uiModalCancel" class="btn" type="button">Annuler</button>
+        <button id="uiModalOk" class="btn primary" type="button">OK</button>
       </div>
     </div>
   </div>
