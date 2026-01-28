@@ -644,6 +644,20 @@ body.page.arranging .card-btn{
 .iconbtn.danger{ border-color: rgba(255,80,80,.35); }
 .iconbtn.danger:hover{ background: rgba(255,80,80,.16); }
 
+
+
+/* Slideshow: bouton Shuffle activé */
+#shuffleBtn.active,
+#shuffleBtn[aria-pressed="true"]{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 18px 55px rgba(0,0,0,.28);
+  transform: translateY(var(--lift));
+}
+
+
+
+
 html.noscroll, body.noscroll{ overflow:hidden; }
 
 #slideshow.modal{ padding: 0; }

@@ -59,6 +59,9 @@ const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 
+// ✅ Bouton shuffle (à ajouter dans ton HTML si pas déjà présent)
+const shuffleBtn = document.getElementById("shuffleBtn");
+
 let photos = []; // docs photos
 let sections = []; // docs sections
 
@@ -66,6 +69,11 @@ let queue = [];
 let idx = 0;
 let playing = true;
 let timer = null;
+
+// ✅ état shuffle
+let useShuffle = false;
+let baseQueue = [];     // ordre exact de la galerie
+let shuffledQueue = []; // ordre mélangé
 
 let pending = []; // upload queue
 let currentViewed = null;
@@ -138,10 +146,6 @@ function applyRotationThumb(imgEl, deg) {
   }
 }
 
-
-
-
-
 function getUiModalEls() {
   const modal = document.getElementById("uiModal");
   return {
@@ -157,6 +161,10 @@ function getUiModalEls() {
 
 function openUiModal() {
   const { modal } = getUiModalEls();
+  if (!modal) {
+    console.error("uiModal introuvable dans le DOM");
+    return;
+  }
   modal.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
@@ -194,12 +202,19 @@ function uiConfirm(message, opts = {}) {
       closeUiModal();
     };
 
-    const onOk = () => { cleanup(); resolve(true); };
-    const onCancel = () => { cleanup(); resolve(false); };
+    const onOk = () => {
+      cleanup();
+      resolve(true);
+    };
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
     const onBackdrop = (e) => {
-      if (e.target?.dataset?.close === "1") onCancel();
+      if (e.target?.closest?.('[data-close="1"]')) onCancel();
     };
     const onKey = (e) => {
+      if (modal.getAttribute("aria-hidden") !== "false") return;
       if (e.key === "Escape") onCancel();
       if (e.key === "Enter") onOk();
     };
@@ -243,7 +258,10 @@ function uiPrompt(message, opts = {}) {
       cleanup();
       resolve(v ? v : null);
     };
-    const onCancel = () => { cleanup(); resolve(null); };
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
+    };
     const onBackdrop = (e) => {
       if (e.target?.dataset?.close === "1") onCancel();
     };
@@ -258,15 +276,6 @@ function uiPrompt(message, opts = {}) {
     window.addEventListener("keydown", onKey);
   });
 }
-
-
-
-
-
-
-
-
-
 
 /**
  * Ancien helper "masonry" — on le garde comme no-op sécurisé
@@ -293,7 +302,10 @@ function cloudinaryFromPublicId(publicId, transform = "f_auto,q_auto") {
 function bestThumb(p) {
   return (
     cloudinaryFromPublicId(p.publicId, "f_auto,q_auto,c_fill,w_600,h_600") ||
-    cloudinaryWithTransform(p.thumbUrl || p.url, "f_auto,q_auto,c_fill,w_600,h_600")
+    cloudinaryWithTransform(
+      p.thumbUrl || p.url,
+      "f_auto,q_auto,c_fill,w_600,h_600"
+    )
   );
 }
 
@@ -303,7 +315,6 @@ function bestFull(p) {
     cloudinaryWithTransform(p.url, "f_auto,q_auto")
   );
 }
-
 
 /* ---------------------------
    Fullscreen section (maximize)
@@ -354,7 +365,6 @@ function enterSectionFullscreen(sectionId) {
   window.addEventListener("keydown", onFullscreenKeydown);
 }
 
-
 function exitSectionFullscreen() {
   if (!sectionsWrap) return;
 
@@ -388,8 +398,6 @@ function exitSectionFullscreen() {
   window.removeEventListener("keydown", onFullscreenKeydown);
 }
 
-
-
 /* ---------------------------
    Delete section (toujours dispo)
    - Supprime la section
@@ -399,12 +407,11 @@ function exitSectionFullscreen() {
 async function deleteSectionAndUnassignPhotos(sectionId) {
   if (!sectionId || sectionId === UNASSIGNED) return;
 
- const ok = await uiConfirm(
-  "Supprimer cette section ? Les photos resteront dans la galerie (non supprimées).",
-  { title: "Supprimer la section", danger: true, okText: "Supprimer" }
-);
-if (!ok) return;
-
+  const ok = await uiConfirm(
+    "Supprimer cette section ? Les photos resteront dans la galerie (non supprimées).",
+    { title: "Supprimer la section", danger: true, okText: "Supprimer" }
+  );
+  if (!ok) return;
 
   try {
     // 1) remettre toutes les photos de cette section en non assigné
@@ -539,20 +546,20 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   actions.className = "section-actions";
 
   const maxBtn = document.createElement("button");
-maxBtn.type = "button";
-maxBtn.className = "iconbtn section-maximize";
-maxBtn.title = "Agrandir";
-maxBtn.dataset.sectionMaximize = "1";
-maxBtn.innerHTML = `
-  <img
-    class="icon-img"
-    data-maximize-icon
-    src="../assets/img/icons/maximize.svg"
-    alt=""
-    aria-hidden="true"
-  />
-  <span class="sr-only">Agrandir</span>
-`;
+  maxBtn.type = "button";
+  maxBtn.className = "iconbtn section-maximize";
+  maxBtn.title = "Agrandir";
+  maxBtn.dataset.sectionMaximize = "1";
+  maxBtn.innerHTML = `
+    <img
+      class="icon-img"
+      data-maximize-icon
+      src="../assets/img/icons/maximize.svg"
+      alt=""
+      aria-hidden="true"
+    />
+    <span class="sr-only">Agrandir</span>
+  `;
 
   maxBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -1244,7 +1251,8 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
 
   if (!cards.length) {
     // juste après la galerie
-    if (galleryEl?.nextSibling) wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
+    if (galleryEl?.nextSibling)
+      wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
     else wrap.appendChild(placeholderEl);
     return;
   }
@@ -1503,13 +1511,12 @@ viewer.addEventListener("click", (e) => {
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
   const ok = await uiConfirm("Supprimer cette photo de la galerie ?", {
-  title: "Supprimer la photo",
-  danger: true,
-  okText: "Supprimer",
-  cancelText: "Annuler",
-});
-if (!ok) return;
-
+    title: "Supprimer la photo",
+    danger: true,
+    okText: "Supprimer",
+    cancelText: "Annuler",
+  });
+  if (!ok) return;
 
   try {
     viewerDelete.disabled = true;
@@ -1551,9 +1558,46 @@ function shuffle(arr) {
   return a;
 }
 
-function buildQueue() {
-  queue = shuffle(photos);
-  idx = 0;
+// ✅ construit l'ordre exact de la galerie (comme renderAll)
+function getGalleryOrderQueue() {
+  const grouped = groupPhotos(); // déjà trié à l'intérieur
+  const out = [];
+
+  // 1) Galerie non assignée d'abord
+  out.push(...(grouped.get(UNASSIGNED) || []));
+
+  // 2) puis sections dans l'ordre Firestore
+  for (const s of sections) {
+    out.push(...(grouped.get(s.id) || []));
+  }
+
+  return out;
+}
+
+function syncShuffleUI() {
+  shuffleBtn?.classList.toggle("active", useShuffle);
+  shuffleBtn?.setAttribute("aria-pressed", useShuffle ? "true" : "false");
+}
+
+function buildQueue({ keepCurrent = false } = {}) {
+  const currentId = keepCurrent && queue[idx] ? queue[idx].id : null;
+
+  baseQueue = getGalleryOrderQueue();
+  shuffledQueue = shuffle(baseQueue);
+
+  queue = useShuffle ? shuffledQueue : baseQueue;
+
+  if (!queue.length) {
+    idx = 0;
+    return;
+  }
+
+  if (currentId) {
+    const newIndex = queue.findIndex((p) => p.id === currentId);
+    idx = newIndex >= 0 ? newIndex : 0;
+  } else {
+    idx = 0;
+  }
 }
 
 function showSlide() {
@@ -1568,14 +1612,24 @@ function showSlide() {
 function next() {
   if (!queue.length) return;
   idx++;
-  if (idx >= queue.length) buildQueue();
+
+  if (idx >= queue.length) {
+    // boucle
+    if (useShuffle) {
+      // reshuffle à chaque tour (optionnel mais sympa)
+      shuffledQueue = shuffle(baseQueue);
+      queue = shuffledQueue;
+    }
+    idx = 0;
+  }
+
   showSlide();
 }
 
 function prev() {
   if (!queue.length) return;
   idx--;
-  if (idx < 0) idx = 0;
+  if (idx < 0) idx = 0; // on garde ton comportement actuel (pas de wrap)
   showSlide();
 }
 
@@ -1599,10 +1653,16 @@ function syncPlayIcon() {
 }
 
 function openShow() {
-  if (!photos.length) {
+  const q = getGalleryOrderQueue();
+  if (!q.length) {
     alert("Ajoute d'abord quelques photos.");
     return;
   }
+
+  // ✅ Play = ordre normal
+  useShuffle = false;
+  syncShuffleUI();
+
   buildQueue();
   slideshow.classList.add("open");
   playing = true;
@@ -1624,6 +1684,18 @@ prevSlideBtn?.addEventListener("click", prev);
 togglePlayBtn?.addEventListener("click", () => {
   playing = !playing;
   syncPlayIcon();
+});
+
+// ✅ Toggle shuffle
+shuffleBtn?.addEventListener("click", () => {
+  useShuffle = !useShuffle;
+  syncShuffleUI();
+
+  // reconstruit en gardant la photo actuelle
+  if (slideshow.classList.contains("open")) {
+    buildQueue({ keepCurrent: true });
+    showSlide();
+  }
 });
 
 /* ---------------------------
@@ -1839,12 +1911,11 @@ uploadStartBtn?.addEventListener("click", async () => {
 
 addSectionBtn?.addEventListener("click", async () => {
   const title = await uiPrompt("Titre de la section ?", {
-  title: "Nouvelle section",
-  placeholder: "Ex: Avec les petits enfants (exemple au hasard...)",
-  okText: "Créer",
-});
-if (!title) return;
-
+    title: "Nouvelle section",
+    placeholder: "Ex: Avec les petits enfants (exemple au hasard...)",
+    okText: "Créer",
+  });
+  if (!title) return;
 
   try {
     await addDoc(collection(db, SECTIONS_COL), {
@@ -1873,7 +1944,8 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (uploadModal.classList.contains("open")) {
-    if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
+    if (e.key === "Escape" && !uploadCancelBtn.disabled)
+      uploadCancelBtn.click();
   }
 });
 
@@ -1889,6 +1961,12 @@ async function main() {
     (snap) => {
       sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       renderAll();
+
+      // si le diapo est ouvert, on reconstruit la queue sans perdre la slide
+      if (slideshow.classList.contains("open")) {
+        buildQueue({ keepCurrent: true });
+        showSlide();
+      }
     }
   );
 
@@ -1897,6 +1975,11 @@ async function main() {
     (snap) => {
       photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       renderAll();
+
+      if (slideshow.classList.contains("open")) {
+        buildQueue({ keepCurrent: true });
+        showSlide();
+      }
     }
   );
 }
