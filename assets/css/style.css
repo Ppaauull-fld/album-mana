@@ -173,7 +173,10 @@ img{max-width:100%;display:block}
   border-bottom: 1px solid rgba(255,255,255,.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  box-shadow:
+  0 1px 0 rgba(255,255,255,.35),
+  0 10px 24px rgba(0,0,0,.08);
+
 }
 .topbar::before{
   content:"";
@@ -191,6 +194,24 @@ img{max-width:100%;display:block}
   justify-content:space-between;
   gap:14px;
   padding: 10px 0; 
+}
+
+.topbar::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-18px;          /* “dépasse” sous la topbar */
+  height:18px;
+  pointer-events:none;
+
+  /* ombre douce visible sur clair */
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,.14),
+    rgba(0,0,0,0)
+  );
+  opacity:.35;           /* ajuste entre .25 et .5 selon ton goût */
 }
 
 .back{
