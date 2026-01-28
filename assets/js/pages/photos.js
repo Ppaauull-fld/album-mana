@@ -18,10 +18,10 @@ import {
 
 const PHOTOS_COL = "photos";
 const SECTIONS_COL = "photoSections";
-const UNASSIGNED = "__unassigned__"; // bucket logique (pas une section Firestore)
+const UNASSIGNED = "__unassigned__";
 
-const LONG_PRESS_MS = 260; // mobile: évite drag involontaire pendant scroll
-const DRAG_START_PX = 8; // seuil mouvement pour démarrer (desktop)
+const LONG_PRESS_MS = 260;
+const DRAG_START_PX = 8;
 
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");
@@ -30,7 +30,6 @@ const addSectionBtn = document.getElementById("addSectionBtn");
 const arrangeBtn = document.getElementById("arrangeBtn");
 const showBtn = document.getElementById("startSlideshowBtn");
 
-// Upload UI
 const uploadModal = document.getElementById("uploadModal");
 const uploadPreviewGrid = document.getElementById("uploadPreviewGrid");
 const uploadStartBtn = document.getElementById("uploadStartBtn");
@@ -40,7 +39,6 @@ const uploadProgressText = document.getElementById("uploadProgressText");
 const uploadProgressDetail = document.getElementById("uploadProgressDetail");
 const uploadCount = document.getElementById("uploadCount");
 
-// Viewer UI
 const viewer = document.getElementById("photoViewer");
 const viewerImg = document.getElementById("viewerImg");
 const viewerTitle = document.getElementById("viewerTitle");
@@ -49,7 +47,6 @@ const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
 const viewerRotate = document.getElementById("viewerRotate");
 
-// Slideshow UI
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
 const slideCounter = document.getElementById("slideCounter");
@@ -58,65 +55,32 @@ const togglePlayIcon = document.getElementById("togglePlayIcon");
 const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
-
-// ✅ Bouton shuffle (à ajouter dans ton HTML si pas déjà présent)
 const shuffleBtn = document.getElementById("shuffleBtn");
 
-let photos = []; // docs photos
-let sections = []; // docs sections
+let photos = [];
+let sections = [];
 
 let queue = [];
 let idx = 0;
 let playing = true;
 let timer = null;
 
-// ✅ état shuffle
 let useShuffle = false;
-let baseQueue = [];     // ordre exact de la galerie
-let shuffledQueue = []; // ordre mélangé
+let baseQueue = [];
+let shuffledQueue = [];
 
-let pending = []; // upload queue
+let pending = [];
 let currentViewed = null;
 
-// Arrange state
 let arranging = false;
 
 // Drag photos
 let drag = null;
-/*
-drag = {
-  id,
-  pointerId,
-  pointerType,
-  startX, startY,
-  lastX, lastY,
-  pressTimer,
-  started,
-  srcGrid, srcSectionId,
-  ghostEl,
-  placeholderEl,
-  offsetX, offsetY,
-}
-*/
 let autoScrollRaf = null;
 
 // Drag sections
 let sectionDrag = null;
-/*
-sectionDrag = {
-  id,
-  pointerId,
-  startX,startY,lastX,lastY,
-  started,
-  ghostEl,
-  placeholderEl,
-  offsetX,offsetY,
-}
-*/
 let autoScrollSectionRaf = null;
-
-// Resize sections (conservé pour compat avec la 2e partie — on désactivera ensuite)
-let sectionResize = null;
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
@@ -128,12 +92,14 @@ function clampRotation(deg) {
 }
 
 function applyRotation(el, deg) {
+  if (!el) return;
   const rot = clampRotation(deg || 0);
   el.style.transform = `rotate(${rot}deg)`;
   el.style.transformOrigin = "center center";
 }
 
 function applyRotationThumb(imgEl, deg) {
+  if (!imgEl) return;
   const rot = clampRotation(deg || 0);
   imgEl.style.transform = `rotate(${rot}deg)`;
   imgEl.style.transformOrigin = "center center";
@@ -145,6 +111,8 @@ function applyRotationThumb(imgEl, deg) {
     imgEl.style.background = "";
   }
 }
+
+/* -------------------- UI Modal helpers -------------------- */
 
 function getUiModalEls() {
   const modal = document.getElementById("uiModal");
@@ -161,10 +129,7 @@ function getUiModalEls() {
 
 function openUiModal() {
   const { modal } = getUiModalEls();
-  if (!modal) {
-    console.error("uiModal introuvable dans le DOM");
-    return;
-  }
+  if (!modal) return;
   modal.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
@@ -172,6 +137,7 @@ function openUiModal() {
 
 function closeUiModal() {
   const { modal } = getUiModalEls();
+  if (!modal) return;
   modal.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
@@ -179,15 +145,16 @@ function closeUiModal() {
 
 function uiConfirm(message, opts = {}) {
   const { modal, title, msg, ok, cancel, fieldWrap } = getUiModalEls();
+  if (!modal || !title || !msg || !ok || !cancel || !fieldWrap) {
+    return Promise.resolve(window.confirm(message || ""));
+  }
 
   title.textContent = opts.title || "Confirmation";
   msg.textContent = message || "";
-
   fieldWrap.style.display = "none";
 
   ok.textContent = opts.okText || "OK";
   cancel.textContent = opts.cancelText || "Annuler";
-
   ok.classList.toggle("danger", !!opts.danger);
 
   openUiModal();
@@ -228,6 +195,10 @@ function uiConfirm(message, opts = {}) {
 
 function uiPrompt(message, opts = {}) {
   const { modal, title, msg, ok, cancel, fieldWrap, input } = getUiModalEls();
+  if (!modal || !title || !msg || !ok || !cancel || !fieldWrap || !input) {
+    const v = window.prompt(message || "", opts.defaultValue || "");
+    return Promise.resolve(v ? v.trim() : null);
+  }
 
   title.textContent = opts.title || "Saisie";
   msg.textContent = message || "";
@@ -238,7 +209,6 @@ function uiPrompt(message, opts = {}) {
 
   ok.textContent = opts.okText || "OK";
   cancel.textContent = opts.cancelText || "Annuler";
-
   ok.classList.remove("danger");
 
   openUiModal();
@@ -277,23 +247,16 @@ function uiPrompt(message, opts = {}) {
   });
 }
 
-/**
- * Ancien helper "masonry" — on le garde comme no-op sécurisé
- * pour éviter de casser des appels existants (la 2e partie sera nettoyée ensuite).
- */
-function updateMasonryRows(_cardEl, _forcedHeightPx = null) {}
+/* -------------------- Cloudinary helpers -------------------- */
 
-// --- Cloudinary: forcer un format compatible navigateur (résout HEIC sur Chrome) ---
 const CLD_CLOUD = "dpj33zjpk";
 
-// Fallback: transforme une URL existante si possible
 function cloudinaryWithTransform(url, transform = "f_auto,q_auto") {
   if (!url || typeof url !== "string") return url;
   if (!url.includes("/upload/")) return url;
   return url.replace("/upload/", `/upload/${transform}/`);
 }
 
-// ✅ Robuste: reconstruit une URL Cloudinary "image/upload" à partir du publicId
 function cloudinaryFromPublicId(publicId, transform = "f_auto,q_auto") {
   if (!publicId) return null;
   return `https://res.cloudinary.com/${CLD_CLOUD}/image/upload/${transform}/${publicId}`;
@@ -316,9 +279,7 @@ function bestFull(p) {
   );
 }
 
-/* ---------------------------
-   Fullscreen section (maximize)
----------------------------- */
+/* -------------------- Section fullscreen -------------------- */
 
 let fullscreenSectionId = null;
 let sectionBackdropEl = null;
@@ -347,7 +308,6 @@ function enterSectionFullscreen(sectionId) {
 
   fullscreenSectionId = sectionId;
 
-  // déplacer dans <body> pour éviter les stacking contexts
   document.body.appendChild(card);
 
   document.documentElement.classList.add("noscroll");
@@ -398,11 +358,7 @@ function exitSectionFullscreen() {
   window.removeEventListener("keydown", onFullscreenKeydown);
 }
 
-/* ---------------------------
-   Delete section (toujours dispo)
-   - Supprime la section
-   - Réassigne ses photos en "non assigné" (sectionId: null)
----------------------------- */
+/* -------------------- Data ops -------------------- */
 
 async function deleteSectionAndUnassignPhotos(sectionId) {
   if (!sectionId || sectionId === UNASSIGNED) return;
@@ -414,7 +370,6 @@ async function deleteSectionAndUnassignPhotos(sectionId) {
   if (!ok) return;
 
   try {
-    // 1) remettre toutes les photos de cette section en non assigné
     const q = query(
       collection(db, PHOTOS_COL),
       where("sectionId", "==", sectionId)
@@ -435,17 +390,12 @@ async function deleteSectionAndUnassignPhotos(sectionId) {
     }
     if (count > 0) await batch.commit();
 
-    // 2) supprimer la section
     await deleteDoc(doc(db, SECTIONS_COL, sectionId));
   } catch (e) {
     console.error(e);
     alert("Impossible de supprimer la section.");
   }
 }
-
-/* ---------------------------
-   Grouping + render
----------------------------- */
 
 function groupPhotos() {
   const grouped = new Map();
@@ -469,12 +419,13 @@ function groupPhotos() {
   return grouped;
 }
 
+/* -------------------- Rendering -------------------- */
+
 function renderPhotoCard(p) {
   const card = document.createElement("button");
   card.type = "button";
   card.className = "card card-btn";
   card.title = "Ouvrir";
-
   card.dataset.id = p.id;
 
   const img = document.createElement("img");
@@ -503,7 +454,6 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   const head = document.createElement("div");
   head.className = "section-head";
 
-  // poignée de déplacement (réorder) : visible uniquement en mode Arranger via CSS
   const move = document.createElement("button");
   move.type = "button";
   move.className = "section-move";
@@ -541,7 +491,6 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   head.appendChild(move);
   head.appendChild(t);
 
-  // actions: maximize (toujours) + delete (toujours sauf galerie)
   const actions = document.createElement("div");
   actions.className = "section-actions";
 
@@ -607,7 +556,6 @@ function renderAll() {
   const grouped = groupPhotos();
   sectionsWrap.innerHTML = "";
 
-  // Galerie (non assigné) en premier
   sectionsWrap.appendChild(
     renderSectionCard(
       { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
@@ -615,7 +563,6 @@ function renderAll() {
     )
   );
 
-  // Sections empilées ensuite (ordre Firestore)
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
@@ -631,9 +578,7 @@ function renderAll() {
   }
 }
 
-/* ---------------------------
-   Arrange mode (ON/OFF)
----------------------------- */
+/* -------------------- Arrange mode -------------------- */
 
 function ensureArrangeLabelSpan() {
   if (!arrangeBtn) return null;
@@ -644,7 +589,6 @@ function ensureArrangeLabelSpan() {
   label = document.createElement("span");
   label.setAttribute("data-arrange-label", "");
 
-  // récupère les textes existants (si le bouton n’avait pas de span)
   const textNodes = [...arrangeBtn.childNodes].filter(
     (n) => n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim()
   );
@@ -663,7 +607,6 @@ function ensureArrangeLabelSpan() {
 function setArranging(on) {
   arranging = !!on;
 
-  document.body.classList.add("page");
   document.body.classList.toggle("arranging", arranging);
 
   if (arrangeBtn) {
@@ -673,24 +616,19 @@ function setArranging(on) {
     const label = ensureArrangeLabelSpan();
     if (label) label.textContent = arranging ? "Terminer" : "Arranger";
 
-    // ✅ Fix Safari : on force show/hide de grid.svg selon l'état
     const icon = arrangeBtn.querySelector("img.btn-icon");
     if (icon) icon.style.display = arranging ? "none" : "block";
   }
 
   if (!arranging) {
-    // ces fonctions existent plus bas (2e partie)
     cancelDrag();
     cancelSectionDrag();
-    cancelSectionResize();
   }
 }
 
 arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
 
-/* ---------------------------
-   FLIP animation helper (photos)
----------------------------- */
+/* -------------------- FLIP helpers -------------------- */
 
 function getRects(container) {
   const map = new Map();
@@ -727,9 +665,7 @@ function animateFLIP(container, before) {
   }
 }
 
-/* ---------------------------
-   Drag PHOTOS (Pointer Events)
----------------------------- */
+/* -------------------- Drag photos -------------------- */
 
 function stopAutoScroll() {
   if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
@@ -883,7 +819,7 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
 
 function onPointerDown(e) {
   if (!arranging) return;
-  if (sectionDrag) return; // resize supprimé
+  if (sectionDrag) return;
 
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
@@ -1137,10 +1073,7 @@ function onPointerUp(e) {
   }
 }
 
-/* ---------------------------
-   Drag SECTIONS (uniquement ordre)
-   - La galerie UNASSIGNED reste 1ère et ne bouge pas
----------------------------- */
+/* -------------------- Drag sections -------------------- */
 
 function stopAutoScrollSection() {
   if (autoScrollSectionRaf) cancelAnimationFrame(autoScrollSectionRaf);
@@ -1230,10 +1163,6 @@ function createSectionGhost(sectionEl) {
   return ghost;
 }
 
-/**
- * Placement vertical : on ne considère que les sections Firestore (pas la galerie).
- * Le placeholder ne peut pas être inséré avant la galerie.
- */
 function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   if (!wrap) return;
 
@@ -1250,7 +1179,6 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   });
 
   if (!cards.length) {
-    // juste après la galerie
     if (galleryEl?.nextSibling)
       wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
     else wrap.appendChild(placeholderEl);
@@ -1272,13 +1200,10 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
     }
   }
 
-  if (!beforeEl) {
-    wrap.appendChild(placeholderEl);
-  } else {
-    wrap.insertBefore(placeholderEl, beforeEl);
-  }
+  if (!beforeEl) wrap.appendChild(placeholderEl);
+  else wrap.insertBefore(placeholderEl, beforeEl);
 
-  // sécurité : ne jamais passer avant la galerie
+  // Ne jamais laisser le placeholder avant la galerie
   if (galleryEl && placeholderEl.previousSibling == null) {
     wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
   }
@@ -1295,7 +1220,7 @@ function onSectionPointerDown(e) {
   if (!sectionEl) return;
 
   const id = sectionEl.dataset.sectionCardId;
-  if (!id || id === UNASSIGNED) return; // ✅ galerie non déplaçable
+  if (!id || id === UNASSIGNED) return;
 
   e.preventDefault();
 
@@ -1320,6 +1245,7 @@ function onSectionPointerDown(e) {
   } catch {}
 }
 
+
 function startSectionDrag(sectionEl) {
   if (!sectionDrag || sectionDrag.started) return;
   sectionDrag.started = true;
@@ -1331,7 +1257,6 @@ function startSectionDrag(sectionEl) {
   sectionEl.style.opacity = "0";
   sectionEl.style.pointerEvents = "none";
 
-  // placeholder à la place de la section
   sectionEl.parentElement.insertBefore(sectionDrag.placeholderEl, sectionEl);
 
   document.body.classList.add("drag-active");
@@ -1377,14 +1302,12 @@ async function finalizeSectionDropAndPersist(wrap) {
 
   const cards = [...wrap.querySelectorAll(".section-card")];
 
-  // On persiste uniquement les sections (pas la galerie)
   const orderedIds = cards
     .map((el) => el.dataset.sectionCardId)
     .filter((sid) => sid && sid !== UNASSIGNED);
 
   const base = Date.now();
 
-  // Batch : plus robuste et plus rapide
   const batch = writeBatch(db);
   for (let i = 0; i < orderedIds.length; i++) {
     const sid = orderedIds[i];
@@ -1441,18 +1364,7 @@ function onSectionPointerUp(e) {
   }
 }
 
-/* ---------------------------
-   Resize SECTIONS : désactivé
----------------------------- */
-
-function cancelSectionResize() {
-  // no-op (on garde pour compat avec setArranging(false))
-}
-
-/* ---------------------------
-   Listeners (delegation)
-   - resize supprimé
----------------------------- */
+/* -------------------- One single listeners block (no duplicates) -------------------- */
 
 sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, {
   passive: false,
@@ -1474,29 +1386,31 @@ window.addEventListener("pointercancel", (e) => {
   } catch {}
 });
 
-/* ---------------------------
-   Viewer
----------------------------- */
+/* -------------------- Viewer -------------------- */
 
 function openViewer(photo) {
   currentViewed = { ...photo };
-  viewerTitle.textContent = "Photo";
-  viewerImg.src = bestFull(photo);
-  applyRotation(viewerImg, photo.rotation || 0);
+  if (viewerTitle) viewerTitle.textContent = "Photo";
+  if (viewerImg) {
+    viewerImg.src = bestFull(photo);
+    applyRotation(viewerImg, photo.rotation || 0);
+  }
 
-  viewerDownload.href = bestFull(photo);
-  viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
+  if (viewerDownload) {
+    viewerDownload.href = bestFull(photo);
+    viewerDownload.setAttribute("download", `photo-${photo.id}.jpg`);
+  }
 
-  viewer.classList.add("open");
-  viewer.setAttribute("aria-hidden", "false");
+  viewer?.classList.add("open");
+  viewer?.setAttribute("aria-hidden", "false");
 
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 }
 
 function closeViewer() {
-  viewer.classList.remove("open");
-  viewer.setAttribute("aria-hidden", "true");
+  viewer?.classList.remove("open");
+  viewer?.setAttribute("aria-hidden", "true");
   currentViewed = null;
 
   document.documentElement.classList.remove("noscroll");
@@ -1504,7 +1418,7 @@ function closeViewer() {
 }
 
 viewerClose?.addEventListener("click", closeViewer);
-viewer.addEventListener("click", (e) => {
+viewer?.addEventListener("click", (e) => {
   if (e.target === viewer) closeViewer();
 });
 
@@ -1545,9 +1459,7 @@ viewerRotate?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------------------
-   Slideshow
----------------------------- */
+/* -------------------- Slideshow (shuffle + ordre galerie) -------------------- */
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -1558,19 +1470,11 @@ function shuffle(arr) {
   return a;
 }
 
-// ✅ construit l'ordre exact de la galerie (comme renderAll)
 function getGalleryOrderQueue() {
-  const grouped = groupPhotos(); // déjà trié à l'intérieur
+  const grouped = groupPhotos();
   const out = [];
-
-  // 1) Galerie non assignée d'abord
   out.push(...(grouped.get(UNASSIGNED) || []));
-
-  // 2) puis sections dans l'ordre Firestore
-  for (const s of sections) {
-    out.push(...(grouped.get(s.id) || []));
-  }
-
+  for (const s of sections) out.push(...(grouped.get(s.id) || []));
   return out;
 }
 
@@ -1604,9 +1508,11 @@ function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
 
-  slideImg.src = bestFull(s);
-  slideCounter.textContent = `${idx + 1} / ${queue.length}`;
-  applyRotation(slideImg, s.rotation || 0);
+  if (slideImg) {
+    slideImg.src = bestFull(s);
+    applyRotation(slideImg, s.rotation || 0);
+  }
+  if (slideCounter) slideCounter.textContent = `${idx + 1} / ${queue.length}`;
 }
 
 function next() {
@@ -1614,9 +1520,7 @@ function next() {
   idx++;
 
   if (idx >= queue.length) {
-    // boucle
     if (useShuffle) {
-      // reshuffle à chaque tour (optionnel mais sympa)
       shuffledQueue = shuffle(baseQueue);
       queue = shuffledQueue;
     }
@@ -1629,7 +1533,7 @@ function next() {
 function prev() {
   if (!queue.length) return;
   idx--;
-  if (idx < 0) idx = 0; // on garde ton comportement actuel (pas de wrap)
+  if (idx < 0) idx = 0;
   showSlide();
 }
 
@@ -1659,12 +1563,11 @@ function openShow() {
     return;
   }
 
-  // ✅ Play = ordre normal
   useShuffle = false;
   syncShuffleUI();
 
   buildQueue();
-  slideshow.classList.add("open");
+  slideshow?.classList.add("open");
   playing = true;
   syncPlayIcon();
   showSlide();
@@ -1672,7 +1575,7 @@ function openShow() {
 }
 
 function closeShow() {
-  slideshow.classList.remove("open");
+  slideshow?.classList.remove("open");
   stopAuto();
 }
 
@@ -1686,66 +1589,68 @@ togglePlayBtn?.addEventListener("click", () => {
   syncPlayIcon();
 });
 
-// ✅ Toggle shuffle
 shuffleBtn?.addEventListener("click", () => {
   useShuffle = !useShuffle;
   syncShuffleUI();
 
-  // reconstruit en gardant la photo actuelle
-  if (slideshow.classList.contains("open")) {
+  if (slideshow?.classList.contains("open")) {
     buildQueue({ keepCurrent: true });
     showSlide();
   }
 });
 
-/* ---------------------------
-   Upload modal
----------------------------- */
+/* -------------------- Upload modal -------------------- */
 
 function openUploadModal() {
-  uploadModal.classList.add("open");
-  uploadModal.setAttribute("aria-hidden", "false");
+  uploadModal?.classList.add("open");
+  uploadModal?.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
 }
 
 function closeUploadModal() {
-  uploadModal.classList.remove("open");
-  uploadModal.setAttribute("aria-hidden", "true");
+  uploadModal?.classList.remove("open");
+  uploadModal?.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
 }
 
 function fmtCount() {
   const n = pending.length;
+  if (!uploadCount) return;
   uploadCount.textContent =
     n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
 }
 
 function resetProgressUI() {
-  uploadProgressBar.value = 0;
-  uploadProgressText.textContent = "0 / 0";
-  uploadProgressDetail.textContent = "—";
+  if (uploadProgressBar) uploadProgressBar.value = 0;
+  if (uploadProgressText) uploadProgressText.textContent = "0 / 0";
+  if (uploadProgressDetail) uploadProgressDetail.textContent = "—";
 }
 
 function setUploadingState(isUploading) {
-  addBtn.disabled = isUploading;
-  showBtn.disabled = isUploading;
-  addSectionBtn.disabled = isUploading;
-  arrangeBtn && (arrangeBtn.disabled = isUploading);
-  uploadCancelBtn.disabled = isUploading;
+  if (addBtn) addBtn.disabled = isUploading;
+  if (showBtn) showBtn.disabled = isUploading;
+  if (addSectionBtn) addSectionBtn.disabled = isUploading;
+  if (arrangeBtn) arrangeBtn.disabled = isUploading;
+  if (uploadCancelBtn) uploadCancelBtn.disabled = isUploading;
 
-  uploadStartBtn.disabled = isUploading || pending.length === 0;
+  if (uploadStartBtn)
+    uploadStartBtn.disabled = isUploading || pending.length === 0;
 
-  setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
-  if (isUploading) {
-    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
-  } else {
-    uploadStartBtn.textContent = "Envoyer";
+  if (uploadStartBtn) {
+    setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
+    if (isUploading) {
+      uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
+    } else {
+      uploadStartBtn.textContent = "Envoyer";
+    }
   }
 }
 
 function renderPending() {
+  if (!uploadPreviewGrid) return;
+
   uploadPreviewGrid.innerHTML = "";
   fmtCount();
 
@@ -1754,7 +1659,7 @@ function renderPending() {
     empty.className = "upload-empty";
     empty.textContent = "Sélectionne des images pour les prévisualiser ici.";
     uploadPreviewGrid.appendChild(empty);
-    uploadStartBtn.disabled = true;
+    if (uploadStartBtn) uploadStartBtn.disabled = true;
     return;
   }
 
@@ -1803,10 +1708,10 @@ function renderPending() {
     uploadPreviewGrid.appendChild(item);
   }
 
-  uploadStartBtn.disabled = false;
+  if (uploadStartBtn) uploadStartBtn.disabled = false;
 }
 
-addBtn?.addEventListener("click", () => input.click());
+addBtn?.addEventListener("click", () => input?.click());
 
 input?.addEventListener("change", async () => {
   const files = [...(input.files || [])];
@@ -1850,12 +1755,13 @@ uploadStartBtn?.addEventListener("click", async () => {
   let done = 0;
 
   const updateOverall = (currentRatio, currentName) => {
-    const overall = Math.max(0, Math.min(1, (done + currentRatio) / total));
-    uploadProgressBar.value = Math.round(overall * 100);
-    uploadProgressText.textContent = `${done} / ${total}`;
-    uploadProgressDetail.textContent = currentName
-      ? `Envoi de ${currentName} — ${Math.round(currentRatio * 100)}%`
-      : "—";
+    const overall = clamp((done + currentRatio) / total, 0, 1);
+    if (uploadProgressBar) uploadProgressBar.value = Math.round(overall * 100);
+    if (uploadProgressText) uploadProgressText.textContent = `${done} / ${total}`;
+    if (uploadProgressDetail)
+      uploadProgressDetail.textContent = currentName
+        ? `Envoi de ${currentName} — ${Math.round(currentRatio * 100)}%`
+        : "—";
   };
 
   try {
@@ -1873,7 +1779,6 @@ uploadStartBtn?.addEventListener("click", async () => {
         createdAt: Date.now(),
         order: Date.now(),
         sectionId: null,
-
         publicId: up.public_id,
         url: up.secure_url,
         thumbUrl: up.secure_url,
@@ -1881,9 +1786,9 @@ uploadStartBtn?.addEventListener("click", async () => {
       });
 
       done++;
-      uploadProgressText.textContent = `${done} / ${total}`;
-      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
-      uploadProgressBar.value = Math.round((done / total) * 100);
+      if (uploadProgressText) uploadProgressText.textContent = `${done} / ${total}`;
+      if (uploadProgressDetail) uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
+      if (uploadProgressBar) uploadProgressBar.value = Math.round((done / total) * 100);
     }
 
     for (const p of pending) {
@@ -1893,7 +1798,7 @@ uploadStartBtn?.addEventListener("click", async () => {
     }
     pending = [];
 
-    uploadProgressDetail.textContent = "Terminé.";
+    if (uploadProgressDetail) uploadProgressDetail.textContent = "Terminé.";
     setTimeout(() => {
       closeUploadModal();
       resetProgressUI();
@@ -1905,9 +1810,7 @@ uploadStartBtn?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------------------
-   Sections: création
----------------------------- */
+/* -------------------- Sections create -------------------- */
 
 addSectionBtn?.addEventListener("click", async () => {
   const title = await uiPrompt("Titre de la section ?", {
@@ -1928,30 +1831,26 @@ addSectionBtn?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------------------
-   Keyboard shortcuts
----------------------------- */
+/* -------------------- Keyboard shortcuts -------------------- */
 
 document.addEventListener("keydown", (e) => {
-  if (viewer.classList.contains("open")) {
+  if (viewer?.classList.contains("open")) {
     if (e.key === "Escape") closeViewer();
     return;
   }
-  if (slideshow.classList.contains("open")) {
+  if (slideshow?.classList.contains("open")) {
     if (e.key === "Escape") closeShow();
     if (e.key === "ArrowRight") next();
     if (e.key === "ArrowLeft") prev();
     return;
   }
-  if (uploadModal.classList.contains("open")) {
-    if (e.key === "Escape" && !uploadCancelBtn.disabled)
+  if (uploadModal?.classList.contains("open")) {
+    if (e.key === "Escape" && uploadCancelBtn && !uploadCancelBtn.disabled)
       uploadCancelBtn.click();
   }
 });
 
-/* ---------------------------
-   Main
----------------------------- */
+/* -------------------- Main -------------------- */
 
 async function main() {
   await ensureAnonAuth();
@@ -1962,8 +1861,7 @@ async function main() {
       sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       renderAll();
 
-      // si le diapo est ouvert, on reconstruit la queue sans perdre la slide
-      if (slideshow.classList.contains("open")) {
+      if (slideshow?.classList.contains("open")) {
         buildQueue({ keepCurrent: true });
         showSlide();
       }
@@ -1976,7 +1874,7 @@ async function main() {
       photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       renderAll();
 
-      if (slideshow.classList.contains("open")) {
+      if (slideshow?.classList.contains("open")) {
         buildQueue({ keepCurrent: true });
         showSlide();
       }

@@ -1385,3 +1385,25 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
 .btn.danger:hover{
   background: #d24646;
 }
+
+
+
+/* Slideshow: icône shuffle trop grande -> on force la taille */
+#shuffleBtn{
+  width: 44px;
+  height: 44px;
+}
+#shuffleBtn .icon-img{
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+/* Visuel quand Shuffle est activé */
+#shuffleBtn.active,
+#shuffleBtn[aria-pressed="true"]{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 18px 55px rgba(0,0,0,.28);
+}
