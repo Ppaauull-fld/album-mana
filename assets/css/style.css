@@ -61,7 +61,6 @@ img{max-width:100%;display:block}
   inset: 0;
   pointer-events: none;
   z-index: 0;
-
   background:
     radial-gradient(
       900px 600px at 50% -200px,
@@ -75,11 +74,12 @@ img{max-width:100%;display:block}
     );
 }
 
-
 .container{
   width:min(var(--max), calc(100% - 40px));
   margin:0 auto;
 }
+
+/* -------------------- Glass helpers -------------------- */
 
 .glass{
   background: linear-gradient(180deg, var(--glass-bg), var(--glass-bg2));
@@ -111,10 +111,10 @@ img{max-width:100%;display:block}
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
-  .glass,.glass-strong{
-    background: rgba(255,255,255,.85);
-  }
+  .glass,.glass-strong{ background: rgba(255,255,255,.85); }
 }
+
+/* -------------------- Hero -------------------- */
 
 .hero{position:relative;min-height:100vh;background:var(--bg);overflow:hidden}
 .hero .strips{position:absolute;inset:-40px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;filter:saturate(1.06) contrast(1.04);transform:translateZ(0)}
@@ -154,7 +154,7 @@ img{max-width:100%;display:block}
   padding:10px 14px;border-radius:999px;color:rgba(255,255,255,.86);
   font-weight:300;font-size:14px;letter-spacing:.15px;
   transition:transform .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
-  white-space:nowrap
+  white-space:nowrap;
 }
 .nav-glass a:hover{transform:translateY(-1px);background:rgba(255,255,255,.16);color:rgba(255,255,255,.96)}
 .nav-glass a.active{background:rgba(255,255,255,.22);color:#fff}
@@ -165,6 +165,8 @@ img{max-width:100%;display:block}
   .nav-glass a{font-size:13px;padding:10px 12px}
 }
 
+/* -------------------- Topbar -------------------- */
+
 .topbar{
   position:sticky;
   top:0;
@@ -174,8 +176,6 @@ img{max-width:100%;display:block}
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 4px 14px rgba(0,0,0,.06);
-
-
 }
 .topbar::before{
   content:"";
@@ -192,9 +192,8 @@ img{max-width:100%;display:block}
   align-items:center;
   justify-content:space-between;
   gap:14px;
-  padding: 10px 0; 
+  padding: 10px 0;
 }
-
 .topbar::after{
   content:"";
   position:absolute;
@@ -206,7 +205,6 @@ img{max-width:100%;display:block}
   background: linear-gradient(to bottom, rgba(0,0,0,.08), transparent);
   opacity:.12;
 }
-
 
 .back{
   display:flex;
@@ -240,7 +238,6 @@ img{max-width:100%;display:block}
   justify-content:center;
   gap:10px;
 }
-
 .topbar-logo{
   height: 64px;
   width: auto;
@@ -248,6 +245,8 @@ img{max-width:100%;display:block}
   display:block;
   opacity: .95;
 }
+
+/* -------------------- Page section + actions -------------------- */
 
 .section{
   padding: 34px 0 64px;
@@ -333,6 +332,8 @@ img{max-width:100%;display:block}
   .topbar-logo{height: 44px;}
 }
 
+/* -------------------- Grid / cards -------------------- */
+
 .grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr);
@@ -407,6 +408,8 @@ img{max-width:100%;display:block}
   outline-offset: 4px;
   border-radius: 18px;
 }
+
+/* -------------------- Sections -------------------- */
 
 .sections,
 #sectionsWrap{
@@ -518,13 +521,9 @@ img{max-width:100%;display:block}
 
 .section-grid > .card-btn{ will-change: transform; }
 
-body.drag-active{
-  user-select: none;
-  -webkit-user-select: none;
-}
-body.drag-active .card-btn{
-  touch-action: none;
-}
+/* Drag states */
+body.drag-active{ user-select: none; -webkit-user-select: none; }
+body.drag-active .card-btn{ touch-action: none; }
 
 body.page.arranging .card-btn{
   cursor: url("../assets/img/icons/move.svg") 12 12, move;
@@ -532,10 +531,7 @@ body.page.arranging .card-btn{
 }
 .page.arranging .card-btn:focus{ outline: none; }
 
-.card-btn.dragging{
-  opacity: 0;
-  pointer-events: none;
-}
+.card-btn.dragging{ opacity: 0; pointer-events: none; }
 
 .drag-ghost{
   opacity:.88;
@@ -551,6 +547,8 @@ body.page.arranging .card-btn{
   width: 100%;
   height: 260px;
 }
+
+/* -------------------- Modals -------------------- */
 
 .modal{
   position:fixed;
@@ -644,21 +642,9 @@ body.page.arranging .card-btn{
 .iconbtn.danger{ border-color: rgba(255,80,80,.35); }
 .iconbtn.danger:hover{ background: rgba(255,80,80,.16); }
 
-
-
-/* Slideshow: bouton Shuffle activé */
-#shuffleBtn.active,
-#shuffleBtn[aria-pressed="true"]{
-  background: rgba(255,255,255,.18);
-  border-color: rgba(255,255,255,.32);
-  box-shadow: 0 18px 55px rgba(0,0,0,.28);
-  transform: translateY(var(--lift));
-}
-
-
-
-
 html.noscroll, body.noscroll{ overflow:hidden; }
+
+/* -------------------- Slideshow modal fullscreen -------------------- */
 
 #slideshow.modal{ padding: 0; }
 #slideshow.modal .box{
@@ -678,6 +664,35 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
+/* Slideshow buttons sizing */
+#togglePlay{ width: 44px; height: 44px; }
+#togglePlayIcon{ width: 18px; height: 18px; display:block; }
+
+#togglePlay img,
+#togglePlayIcon{
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+/* Shuffle icon size + active state (UNIQUE: plus de doublon) */
+#shuffleBtn{ width: 44px; height: 44px; }
+#shuffleBtn .icon-img{
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+#shuffleBtn.active,
+#shuffleBtn[aria-pressed="true"]{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 18px 55px rgba(0,0,0,.28);
+}
+
+/* -------------------- Viewer -------------------- */
+
 .viewer-box{
   width: min(1100px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
@@ -689,7 +704,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   justify-content:center;
   background: rgba(0,0,0,.22);
 }
-
 .viewer-wrap img{
   width: 100%;
   height: 100%;
@@ -697,7 +711,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 22px;
   box-shadow: 0 30px 90px rgba(0,0,0,.58);
 }
-
 .viewer-wrap video{
   width: 100%;
   max-width: 100%;
@@ -710,6 +723,22 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   font-size: 13px;
   color: rgba(255,255,255,.72);
 }
+
+#photoViewer .viewer-wrap{
+  height: calc(100vh - 140px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#photoViewer .viewer-wrap img{
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* -------------------- Upload modal -------------------- */
 
 .upload-body{ padding: 14px; color: rgba(255,255,255,.90); }
 .upload-title{ display:flex; flex-direction:column; gap:2px; }
@@ -798,6 +827,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .upload-progress-detail{ margin-top: 8px; font-size: 12px; color: rgba(255,255,255,.78); }
 .upload-actions{ margin-top: 14px; display:flex; justify-content:flex-end; }
 
+/* -------------------- Picker (section picker + slideshow picker) -------------------- */
+
 .picker-box{ width:min(1100px, 100%); }
 .picker-body{ padding: 14px; color: rgba(255,255,255,.90); }
 
@@ -847,6 +878,75 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   outline-offset: -2px;
 }
 
+/* ✅ Slideshow picker: meilleure “signature” (comme les autres panneaux) */
+#slideshowPicker .box{ width: min(920px, 100%); }
+#slideshowPicker .picker-body{ padding: 18px; }
+#slideshowPicker .picker-actions{ margin-bottom: 14px; }
+
+/* La liste (on cible aussi #showPickerList au cas où la classe manque) */
+.show-picker-list,
+#showPickerList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+/* Item plus “premium” et plus proche du reste */
+.show-picker-item{
+  display:flex;
+  align-items:center;
+  gap:14px;
+
+  padding: 16px 16px;
+  border-radius: 18px;
+
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.07);
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 44px rgba(0,0,0,.20);
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.show-picker-item:hover{
+  transform: translateY(var(--lift));
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 18px 55px rgba(0,0,0,.26);
+}
+.show-picker-item input{
+  width:22px;
+  height:22px;
+  accent-color:#fff;
+}
+.show-picker-item .label{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+.show-picker-item .label strong{
+  font-size:15px;
+  font-weight:740;
+  color: rgba(255,255,255,.92);
+  line-height:1.15;
+}
+.show-picker-item .label span{
+  font-size:12px;
+  color: rgba(255,255,255,.70);
+}
+
+/* Mobile: boutons plus naturels */
+@media (max-width: 740px){
+  #slideshowPicker .picker-actions{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+}
+
+/* -------------------- Guest UI -------------------- */
+
 .guest-wrap{
   border-radius: 22px;
   overflow:hidden;
@@ -885,7 +985,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   align-items:center;
   gap:12px;
 }
-
 .gb-left{ justify-content:flex-start; }
 .gb-mid{ justify-content:center; flex-wrap:wrap; row-gap:10px; }
 .gb-right{ justify-content:flex-end; }
@@ -896,6 +995,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   .gb-right{ justify-content:flex-end; }
 }
 
+/* Segmented controls */
 .segmented{
   display:inline-flex;
   align-items:center;
@@ -924,10 +1024,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 .seg-btn:hover{ background: rgba(255,255,255,.16); transform: translateY(var(--lift)); }
 .seg-btn:active{ transform: translateY(0px); background: rgba(255,255,255,.20); }
-.seg-btn.active{
-  background: rgba(255,255,255,.22);
-  color: rgba(0,0,0,.86);
-}
+.seg-btn.active{ background: rgba(255,255,255,.22); color: rgba(0,0,0,.86); }
 .seg-btn.tiny{ width: 44px; font-size: 16px; }
 
 .seg-divider{
@@ -951,6 +1048,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   .control-row{ justify-content:flex-start; }
 }
 
+/* mini inputs */
 .mini-select,
 .mini-number,
 .mini-color{
@@ -966,7 +1064,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 14px 40px rgba(0,0,0,.10);
 }
-
 .mini-select{
   min-width: 170px;
   padding-right: 34px;
@@ -979,10 +1076,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
 }
-
 .mini-select--compact{ min-width: 92px; width: 92px; padding-right: 30px; }
 .mini-number{ width: 86px; }
-
 .mini-color{
   width: 44px;
   padding: 0;
@@ -1003,6 +1098,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 .export-wrap{ display:inline-flex; align-items:center; gap:10px; }
 
+/* hint bubble */
 .hint{
   position:absolute;
   left: 12px;
@@ -1019,13 +1115,14 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   box-shadow: 0 14px 40px rgba(0,0,0,.10);
 }
 
+/* -------------------- Canvas editor -------------------- */
+
 .canvas-wrap.editor{
   position:relative;
   height: 72vh;
   background:#fff;
   touch-action: manipulation;
 }
-
 #guestCanvas{
   width:100%;
   height:100%;
@@ -1080,8 +1177,9 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   justify-content:flex-end;
   margin-top: 10px;
 }
-
 .canvas-disabled{ pointer-events: none; }
+
+/* -------------------- Icons / helpers -------------------- */
 
 .icon-img{
   width:18px;
@@ -1102,6 +1200,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin-right: 0;
 }
 
+#startSlideshowBtn img{
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 .icon-mirror{ transform: scaleX(-1); }
 
 .spinner{
@@ -1112,16 +1216,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-top-color: transparent;
   display:inline-block;
   vertical-align:-3px;
-  margin-right:8px;
+  margin-right:8pxz;
   animation: spin .8s linear infinite;
 }
 @keyframes spin{ to{ transform: rotate(360deg); } }
 
-.play-badge img{
-  width:18px;
-  height:18px;
-  display:block;
-}
+.play-badge img{ width:18px; height:18px; display:block; }
 
 .sr-only{
   position:absolute;
@@ -1133,10 +1233,9 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border:0;
 }
 
-.seg-btn.tiny .icon-img{
-  width: 18px;
-  height: 18px;
-}
+.seg-btn.tiny .icon-img{ width: 18px; height: 18px; }
+
+/* -------------------- Section move / fullscreen -------------------- */
 
 .section-move{
   display:none;
@@ -1160,9 +1259,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-color: rgba(255,255,255,.24);
   box-shadow: 0 18px 55px rgba(0,0,0,.12);
 }
-body.page.arranging .section-move{
-  display:inline-flex;
-}
+body.page.arranging .section-move{ display:inline-flex; }
 body.page.arranging .section-move:active{ cursor: grabbing; }
 
 .section-ghost{
@@ -1183,9 +1280,7 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   min-height: 120px;
 }
 
-.section-resize{
-  display:none !important;
-}
+.section-resize{ display:none !important; }
 
 .section-backdrop{
   position: fixed;
@@ -1216,57 +1311,7 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   }
 }
 
-#photoViewer .viewer-wrap{
-  height: calc(100vh - 140px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-#photoViewer .viewer-wrap img{
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-#slideshow.modal .imgwrap{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-#slideshow.modal img{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-#startSlideshowBtn img{
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-}
-
-#togglePlayIcon{
-  width: 18px;
-  height: 18px;
-  display:block;
-}
-
-#togglePlay{
-  width: 44px;
-  height: 44px;
-}
-
-#togglePlay img,
-#togglePlayIcon{
-  width: 18px !important;
-  height: 18px !important;
-  display: block !important;
-  object-fit: contain !important;
-}
+/* -------------------- UI modal (confirm / prompt) -------------------- */
 
 .ui-modal{
   position: fixed;
@@ -1275,12 +1320,10 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   z-index: 99999;
   pointer-events: none;
 }
-
 .ui-modal[aria-hidden="false"]{
   display: block;
   pointer-events: auto;
 }
-
 .ui-modal__backdrop{
   position: fixed;
   inset: 0;
@@ -1288,7 +1331,6 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-
 .ui-modal__panel{
   position: absolute;
   left: 50%;
@@ -1314,7 +1356,6 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   pointer-events:none;
   mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
 }
-
 .ui-modal__head{
   display:flex;
   align-items:center;
@@ -1325,14 +1366,12 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-
 .ui-modal__title{ font-weight: 740; font-size: 16px; }
 .ui-modal__message{
   padding: 14px 16px;
   color: rgba(255,255,255,.86);
   line-height: 1.35;
 }
-
 .ui-modal__field{ padding: 0 16px 14px; }
 
 .ui-input{
@@ -1346,11 +1385,7 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-
-.ui-input::placeholder{
-  color: rgba(255,255,255,.72);
-}
-
+.ui-input::placeholder{ color: rgba(255,255,255,.72); }
 .ui-input:focus{ border-color: rgba(255,255,255,.28); }
 
 .ui-modal__actions{
@@ -1359,18 +1394,15 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   padding: 14px 16px 16px;
   justify-content: flex-end;
 }
-
 .ui-modal__actions .btn{
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
   color: #fff;
 }
-
 .ui-modal__actions .btn:hover{
   background: rgba(255,255,255,.18);
   border-color: rgba(255,255,255,.24);
 }
-
 .ui-modal__actions .btn.primary{
   background: #fff;
   color: #000;
@@ -1382,71 +1414,4 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   border: 1px solid rgba(255,80,80,.35);
   color:#fff;
 }
-.btn.danger:hover{
-  background: #d24646;
-}
-
-
-
-/* Slideshow: icône shuffle trop grande -> on force la taille */
-#shuffleBtn{
-  width: 44px;
-  height: 44px;
-}
-#shuffleBtn .icon-img{
-  width: 18px !important;
-  height: 18px !important;
-  display: block !important;
-  object-fit: contain !important;
-}
-
-/* Visuel quand Shuffle est activé */
-#shuffleBtn.active,
-#shuffleBtn[aria-pressed="true"]{
-  background: rgba(255,255,255,.18);
-  border-color: rgba(255,255,255,.32);
-  box-shadow: 0 18px 55px rgba(0,0,0,.28);
-}
-
-
-
-.show-picker-list{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.show-picker-item{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.show-picker-item input{
-  width:18px;
-  height:18px;
-  accent-color:#fff;
-}
-
-.show-picker-item .label{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  min-width:0;
-}
-
-.show-picker-item .label strong{
-  font-size:14px;
-  color: rgba(255,255,255,.92);
-}
-
-.show-picker-item .label span{
-  font-size:12px;
-  color: rgba(255,255,255,.68);
-}
+.btn.danger:hover{ background: #d24646; }
