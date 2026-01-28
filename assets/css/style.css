@@ -184,11 +184,12 @@ img{max-width:100%;display:block}
 }
 .topbar .inner{
   position:relative;
-  height: 64px;
+  height: 96px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:14px;
+  padding: 10px 0; 
 }
 
 .back{
@@ -225,9 +226,9 @@ img{max-width:100%;display:block}
 }
 
 .topbar-logo{
-  height: 52px;
+  height: 64px;
   width: auto;
-  max-width: 260px;
+  max-width: 320px;
   display:block;
   opacity: .95;
 }
@@ -312,7 +313,8 @@ img{max-width:100%;display:block}
 @media (max-width: 740px){
   .actions{margin-top: 10px; justify-content:flex-start; flex-wrap:wrap}
   .h1{font-size: 34px}
-  .topbar-logo{height: 34px;}
+  .topbar .inner{ height: 76px; padding: 8px 0; }
+  .topbar-logo{height: 44px;}
 }
 
 .grid{
