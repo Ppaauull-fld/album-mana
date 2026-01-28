@@ -166,12 +166,14 @@ img{max-width:100%;display:block}
 }
 
 .topbar{
+  position:sticky;
+  top:0;
+  z-index:10;
   background: rgba(246,241,234,.65);
   border-bottom: 1px solid rgba(255,255,255,.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-
 .topbar::before{
   content:"";
   position:absolute;
