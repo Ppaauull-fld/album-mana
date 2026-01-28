@@ -200,18 +200,13 @@ img{max-width:100%;display:block}
   position:absolute;
   left:0;
   right:0;
-  bottom:-18px;          /* “dépasse” sous la topbar */
-  height:18px;
+  bottom:-8px;
+  height:8px;
   pointer-events:none;
-
-  /* ombre douce visible sur clair */
-  background: linear-gradient(
-    to bottom,
-    rgba(0,0,0,.14),
-    rgba(0,0,0,0)
-  );
-  opacity:.35;           /* ajuste entre .25 et .5 selon ton goût */
+  background: linear-gradient(to bottom, rgba(0,0,0,.08), transparent);
+  opacity:.12;
 }
+
 
 .back{
   display:flex;
