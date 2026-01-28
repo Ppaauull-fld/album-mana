@@ -1,6 +1,5 @@
 import { ensureAnonAuth, db } from "../firebase.js";
-import { uploadImage, uploadVideo } from "../cloudinary.js";
-import { setBtnLoading } from "../ui.js";
+import { uploadVideo, uploadImage } from "../cloudinary.js";
 
 import {
   collection,
@@ -48,17 +47,34 @@ const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
 
 let sections = [];
-let items = [];
-
-let pending = [];
-let arranging = false;
-
+let items = []; // animated items
+let pending = []; // [{file, url, kind}]
 let currentViewed = null;
 
-/* ---------------------------
-   UI Modal (confirm / prompt)
----------------------------- */
+let arranging = false;
 
+/* =========================
+   Modal helpers (existing modals)
+   ========================= */
+function openModal(el) {
+  if (!el) return;
+  el.classList.add("open");
+  el.setAttribute("aria-hidden", "false");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closeModal(el) {
+  if (!el) return;
+  el.classList.remove("open");
+  el.setAttribute("aria-hidden", "true");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+}
+
+/* =========================
+   uiModal (confirm/prompt)
+   ========================= */
 function getUiModalEls() {
   const modal = document.getElementById("uiModal");
   return {
@@ -74,10 +90,7 @@ function getUiModalEls() {
 
 function openUiModal() {
   const { modal } = getUiModalEls();
-  if (!modal) {
-    console.error("uiModal introuvable dans le DOM");
-    return;
-  }
+  if (!modal) return;
   modal.setAttribute("aria-hidden", "false");
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
@@ -85,6 +98,7 @@ function openUiModal() {
 
 function closeUiModal() {
   const { modal } = getUiModalEls();
+  if (!modal) return;
   modal.setAttribute("aria-hidden", "true");
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
@@ -92,17 +106,12 @@ function closeUiModal() {
 
 function uiConfirm(message, opts = {}) {
   const { modal, title, msg, ok, cancel, fieldWrap } = getUiModalEls();
-
   title.textContent = opts.title || "Confirmation";
   msg.textContent = message || "";
-
   fieldWrap.style.display = "none";
-
   ok.textContent = opts.okText || "OK";
   cancel.textContent = opts.cancelText || "Annuler";
-
   ok.classList.toggle("danger", !!opts.danger);
-
   openUiModal();
 
   return new Promise((resolve) => {
@@ -115,17 +124,9 @@ function uiConfirm(message, opts = {}) {
       closeUiModal();
     };
 
-    const onOk = () => {
-      cleanup();
-      resolve(true);
-    };
-    const onCancel = () => {
-      cleanup();
-      resolve(false);
-    };
-    const onBackdrop = (e) => {
-      if (e.target?.closest?.('[data-close="1"]')) onCancel();
-    };
+    const onOk = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+    const onBackdrop = (e) => { if (e.target?.closest?.('[data-close="1"]')) onCancel(); };
     const onKey = (e) => {
       if (modal.getAttribute("aria-hidden") !== "false") return;
       if (e.key === "Escape") onCancel();
@@ -141,7 +142,6 @@ function uiConfirm(message, opts = {}) {
 
 function uiPrompt(message, opts = {}) {
   const { modal, title, msg, ok, cancel, fieldWrap, input } = getUiModalEls();
-
   title.textContent = opts.title || "Saisie";
   msg.textContent = message || "";
 
@@ -151,7 +151,6 @@ function uiPrompt(message, opts = {}) {
 
   ok.textContent = opts.okText || "OK";
   cancel.textContent = opts.cancelText || "Annuler";
-
   ok.classList.remove("danger");
 
   openUiModal();
@@ -171,13 +170,8 @@ function uiPrompt(message, opts = {}) {
       cleanup();
       resolve(val || null);
     };
-    const onCancel = () => {
-      cleanup();
-      resolve(null);
-    };
-    const onBackdrop = (e) => {
-      if (e.target?.closest?.('[data-close="1"]')) onCancel();
-    };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onBackdrop = (e) => { if (e.target?.closest?.('[data-close="1"]')) onCancel(); };
     const onKey = (e) => {
       if (modal.getAttribute("aria-hidden") !== "false") return;
       if (e.key === "Escape") onCancel();
@@ -191,10 +185,38 @@ function uiPrompt(message, opts = {}) {
   });
 }
 
-/* ---------------------------
-   Helpers (gif/video)
----------------------------- */
+/* =========================
+   Upload button state
+   ========================= */
+function setUploadingState(isUploading) {
+  addBtn && (addBtn.disabled = isUploading);
+  addSectionBtn && (addSectionBtn.disabled = isUploading);
+  arrangeBtn && (arrangeBtn.disabled = isUploading);
 
+  uploadCancelBtn.disabled = isUploading;
+  uploadStartBtn.disabled = isUploading || pending.length === 0;
+
+  if (isUploading) {
+    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
+  } else {
+    uploadStartBtn.textContent = "Envoyer";
+  }
+}
+
+function fmtCount() {
+  const n = pending.length;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
+}
+
+function resetProgressUI() {
+  uploadProgressBar.value = 0;
+  uploadProgressText.textContent = "0 / 0";
+  uploadProgressDetail.textContent = "—";
+}
+
+/* =========================
+   File helpers
+   ========================= */
 function isGif(file) {
   return file?.type === "image/gif" || /\.gif$/i.test(file?.name || "");
 }
@@ -202,35 +224,93 @@ function isVideo(file) {
   return file?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
 }
 
-function cloudinaryVideoPoster(url) {
+/** Poster Cloudinary (frame jpg) */
+function cloudinaryVideoPoster(videoUrl) {
   try {
-    if (!url || !url.includes("/video/upload/")) return null;
-    return url.replace("/upload/", "/upload/so_0/").replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
+    if (!videoUrl || !videoUrl.includes("/video/upload/")) return null;
+    const withTransform = videoUrl.replace("/upload/", "/upload/so_0/");
+    return withTransform.replace(/\.[a-z0-9]+(\?.*)?$/i, ".jpg");
   } catch {
     return null;
   }
 }
 
-function bestThumb(it) {
-  if (it.kind === "video") return it.thumbUrl || cloudinaryVideoPoster(it.url) || it.url;
-  return it.thumbUrl || it.url;
+function fallbackPosterDataUri() {
+  return (
+    "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+        <rect width="100%" height="100%" fill="#111"/>
+        <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.04)"/>
+      </svg>
+    `)
+  );
 }
 
+function cleanupPendingUrls() {
+  for (const p of pending) {
+    try { URL.revokeObjectURL(p.url); } catch {}
+  }
+}
+
+/* =========================
+   Play badge
+   ========================= */
 function makePlayBadge() {
   const badge = document.createElement("div");
   badge.className = "play-badge";
+
   const icon = document.createElement("img");
   icon.className = "icon-img";
   icon.src = "../assets/img/icons/play.svg";
   icon.alt = "";
+
   badge.appendChild(icon);
   return badge;
 }
 
-/* ---------------------------
-   Fullscreen section (maximize)
----------------------------- */
+/* =========================
+   Arrange mode
+   ========================= */
+function ensureArrangeLabelSpan() {
+  if (!arrangeBtn) return null;
+  let label = arrangeBtn.querySelector("[data-arrange-label]");
+  if (label) return label;
+  label = document.createElement("span");
+  label.setAttribute("data-arrange-label", "");
+  label.textContent = arrangeBtn.textContent?.trim?.() || "Arranger";
+  arrangeBtn.textContent = "";
+  arrangeBtn.appendChild(label);
+  return label;
+}
 
+function setArranging(on) {
+  arranging = !!on;
+  document.body.classList.add("page");
+  document.body.classList.toggle("arranging", arranging);
+
+  if (arrangeBtn) {
+    arrangeBtn.classList.toggle("primary", arranging);
+    arrangeBtn.setAttribute("aria-pressed", arranging ? "true" : "false");
+    const label = ensureArrangeLabelSpan();
+    if (label) label.textContent = arranging ? "Terminer" : "Arranger";
+
+    const icon = arrangeBtn.querySelector("img.btn-icon");
+    if (icon) icon.style.display = arranging ? "none" : "block";
+  }
+
+  if (!arranging) {
+    cancelDrag();
+    cancelSectionDrag();
+    cancelSectionResize();
+  }
+}
+
+arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
+
+/* =========================
+   Fullscreen section
+   ========================= */
 let fullscreenSectionId = null;
 let sectionBackdropEl = null;
 
@@ -248,12 +328,9 @@ function onFullscreenKeydown(e) {
 
 function enterSectionFullscreen(sectionId) {
   if (!sectionsWrap) return;
-
   exitSectionFullscreen();
 
-  const card = sectionsWrap.querySelector(
-    `.section-card[data-section-card-id="${sectionId}"]`
-  );
+  const card = sectionsWrap.querySelector(`.section-card[data-section-card-id="${sectionId}"]`);
   if (!card) return;
 
   fullscreenSectionId = sectionId;
@@ -279,10 +356,7 @@ function exitSectionFullscreen() {
   if (!sectionsWrap) return;
 
   if (fullscreenSectionId) {
-    const card = document.querySelector(
-      `.section-card[data-section-card-id="${fullscreenSectionId}"]`
-    );
-
+    const card = document.querySelector(`.section-card[data-section-card-id="${fullscreenSectionId}"]`);
     if (card) {
       card.classList.remove("is-fullscreen");
 
@@ -298,9 +372,7 @@ function exitSectionFullscreen() {
 
   fullscreenSectionId = null;
 
-  if (sectionBackdropEl && sectionBackdropEl.parentElement) {
-    sectionBackdropEl.remove();
-  }
+  if (sectionBackdropEl && sectionBackdropEl.parentElement) sectionBackdropEl.remove();
 
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
@@ -308,15 +380,14 @@ function exitSectionFullscreen() {
   window.removeEventListener("keydown", onFullscreenKeydown);
 }
 
-/* ---------------------------
-   Delete section
----------------------------- */
-
+/* =========================
+   Delete section (unassign items)
+   ========================= */
 async function deleteSectionAndUnassignItems(sectionId) {
   if (!sectionId || sectionId === UNASSIGNED) return;
 
   const ok = await uiConfirm(
-    "Supprimer cette section ? Les éléments resteront dans la galerie (non supprimés).",
+    "Supprimer cette section ? Les animations resteront dans la galerie (non supprimées).",
     { title: "Supprimer la section", danger: true, okText: "Supprimer" }
   );
   if (!ok) return;
@@ -346,10 +417,9 @@ async function deleteSectionAndUnassignItems(sectionId) {
   }
 }
 
-/* ---------------------------
+/* =========================
    Grouping + render
----------------------------- */
-
+   ========================= */
 function groupItems() {
   const grouped = new Map();
   grouped.set(UNASSIGNED, []);
@@ -372,6 +442,12 @@ function groupItems() {
   return grouped;
 }
 
+function bestThumb(it) {
+  if (it.kind === "gif") return it.url || fallbackPosterDataUri();
+  const poster = it.thumbUrl || cloudinaryVideoPoster(it.url);
+  return poster || fallbackPosterDataUri();
+}
+
 function renderItemCard(it) {
   const card = document.createElement("button");
   card.type = "button";
@@ -382,11 +458,11 @@ function renderItemCard(it) {
   const img = document.createElement("img");
   img.className = "thumb";
   img.src = bestThumb(it);
-  img.alt = it.kind === "video" ? "vidéo" : "gif";
+  img.alt = "animation";
 
   card.appendChild(img);
 
-  if (it.kind === "video") card.appendChild(makePlayBadge());
+  if (it.kind !== "gif") card.appendChild(makePlayBadge());
 
   card.addEventListener("click", () => {
     if (arranging) return;
@@ -455,7 +531,6 @@ function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
     <img class="icon-img" data-maximize-icon src="../assets/img/icons/maximize.svg" alt="" aria-hidden="true" />
     <span class="sr-only">Agrandir</span>
   `;
-
   maxBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -503,80 +578,19 @@ function renderAll() {
   sectionsWrap.innerHTML = "";
 
   sectionsWrap.appendChild(
-    renderSectionCard(
-      { id: UNASSIGNED, title: "", editable: false, hideTitle: true },
-      grouped.get(UNASSIGNED) || []
-    )
+    renderSectionCard({ id: UNASSIGNED, title: "", editable: false, hideTitle: true }, grouped.get(UNASSIGNED) || [])
   );
 
   for (const s of sections) {
     sectionsWrap.appendChild(
-      renderSectionCard(
-        { id: s.id, title: s.title || "Section", editable: true, hideTitle: false },
-        grouped.get(s.id) || []
-      )
+      renderSectionCard({ id: s.id, title: s.title || "Section", editable: true, hideTitle: false }, grouped.get(s.id) || [])
     );
   }
 }
 
-/* ---------------------------
-   Arrange mode
----------------------------- */
-
-function ensureArrangeLabelSpan() {
-  if (!arrangeBtn) return null;
-
-  let label = arrangeBtn.querySelector("[data-arrange-label]");
-  if (label) return label;
-
-  label = document.createElement("span");
-  label.setAttribute("data-arrange-label", "");
-
-  const textNodes = [...arrangeBtn.childNodes].filter(
-    (n) => n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim()
-  );
-
-  if (textNodes.length) {
-    label.textContent = textNodes.map((n) => n.textContent).join(" ").trim();
-    for (const n of textNodes) n.remove();
-  } else {
-    label.textContent = "";
-  }
-
-  arrangeBtn.appendChild(label);
-  return label;
-}
-
-function setArranging(on) {
-  arranging = !!on;
-
-  document.body.classList.add("page");
-  document.body.classList.toggle("arranging", arranging);
-
-  if (arrangeBtn) {
-    arrangeBtn.classList.toggle("primary", arranging);
-    arrangeBtn.setAttribute("aria-pressed", arranging ? "true" : "false");
-
-    const label = ensureArrangeLabelSpan();
-    if (label) label.textContent = arranging ? "Terminer" : "Arranger";
-
-    const icon = arrangeBtn.querySelector("img.btn-icon");
-    if (icon) icon.style.display = arranging ? "none" : "block";
-  }
-
-  if (!arranging) {
-    cancelDrag();
-    cancelSectionDrag();
-    cancelSectionResize();
-  }
-}
-
-arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
-
-/* ---------------------------
-   FLIP helper
----------------------------- */
-
+/* =========================
+   FLIP helper (items)
+   ========================= */
 function getRects(container) {
   const map = new Map();
   const nodes = [...container.querySelectorAll(".card-btn")];
@@ -601,21 +615,14 @@ function animateFLIP(container, before) {
     requestAnimationFrame(() => {
       el.style.transition = "transform 180ms ease";
       el.style.transform = "";
-      el.addEventListener(
-        "transitionend",
-        () => {
-          el.style.transition = "";
-        },
-        { once: true }
-      );
+      el.addEventListener("transitionend", () => { el.style.transition = ""; }, { once: true });
     });
   }
 }
 
-/* ---------------------------
-   Drag ITEMS (Pointer events)
----------------------------- */
-
+/* =========================
+   Drag ITEMS
+   ========================= */
 let drag = null;
 let autoScrollRaf = null;
 
@@ -628,10 +635,7 @@ function startAutoScroll() {
   if (autoScrollRaf) return;
 
   const step = () => {
-    if (!drag || !drag.started) {
-      stopAutoScroll();
-      return;
-    }
+    if (!drag || !drag.started) { stopAutoScroll(); return; }
 
     const edge = 90;
     const maxSpeed = 22;
@@ -655,9 +659,7 @@ function startAutoScroll() {
 
       const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
       if (grid && drag.placeholderEl) {
-        if (drag.placeholderEl.parentElement !== grid) {
-          grid.appendChild(drag.placeholderEl);
-        }
+        if (drag.placeholderEl.parentElement !== grid) grid.appendChild(drag.placeholderEl);
         placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
       }
     }
@@ -670,10 +672,7 @@ function startAutoScroll() {
 
 function cancelDrag() {
   if (!drag) return;
-
-  try {
-    if (drag.pressTimer) clearTimeout(drag.pressTimer);
-  } catch {}
+  try { if (drag.pressTimer) clearTimeout(drag.pressTimer); } catch {}
   stopAutoScroll();
 
   if (drag.ghostEl) drag.ghostEl.remove();
@@ -683,18 +682,15 @@ function cancelDrag() {
   if (original) original.classList.remove("dragging");
 
   document.body.classList.remove("drag-active");
-
   drag = null;
 }
 
 function createPlaceholderFromCard(cardEl) {
   const ph = document.createElement("div");
   ph.className = "drop-placeholder";
-
   const rect = cardEl.getBoundingClientRect();
   if (rect.width) ph.style.width = `${rect.width}px`;
   if (rect.height) ph.style.height = `${rect.height}px`;
-
   return ph;
 }
 
@@ -734,23 +730,14 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
   const itemsInfo = cards
     .map((el) => {
       const r = el.getBoundingClientRect();
-      return {
-        el,
-        r,
-        cx: r.left + r.width / 2,
-        cy: r.top + r.height / 2,
-        rowTol: Math.max(12, r.height * 0.35),
-      };
+      return { el, r, cx: r.left + r.width / 2, cy: r.top + r.height / 2, rowTol: Math.max(12, r.height * 0.35) };
     })
     .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
 
   let beforeEl = null;
   for (const it of itemsInfo) {
     const sameRow = Math.abs(y - it.cy) <= it.rowTol;
-    if (y < it.cy || (sameRow && x < it.cx)) {
-      beforeEl = it.el;
-      break;
-    }
+    if (y < it.cy || (sameRow && x < it.cx)) { beforeEl = it.el; break; }
   }
 
   const beforeRects = getRects(gridEl);
@@ -794,31 +781,21 @@ function onPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  try {
-    cardEl.setPointerCapture(e.pointerId);
-  } catch {}
+  try { cardEl.setPointerCapture(e.pointerId); } catch {}
 
   if (drag.pointerType === "touch") {
-    drag.pressTimer = setTimeout(() => {
-      if (!drag) return;
-      startDrag(cardEl);
-    }, LONG_PRESS_MS);
+    drag.pressTimer = setTimeout(() => { if (drag) startDrag(cardEl); }, LONG_PRESS_MS);
   }
 }
 
 function startDrag(cardEl) {
   if (!drag || drag.started) return;
-
   drag.started = true;
 
-  if (drag.pressTimer) {
-    clearTimeout(drag.pressTimer);
-    drag.pressTimer = null;
-  }
+  if (drag.pressTimer) { clearTimeout(drag.pressTimer); drag.pressTimer = null; }
 
   drag.placeholderEl = createPlaceholderFromCard(cardEl);
   drag.ghostEl = createGhostFromCard(cardEl);
-
   document.body.appendChild(drag.ghostEl);
 
   const beforeRects = getRects(drag.srcGrid);
@@ -898,9 +875,7 @@ async function finalizeDrop(state) {
   let dropIndex = 0;
   for (const child of [...targetGrid.children]) {
     if (child === placeholder) break;
-    if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) {
-      dropIndex++;
-    }
+    if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) dropIndex++;
   }
 
   const grouped = groupItems();
@@ -910,11 +885,9 @@ async function finalizeDrop(state) {
   const next = dropIndex < targetList.length ? targetList[dropIndex] : null;
 
   const prevOrder = prev && typeof prev.order === "number" ? prev.order : prev?.createdAt ?? 0;
-  const nextOrder =
-    next && typeof next.order === "number" ? next.order : next?.createdAt ?? prevOrder + 1000;
+  const nextOrder = next && typeof next.order === "number" ? next.order : next?.createdAt ?? prevOrder + 1000;
 
   let newOrder;
-
   if (!prev && !next) newOrder = Date.now();
   else if (!prev && next) newOrder = nextOrder - 1000;
   else if (prev && !next) newOrder = prevOrder + 1000;
@@ -939,10 +912,7 @@ async function finalizeDrop(state) {
     }
   }
 
-  await updateDoc(doc(db, ITEMS_COL, state.id), {
-    sectionId: newSectionValue,
-    order: newOrder,
-  });
+  await updateDoc(doc(db, ITEMS_COL, state.id), { sectionId: newSectionValue, order: newOrder });
 }
 
 function onPointerUp(e) {
@@ -950,7 +920,6 @@ function onPointerUp(e) {
   if (e.pointerId !== drag.pointerId) return;
 
   const wasStarted = drag.started;
-
   const state = { id: drag.id, started: drag.started, placeholderEl: drag.placeholderEl };
 
   const draggedId = drag.id;
@@ -975,20 +944,17 @@ function onPointerUp(e) {
     finalizeDrop(state)
       .catch((err) => {
         console.error(err);
-        alert("Impossible de déplacer l'élément.");
+        alert("Impossible de déplacer l’élément.");
       })
       .finally(() => {
-        try {
-          placeholder.remove();
-        } catch {}
+        try { placeholder.remove(); } catch {}
       });
   }
 }
 
-/* ---------------------------
-   Drag SECTIONS (Pointer events)
----------------------------- */
-
+/* =========================
+   Drag SECTIONS (poignée)
+   ========================= */
 let sectionDrag = null;
 let autoScrollSectionRaf = null;
 
@@ -1001,10 +967,7 @@ function startAutoScrollSection() {
   if (autoScrollSectionRaf) return;
 
   const step = () => {
-    if (!sectionDrag || !sectionDrag.started) {
-      stopAutoScrollSection();
-      return;
-    }
+    if (!sectionDrag || !sectionDrag.started) { stopAutoScrollSection(); return; }
 
     const edge = 90;
     const maxSpeed = 22;
@@ -1031,9 +994,7 @@ function cancelSectionDrag() {
   if (sectionDrag.ghostEl) sectionDrag.ghostEl.remove();
   if (sectionDrag.placeholderEl) sectionDrag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(
-    `.section-card[data-section-card-id="${sectionDrag.id}"]`
-  );
+  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -1070,9 +1031,7 @@ function createSectionGhost(sectionEl) {
 function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   if (!wrap) return;
 
-  const galleryEl = wrap.querySelector(
-    `.section-card[data-section-card-id="${UNASSIGNED}"]`
-  );
+  const galleryEl = wrap.querySelector(`.section-card[data-section-card-id="${UNASSIGNED}"]`);
 
   const cards = [...wrap.querySelectorAll(".section-card")].filter((c) => {
     const sid = c.dataset.sectionCardId;
@@ -1097,10 +1056,7 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
 
   let beforeEl = null;
   for (const it of itemsInfo) {
-    if (y < it.midY) {
-      beforeEl = it.el;
-      break;
-    }
+    if (y < it.midY) { beforeEl = it.el; break; }
   }
 
   if (!beforeEl) wrap.appendChild(placeholderEl);
@@ -1142,9 +1098,7 @@ function onSectionPointerDown(e) {
     offsetY: e.clientY - rect.top,
   };
 
-  try {
-    handle.setPointerCapture(e.pointerId);
-  } catch {}
+  try { handle.setPointerCapture(e.pointerId); } catch {}
 }
 
 function startSectionDrag(sectionEl) {
@@ -1176,9 +1130,7 @@ function onSectionPointerMove(e) {
     const dy = sectionDrag.lastY - sectionDrag.startY;
     if (Math.hypot(dx, dy) < 6) return;
 
-    const sectionEl = sectionsWrap?.querySelector(
-      `.section-card[data-section-card-id="${sectionDrag.id}"]`
-    );
+    const sectionEl = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${sectionDrag.id}"]`);
     if (sectionEl) startSectionDrag(sectionEl);
   }
 
@@ -1190,12 +1142,7 @@ function onSectionPointerMove(e) {
   sectionDrag.ghostEl.style.top = `${y}px`;
 
   startAutoScrollSection();
-  placeSectionPlaceholderVertical(
-    sectionsWrap,
-    sectionDrag.placeholderEl,
-    sectionDrag.lastY,
-    sectionDrag.id
-  );
+  placeSectionPlaceholderVertical(sectionsWrap, sectionDrag.placeholderEl, sectionDrag.lastY, sectionDrag.id);
 }
 
 async function finalizeSectionDropAndPersist(wrap) {
@@ -1234,10 +1181,7 @@ function onSectionPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(
-    `.section-card[data-section-card-id="${id}"]`
-  );
-
+  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -1254,9 +1198,7 @@ function onSectionPointerUp(e) {
       original.style.pointerEvents = "";
     }
 
-    try {
-      placeholder.remove();
-    } catch {}
+    try { placeholder.remove(); } catch {}
 
     finalizeSectionDropAndPersist(wrap).catch((err) => {
       console.error(err);
@@ -1265,18 +1207,13 @@ function onSectionPointerUp(e) {
   }
 }
 
-/* ---------------------------
-   Resize SECTIONS : désactivé
----------------------------- */
-
 function cancelSectionResize() {
-  // no-op (compat)
+  // no-op
 }
 
-/* ---------------------------
-   Listeners
----------------------------- */
-
+/* =========================
+   Pointer listeners
+   ========================= */
 sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, { passive: false });
 sectionsWrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
 
@@ -1291,17 +1228,18 @@ window.addEventListener("pointercancel", (e) => {
   try { onSectionPointerUp(e); } catch {}
 });
 
-/* ---------------------------
-   Viewer (gif / video)
----------------------------- */
-
+/* =========================
+   Viewer (gif ou vidéo)
+   ========================= */
 function openViewer(it) {
-  currentViewed = { ...it };
+  currentViewed = it;
 
+  // reset
   viewerGif.style.display = "none";
-  viewerVideo.style.display = "none";
+  viewerGif.removeAttribute("src");
 
   try { viewerVideo.pause(); } catch {}
+  viewerVideo.style.display = "none";
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
 
@@ -1313,44 +1251,42 @@ function openViewer(it) {
   } else {
     viewerVideo.src = it.url;
     viewerVideo.style.display = "block";
+    viewerVideo.playsInline = true;
+    viewerVideo.controls = true;
     viewerVideo.load();
+
     viewerDownload.href = it.url;
     viewerDownload.setAttribute("download", `animation-${it.id}.mp4`);
-    setTimeout(() => viewerVideo.play().catch(() => {}), 50);
+
+    setTimeout(() => { viewerVideo.play().catch(() => {}); }, 60);
   }
 
-  viewer.classList.add("open");
-  viewer.setAttribute("aria-hidden", "false");
-  document.documentElement.classList.add("noscroll");
-  document.body.classList.add("noscroll");
+  openModal(viewer);
 }
 
 function closeViewer() {
-  viewer.classList.remove("open");
-  viewer.setAttribute("aria-hidden", "true");
-  currentViewed = null;
+  viewerGif.style.display = "none";
+  viewerGif.removeAttribute("src");
 
   try { viewerVideo.pause(); } catch {}
+  viewerVideo.style.display = "none";
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
 
-  document.documentElement.classList.remove("noscroll");
-  document.body.classList.remove("noscroll");
+  currentViewed = null;
+  closeModal(viewer);
 }
 
 viewerClose?.addEventListener("click", closeViewer);
-viewer?.addEventListener("click", (e) => {
-  if (e.target === viewer) closeViewer();
-});
+viewer?.addEventListener("click", (e) => { if (e.target === viewer) closeViewer(); });
 
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
 
-  const ok = await uiConfirm("Supprimer cet élément de la galerie ?", {
+  const ok = await uiConfirm("Supprimer cette animation de la galerie ?", {
     title: "Supprimer",
     danger: true,
     okText: "Supprimer",
-    cancelText: "Annuler",
   });
   if (!ok) return;
 
@@ -1365,51 +1301,9 @@ viewerDelete?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------------------
-   Upload modal (même UX que Photos)
----------------------------- */
-
-function openUploadModal() {
-  uploadModal.classList.add("open");
-  uploadModal.setAttribute("aria-hidden", "false");
-  document.documentElement.classList.add("noscroll");
-  document.body.classList.add("noscroll");
-}
-
-function closeUploadModal() {
-  uploadModal.classList.remove("open");
-  uploadModal.setAttribute("aria-hidden", "true");
-  document.documentElement.classList.remove("noscroll");
-  document.body.classList.remove("noscroll");
-}
-
-function fmtCount() {
-  const n = pending.length;
-  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
-}
-
-function resetProgressUI() {
-  uploadProgressBar.value = 0;
-  uploadProgressText.textContent = "0 / 0";
-  uploadProgressDetail.textContent = "—";
-}
-
-function setUploadingState(isUploading) {
-  addBtn.disabled = isUploading;
-  addSectionBtn.disabled = isUploading;
-  arrangeBtn && (arrangeBtn.disabled = isUploading);
-  uploadCancelBtn.disabled = isUploading;
-
-  uploadStartBtn.disabled = isUploading || pending.length === 0;
-
-  setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
-  if (isUploading) {
-    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
-  } else {
-    uploadStartBtn.textContent = "Envoyer";
-  }
-}
-
+/* =========================
+   Upload modal
+   ========================= */
 function renderPending() {
   uploadPreviewGrid.innerHTML = "";
   fmtCount();
@@ -1417,17 +1311,37 @@ function renderPending() {
   if (!pending.length) {
     const empty = document.createElement("div");
     empty.className = "upload-empty";
-    empty.textContent = "Sélectionne des fichiers pour les prévisualiser ici.";
+    empty.textContent = "Sélectionne des fichiers (GIF/vidéos) pour les prévisualiser ici.";
     uploadPreviewGrid.appendChild(empty);
     uploadStartBtn.disabled = true;
     return;
   }
 
   for (let i = 0; i < pending.length; i++) {
-    const { file, url } = pending[i];
+    const { file, url, kind } = pending[i];
 
     const item = document.createElement("div");
     item.className = "upload-item";
+
+    let previewEl;
+
+    if (kind === "gif") {
+      const img = document.createElement("img");
+      img.className = "upload-thumb";
+      img.src = url;
+      img.alt = "gif";
+      previewEl = img;
+    } else {
+      const vid = document.createElement("video");
+      vid.className = "upload-thumb upload-thumb-video";
+      vid.src = url;
+      vid.muted = true;
+      vid.playsInline = true;
+      vid.loop = true;
+      vid.preload = "metadata";
+      vid.addEventListener("loadeddata", () => { vid.play().catch(() => {}); });
+      previewEl = vid;
+    }
 
     const meta = document.createElement("div");
     meta.className = "upload-meta";
@@ -1446,7 +1360,6 @@ function renderPending() {
     const remove = document.createElement("button");
     remove.className = "upload-remove";
     remove.type = "button";
-    remove.title = "Retirer";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
       try { URL.revokeObjectURL(pending[i].url); } catch {}
@@ -1455,23 +1368,7 @@ function renderPending() {
       setUploadingState(false);
     });
 
-    if (isGif(file)) {
-      const img = document.createElement("img");
-      img.className = "upload-thumb";
-      img.src = url;
-      img.alt = file.name;
-      item.appendChild(img);
-    } else {
-      const vid = document.createElement("video");
-      vid.className = "upload-thumb upload-thumb-video";
-      vid.src = url;
-      vid.muted = true;
-      vid.playsInline = true;
-      vid.loop = true;
-      vid.autoplay = true;
-      item.appendChild(vid);
-    }
-
+    item.appendChild(previewEl);
     item.appendChild(meta);
     item.appendChild(remove);
     uploadPreviewGrid.appendChild(item);
@@ -1482,32 +1379,34 @@ function renderPending() {
 
 addBtn?.addEventListener("click", () => input.click());
 
-input?.addEventListener("change", async () => {
-  const files = [...(input.files || [])].filter((f) => isGif(f) || isVideo(f));
+input?.addEventListener("change", () => {
+  const files = [...(input.files || [])];
   input.value = "";
   if (!files.length) return;
 
-  for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
-  }
+  cleanupPendingUrls();
 
-  pending = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+  pending = files
+    .filter((f) => isGif(f) || isVideo(f))
+    .map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      kind: isGif(file) ? "gif" : "video",
+    }));
 
   resetProgressUI();
   renderPending();
   setUploadingState(false);
-  openUploadModal();
+  openModal(uploadModal);
 });
 
 uploadCancelBtn?.addEventListener("click", () => {
   if (uploadCancelBtn.disabled) return;
 
-  for (const p of pending) {
-    try { URL.revokeObjectURL(p.url); } catch {}
-  }
+  cleanupPendingUrls();
   pending = [];
   resetProgressUI();
-  closeUploadModal();
+  closeModal(uploadModal);
 });
 
 uploadStartBtn?.addEventListener("click", async () => {
@@ -1519,72 +1418,72 @@ uploadStartBtn?.addEventListener("click", async () => {
   const total = pending.length;
   let done = 0;
 
-  const updateOverall = (currentRatio, currentName) => {
-    const overall = Math.max(0, Math.min(1, (done + currentRatio) / total));
+  const updateOverall = (ratio, name) => {
+    const overall = Math.max(0, Math.min(1, (done + ratio) / total));
     uploadProgressBar.value = Math.round(overall * 100);
     uploadProgressText.textContent = `${done} / ${total}`;
-    uploadProgressDetail.textContent = currentName
-      ? `Envoi de ${currentName} — ${Math.round(currentRatio * 100)}%`
+    uploadProgressDetail.textContent = name
+      ? `Envoi de ${name} — ${Math.round(ratio * 100)}%`
       : "—";
   };
 
   try {
-    for (let i = 0; i < pending.length; i++) {
-      const { file } = pending[i];
+    for (const { file, kind } of pending) {
       updateOverall(0, file.name);
 
       let up;
-      if (isGif(file)) {
-        up = await uploadImage(file, { onProgress: (ratio) => updateOverall(ratio, file.name) });
+      if (kind === "gif") {
+        up = await uploadImage(file, { onProgress: (r) => updateOverall(r, file.name) });
       } else {
-        up = await uploadVideo(file, { onProgress: (ratio) => updateOverall(ratio, file.name) });
+        up = await uploadVideo(file, { onProgress: (r) => updateOverall(r, file.name) });
       }
 
       const url = up.secure_url;
-      const thumbUrl = isGif(file) ? url : cloudinaryVideoPoster(url);
+
+      const thumbUrl =
+        kind === "gif"
+          ? url
+          : (cloudinaryVideoPoster(url) || url);
 
       await addDoc(collection(db, ITEMS_COL), {
-        kind: isGif(file) ? "gif" : "video",
         createdAt: Date.now(),
         order: Date.now(),
         sectionId: null,
-
+        kind,
         publicId: up.public_id,
         url,
-        thumbUrl: thumbUrl || null,
+        thumbUrl,
       });
 
       done++;
       uploadProgressText.textContent = `${done} / ${total}`;
-      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
       uploadProgressBar.value = Math.round((done / total) * 100);
+      uploadProgressDetail.textContent = `Envoyé : ${file.name}`;
     }
 
-    for (const p of pending) {
-      try { URL.revokeObjectURL(p.url); } catch {}
-    }
+    cleanupPendingUrls();
     pending = [];
 
     uploadProgressDetail.textContent = "Terminé.";
     setTimeout(() => {
-      closeUploadModal();
+      closeModal(uploadModal);
       resetProgressUI();
       setUploadingState(false);
     }, 450);
   } catch (e) {
+    console.error(e);
     setUploadingState(false);
     alert("Erreur upload : " + (e?.message || e));
   }
 });
 
-/* ---------------------------
-   Sections: création
----------------------------- */
-
+/* =========================
+   Sections: create
+   ========================= */
 addSectionBtn?.addEventListener("click", async () => {
   const title = await uiPrompt("Titre de la section ?", {
     title: "Nouvelle section",
-    placeholder: "Ex: Des moments drôles",
+    placeholder: "Ex: Souvenirs",
     okText: "Créer",
   });
   if (!title) return;
@@ -1592,29 +1491,27 @@ addSectionBtn?.addEventListener("click", async () => {
   try {
     await addDoc(collection(db, SECTIONS_COL), { title: title.trim(), order: Date.now() });
   } catch (e) {
-    alert("Impossible de créer la section.");
     console.error(e);
+    alert("Impossible de créer la section.");
   }
 });
 
-/* ---------------------------
-   Keyboard shortcuts
----------------------------- */
-
+/* =========================
+   Keyboard
+   ========================= */
 document.addEventListener("keydown", (e) => {
-  if (viewer.classList.contains("open")) {
+  if (viewer?.classList.contains("open")) {
     if (e.key === "Escape") closeViewer();
     return;
   }
-  if (uploadModal.classList.contains("open")) {
+  if (uploadModal?.classList.contains("open")) {
     if (e.key === "Escape" && !uploadCancelBtn.disabled) uploadCancelBtn.click();
   }
 });
 
-/* ---------------------------
-   Main
----------------------------- */
-
+/* =========================
+   Firestore realtime
+   ========================= */
 async function main() {
   await ensureAnonAuth();
 
