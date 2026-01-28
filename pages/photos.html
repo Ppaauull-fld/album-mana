@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Photos — album-mana</title>
-
   <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
+
 <body class="page">
   <!-- ======================================================
        TOP BAR
@@ -22,6 +22,7 @@
           class="topbar-logo"
           src="../assets/img/logo-noir.svg"
           alt="Accueil"
+          decoding="async"
         />
       </a>
 
@@ -38,13 +39,7 @@
 
       <!-- Actions -->
       <div class="actions">
-        <input
-          id="photoInput"
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-        />
+        <input id="photoInput" type="file" accept="image/*" multiple hidden />
 
         <button id="addPhotoBtn" class="btn" type="button">
           ＋ Ajouter une photo
@@ -54,13 +49,7 @@
           ＋ Nouvelle section
         </button>
 
-        <!-- ✅ Arranger (icône toujours présente dans le DOM) -->
-        <button
-          id="arrangeBtn"
-          class="btn"
-          type="button"
-          aria-pressed="false"
-        >
+        <button id="arrangeBtn" class="btn" type="button" aria-pressed="false">
           <img
             class="btn-icon"
             src="../assets/img/icons/grid.svg"
@@ -83,9 +72,7 @@
         </button>
       </div>
 
-      <!-- ==================================================
-           SECTIONS (masonry)
-           ================================================== -->
+      <!-- SECTIONS -->
       <div
         id="sectionsWrap"
         class="sections"
@@ -96,7 +83,7 @@
   </main>
 
   <!-- ======================================================
-       SECTION PICKER
+       SECTION PICKER (ajout photos -> section)
        ====================================================== -->
   <div
     id="sectionPicker"
@@ -144,6 +131,55 @@
   </div>
 
   <!-- ======================================================
+       SLIDESHOW PICKER (choix galerie/sections)
+       IMPORTANT: ces IDs sont utilisés par le JS slideshow corrigé
+       ====================================================== -->
+  <div
+    id="slideshowPicker"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="showPickerTitle"
+  >
+    <div class="box picker-box">
+      <div class="top">
+        <div class="picker-title">
+          <strong id="showPickerTitle">Choisir le diaporama</strong>
+          <div id="showPickerSub" class="upload-sub">0 sélectionnée</div>
+        </div>
+        <div class="controls">
+          <button
+            id="showPickerCancel"
+            class="iconbtn"
+            title="Fermer"
+            type="button"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <div class="picker-body">
+        <div class="picker-actions">
+          <button id="showPickerSelectAll" class="btn" type="button">
+            Tout sélectionner
+          </button>
+          <button id="showPickerClear" class="btn" type="button">
+            Tout enlever
+          </button>
+          <button id="showPickerApply" class="btn primary" type="button">
+            Lancer
+          </button>
+        </div>
+
+        <div id="showPickerList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
        UPLOAD MODAL
        ====================================================== -->
   <div
@@ -177,32 +213,14 @@
 
         <div class="upload-progress">
           <div class="upload-progress-row">
-            <progress
-              id="uploadProgressBar"
-              value="0"
-              max="100"
-            ></progress>
-            <div
-              id="uploadProgressText"
-              class="upload-progress-text"
-            >
-              0 / 0
-            </div>
+            <progress id="uploadProgressBar" value="0" max="100"></progress>
+            <div id="uploadProgressText" class="upload-progress-text">0 / 0</div>
           </div>
-          <div
-            id="uploadProgressDetail"
-            class="upload-progress-detail"
-          >
-            —
-          </div>
+          <div id="uploadProgressDetail" class="upload-progress-detail">—</div>
         </div>
 
         <div class="upload-actions">
-          <button
-            id="uploadStartBtn"
-            class="btn primary"
-            type="button"
-          >
+          <button id="uploadStartBtn" class="btn primary" type="button">
             Envoyer
           </button>
         </div>
@@ -225,32 +243,24 @@
       <div class="top">
         <div id="viewerTitle" class="viewer-title">Photo</div>
         <div class="controls">
-          <a
-            id="viewerDownload"
-            class="iconbtn"
-            title="Télécharger"
-            download
-          >
+          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
             <img
               class="icon-img"
               src="../assets/img/icons/download.svg"
               alt=""
               aria-hidden="true"
+              decoding="async"
             />
             <span class="sr-only">Télécharger</span>
           </a>
 
-          <button
-            id="viewerRotate"
-            class="iconbtn"
-            title="Tourner"
-            type="button"
-          >
+          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
             <img
               class="icon-img"
               src="../assets/img/icons/rotate.svg"
               alt=""
               aria-hidden="true"
+              decoding="async"
             />
             <span class="sr-only">Tourner</span>
           </button>
@@ -266,6 +276,7 @@
               src="../assets/img/icons/delete.svg"
               alt=""
               aria-hidden="true"
+              decoding="async"
             />
             <span class="sr-only">Supprimer</span>
           </button>
@@ -302,38 +313,26 @@
       <div class="top">
         <div id="slideCounter">—</div>
         <div class="controls">
-          <button
-            id="prevSlide"
-            class="iconbtn"
-            title="Précédent"
-            type="button"
-          >
-            ‹
-          </button>
+          <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
 
-          <button
-            id="togglePlay"
-            class="iconbtn"
-            title="Pause"
-            type="button"
-          >
+          <button id="togglePlay" class="iconbtn" title="Pause" type="button">
             <img
               id="togglePlayIcon"
               class="icon-img"
               src="../assets/img/icons/pause.svg"
               alt=""
               aria-hidden="true"
+              decoding="async"
             />
             <span class="sr-only">Lecture / Pause</span>
           </button>
 
-          <!-- ✅ Shuffle (aléatoire) -->
           <button
             id="shuffleBtn"
             class="iconbtn"
-            title="Shuffle"
+            title="Lecture aléatoire"
             type="button"
-            aria-label="Shuffle"
+            aria-label="Lecture aléatoire"
             aria-pressed="false"
           >
             <img
@@ -341,18 +340,12 @@
               src="../assets/img/icons/shuffle.svg"
               alt=""
               aria-hidden="true"
+              decoding="async"
             />
-            <span class="sr-only">Shuffle</span>
+            <span class="sr-only">Lecture aléatoire</span>
           </button>
 
-          <button
-            id="nextSlide"
-            class="iconbtn"
-            title="Suivant"
-            type="button"
-          >
-            ›
-          </button>
+          <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
 
           <button
             id="closeShow"
@@ -372,24 +365,16 @@
     </div>
   </div>
 
-  <!-- UI MODAL (confirm / prompt) -->
+  <!-- ======================================================
+       UI MODAL (confirm / prompt)
+       ====================================================== -->
   <div id="uiModal" class="ui-modal" aria-hidden="true">
     <div class="ui-modal__backdrop" data-close="1"></div>
 
-    <div
-      class="ui-modal__panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="uiModalTitle"
-    >
+    <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
       <div class="ui-modal__head">
         <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
-        <button
-          class="ui-modal__close iconbtn"
-          type="button"
-          data-close="1"
-          aria-label="Fermer"
-        >
+        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">
           ✕
         </button>
       </div>
