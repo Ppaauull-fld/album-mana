@@ -1479,9 +1479,25 @@ function getGalleryOrderQueue() {
 }
 
 function syncShuffleUI() {
-  shuffleBtn?.classList.toggle("active", useShuffle);
-  shuffleBtn?.setAttribute("aria-pressed", useShuffle ? "true" : "false");
+  if (!shuffleBtn) return;
+
+  shuffleBtn.classList.toggle("active", useShuffle);
+  shuffleBtn.setAttribute("aria-pressed", useShuffle ? "true" : "false");
+
+  const img = shuffleBtn.querySelector("img");
+  if (img) {
+    img.src = useShuffle
+      ? "../assets/img/icons/shuffle.svg"
+      : "../assets/img/icons/play.svg";
+  }
+
+  shuffleBtn.title = useShuffle ? "Lecture aléatoire" : "Lecture dans l’ordre";
+  shuffleBtn.setAttribute(
+    "aria-label",
+    useShuffle ? "Lecture aléatoire" : "Lecture dans l’ordre"
+  );
 }
+
 
 function buildQueue({ keepCurrent = false } = {}) {
   const currentId = keepCurrent && queue[idx] ? queue[idx].id : null;
@@ -1641,10 +1657,9 @@ shuffleBtn?.addEventListener("click", () => {
 
   restartFromBeginning();
   showSlide();
-
-  // optionnel mais recommandé : repartir avec un timer propre
   startAuto();
 });
+
 
 
 
