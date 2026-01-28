@@ -1314,6 +1314,11 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+
+.ui-input::placeholder{
+  color: rgba(255,255,255,.72);
+}
+
 .ui-input:focus{ border-color: rgba(255,255,255,.28); }
 
 .ui-modal__actions{
