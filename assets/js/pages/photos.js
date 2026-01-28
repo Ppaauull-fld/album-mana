@@ -1487,16 +1487,20 @@ function syncShuffleUI() {
   const img = shuffleBtn.querySelector("img");
   if (img) {
     img.src = useShuffle
-      ? "../assets/img/icons/shuffle.svg"
-      : "../assets/img/icons/play.svg";
+      ? "../assets/img/icons/play.svg"     // aléatoire actif → icône play
+      : "../assets/img/icons/shuffle.svg"; // ordre actif → icône shuffle
   }
 
-  shuffleBtn.title = useShuffle ? "Lecture aléatoire" : "Lecture dans l’ordre";
+  shuffleBtn.title = useShuffle
+    ? "Lecture dans l’ordre"
+    : "Lecture aléatoire";
+
   shuffleBtn.setAttribute(
     "aria-label",
-    useShuffle ? "Lecture aléatoire" : "Lecture dans l’ordre"
+    useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire"
   );
 }
+
 
 
 function buildQueue({ keepCurrent = false } = {}) {
