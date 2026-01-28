@@ -500,12 +500,8 @@ img{max-width:100%;display:block}
   border-color: rgba(255,255,255,.24);
   box-shadow: 0 18px 55px rgba(0,0,0,.12);
 }
-.section-head .iconbtn.danger{
-  border-color: rgba(255,80,80,.35);
-}
-.section-head .iconbtn.danger:hover{
-  background: rgba(255,80,80,.14);
-}
+.section-head .iconbtn.danger{ border-color: rgba(255,80,80,.35); }
+.section-head .iconbtn.danger:hover{ background: rgba(255,80,80,.14); }
 
 .section-grid{
   padding: 14px;
@@ -654,8 +650,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 0;
   border: none;
 }
-
-/* ✅ IMPORTANT: on centre et on garantit "entière" sans forcer width/height à 100% */
 #slideshow.modal .imgwrap{
   height: calc(100vh - 64px);
   background: rgba(0,0,0,.28);
@@ -663,6 +657,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   align-items:center;
   justify-content:center;
 }
+/* IMPORTANT: photos entières -> on évite width/height:100% */
 #slideshow.modal img{
   max-width: 100%;
   max-height: 100%;
@@ -885,37 +880,52 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   outline-offset: -2px;
 }
 
-/* ✅ Slideshow picker = même “signature” que UI modal (et + clair) */
+/* -------------------- Slideshow picker (choisir le diaporama) -------------------- */
+
+/* Fond légèrement plus clair (un poil plus blanc) */
 #slideshowPicker.modal{
-  background: rgba(0,0,0,.46);
+  background: rgba(0,0,0,.44);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Panel (mêmes proportions que ui-modal__panel) */
+/* Panel (même signature que les autres) */
 #slideshowPicker .box{
   width: min(520px, calc(100vw - 32px));
   border-radius: 18px;
-  background: rgba(255,255,255,.10);
+
+  background: rgba(255,255,255,.12);
   border: 1px solid rgba(255,255,255,.22);
-  box-shadow: 0 22px 70px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow: 0 22px 70px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06);
+
+  backdrop-filter: blur(var(--glass-blur-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+}
+#slideshowPicker .box::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background: var(--glass-highlight);
+  opacity:.40;
+  pointer-events:none;
+  mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
 }
 
 /* Header */
 #slideshowPicker .top{
   padding: 14px 16px;
-  background: rgba(255,255,255,.07);
+  background: rgba(255,255,255,.08);
   border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
-/* Body / actions comme ui-modal */
+/* Body / actions */
 #slideshowPicker .picker-body{ padding: 14px 16px 0 16px; }
 #slideshowPicker .picker-actions{
   margin: 0;
   padding: 14px 16px 16px;
 }
 
-/* Boutons plus lisibles */
+/* Boutons */
 #slideshowPicker .picker-actions .btn{
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
@@ -952,17 +962,20 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   gap:14px;
   padding: 14px 14px;
   border-radius: 16px;
+
   border: 1px solid rgba(255,255,255,.20);
-  background: rgba(255,255,255,.11);
+  background: rgba(255,255,255,.12);
+
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 14px 44px rgba(0,0,0,.18);
   transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
   position: relative;
 }
 #slideshowPicker .show-picker-item:hover{
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.15);
+  background: rgba(255,255,255,.16);
   border-color: rgba(255,255,255,.26);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 55px rgba(0,0,0,.22);
 }
@@ -980,56 +993,55 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   color: rgba(255,255,255,.72);
 }
 
-/* ✅ Checkbox redesign SANS ✓ : anneau + pastille */
+/* Checkbox redesign SANS ✓ : cadre arrondi + remplissage arrondi parfaitement aligné */
 #slideshowPicker .show-picker-item input[type="checkbox"]{
   -webkit-appearance: none;
   appearance: none;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.40);
+  border: 1px solid rgba(255,255,255,.42);
   background: rgba(255,255,255,.08);
+
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 26px rgba(0,0,0,.18);
-  display:grid;
-  place-items:center;
+  display:block;
   cursor:pointer;
+  position:relative;
+
   transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
 #slideshowPicker .show-picker-item input[type="checkbox"]::after{
   content:"";
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
+  position:absolute;
+  inset: 4px;                 /* <- garantit la forme identique (inset régulier) */
+  border-radius: 7px;         /* <- (10px - 3px) approx : visuellement pile aligné */
   background: transparent;
-  transform: scale(.6);
-  transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+  transition: background .12s ease, transform .12s ease, box-shadow .12s ease;
+  transform: scale(.96);
 }
 #slideshowPicker .show-picker-item input[type="checkbox"]:hover{
   transform: translateY(var(--lift));
   background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.55);
+  border-color: rgba(255,255,255,.58);
 }
 #slideshowPicker .show-picker-item input[type="checkbox"]:checked{
   background: rgba(255,255,255,.16);
-  border-color: rgba(255,255,255,.70);
+  border-color: rgba(255,255,255,.72);
 }
 #slideshowPicker .show-picker-item input[type="checkbox"]:checked::after{
   background: rgba(255,255,255,.95);
+  box-shadow: 0 0 0 6px rgba(255,255,255,.14);
   transform: scale(1);
-  box-shadow: 0 0 0 6px rgba(255,255,255,.16);
 }
 #slideshowPicker .show-picker-item input[type="checkbox"]:focus-visible{
   outline: 3px solid rgba(255,255,255,.22);
   outline-offset: 3px;
 }
 
-/* Surlignage de la ligne sélectionnée SANS :has()
-   -> On stylise via une classe .selected si ton JS peut l’ajouter.
-   Si tu ne l’as pas, dis-moi et je te donne le mini JS pour le faire. */
+/* Surlignage de la ligne (si ton JS ajoute .selected sur l'item) */
 #slideshowPicker .show-picker-item.selected{
-  background: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.17);
   border-color: rgba(255,255,255,.30);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 55px rgba(0,0,0,.22);
 }
 #slideshowPicker .show-picker-item.selected::before{
   content:"";
@@ -1039,7 +1051,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   bottom: 10px;
   width: 3px;
   border-radius: 99px;
-  background: rgba(255,255,255,.70);
+  background: rgba(255,255,255,.72);
   opacity: .55;
 }
 
@@ -1256,9 +1268,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background: var(--glass-highlight);
   opacity:.26;
   pointer-events:none;
-    mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
+  mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
 }
-
 .editor-shell *{ touch-action: auto; }
 
 .editor-shell .floating-editor{
@@ -1519,4 +1530,3 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   color:#fff;
 }
 .btn.danger:hover{ background: #d24646; }
-
