@@ -1483,7 +1483,7 @@ uploadStartBtn?.addEventListener("click", async () => {
 addSectionBtn?.addEventListener("click", async () => {
   const title = await uiPrompt("Titre de la section ?", {
     title: "Nouvelle section",
-    placeholder: "Ex: Souvenirs",
+    placeholder: "Ex: Pépé et Mémé",
     okText: "Créer",
   });
   if (!title) return;
