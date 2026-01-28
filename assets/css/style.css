@@ -1407,3 +1407,46 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   border-color: rgba(255,255,255,.32);
   box-shadow: 0 18px 55px rgba(0,0,0,.28);
 }
+
+
+
+.show-picker-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.show-picker-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.show-picker-item input{
+  width:18px;
+  height:18px;
+  accent-color:#fff;
+}
+
+.show-picker-item .label{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+
+.show-picker-item .label strong{
+  font-size:14px;
+  color: rgba(255,255,255,.92);
+}
+
+.show-picker-item .label span{
+  font-size:12px;
+  color: rgba(255,255,255,.68);
+}

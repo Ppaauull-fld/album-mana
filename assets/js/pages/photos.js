@@ -56,6 +56,14 @@ const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 const shuffleBtn = document.getElementById("shuffleBtn");
+const slideshowPicker = document.getElementById("slideshowPicker");
+const showPickerList = document.getElementById("showPickerList");
+const showPickerSub = document.getElementById("showPickerSub");
+const showPickerCancel = document.getElementById("showPickerCancel");
+const showPickerSelectAll = document.getElementById("showPickerSelectAll");
+const showPickerClear = document.getElementById("showPickerClear");
+const showPickerApply = document.getElementById("showPickerApply");
+
 
 let photos = [];
 let sections = [];
@@ -1459,7 +1467,13 @@ viewerRotate?.addEventListener("click", async () => {
   }
 });
 
-/* -------------------- Slideshow (shuffle + ordre galerie) -------------------- */
+/* -------------------- Slideshow (picker + sections + galerie + shuffle) -------------------- */
+
+let slideshowSelection = {
+  includeGallery: true,
+  sectionIds: [], // vide => "toutes les sections" (si includeAllSections=true)
+  includeAllSections: true,
+};
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -1470,13 +1484,166 @@ function shuffle(arr) {
   return a;
 }
 
-function getGalleryOrderQueue() {
-  const grouped = groupPhotos();
+function getQueueForSelection(sel) {
+  const grouped = groupPhotos(); // déjà trié à l’intérieur
   const out = [];
-  out.push(...(grouped.get(UNASSIGNED) || []));
-  for (const s of sections) out.push(...(grouped.get(s.id) || []));
+
+  if (sel?.includeGallery) {
+    out.push(...(grouped.get(UNASSIGNED) || []));
+  }
+
+  const includeAll = !!sel?.includeAllSections;
+  const allowed = new Set(sel?.sectionIds || []);
+
+  for (const s of sections) {
+    if (includeAll || allowed.has(s.id)) {
+      out.push(...(grouped.get(s.id) || []));
+    }
+  }
+
   return out;
 }
+
+/* ---------- Picker UI ---------- */
+
+function openShowPicker() {
+  if (!slideshowPicker) return;
+  renderShowPickerList();
+  slideshowPicker.classList.add("open");
+  slideshowPicker.setAttribute("aria-hidden", "false");
+  document.documentElement.classList.add("noscroll");
+  document.body.classList.add("noscroll");
+}
+
+function closeShowPicker() {
+  if (!slideshowPicker) return;
+  slideshowPicker.classList.remove("open");
+  slideshowPicker.setAttribute("aria-hidden", "true");
+  document.documentElement.classList.remove("noscroll");
+  document.body.classList.remove("noscroll");
+}
+
+function updateShowPickerSub() {
+  if (!showPickerSub) return;
+
+  const g = slideshowSelection.includeGallery ? 1 : 0;
+  const includeAll = !!slideshowSelection.includeAllSections;
+  const nSections = includeAll ? sections.length : (slideshowSelection.sectionIds || []).length;
+
+  const total = g + nSections;
+  showPickerSub.textContent =
+    total === 0 ? "0 sélectionnée" : `${total} sélectionnée${total > 1 ? "s" : ""}`;
+}
+
+function renderShowPickerList() {
+  if (!showPickerList) return;
+
+  showPickerList.innerHTML = "";
+
+  const includeAll = !!slideshowSelection.includeAllSections;
+
+  // Galerie
+  const gItem = document.createElement("label");
+  gItem.className = "show-picker-item";
+  gItem.innerHTML = `
+    <input type="checkbox" data-kind="gallery" ${slideshowSelection.includeGallery ? "checked" : ""} />
+    <div class="label">
+      <strong>Galerie</strong>
+      <span>Photos non assignées</span>
+    </div>
+  `;
+  showPickerList.appendChild(gItem);
+
+  // "Toutes les sections"
+  const allItem = document.createElement("label");
+  allItem.className = "show-picker-item";
+  allItem.innerHTML = `
+    <input type="checkbox" data-kind="allSections" ${includeAll ? "checked" : ""} />
+    <div class="label">
+      <strong>Toutes les sections</strong>
+      <span>Inclut chaque section</span>
+    </div>
+  `;
+  showPickerList.appendChild(allItem);
+
+  // Sections
+  for (const s of sections) {
+    const checked = includeAll ? true : (slideshowSelection.sectionIds || []).includes(s.id);
+
+    const item = document.createElement("label");
+    item.className = "show-picker-item";
+    item.style.opacity = includeAll ? "0.6" : "1";
+    item.style.pointerEvents = includeAll ? "none" : "auto";
+
+    item.innerHTML = `
+      <input type="checkbox" data-kind="section" data-id="${s.id}" ${checked ? "checked" : ""} ${includeAll ? "disabled" : ""} />
+      <div class="label">
+        <strong>${String(s.title || "Section").replaceAll("<", "&lt;")}</strong>
+        <span>Section</span>
+      </div>
+    `;
+    showPickerList.appendChild(item);
+  }
+
+  showPickerList.onchange = (e) => {
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement)) return;
+
+    const kind = cb.dataset.kind;
+
+    if (kind === "gallery") {
+      slideshowSelection.includeGallery = cb.checked;
+      updateShowPickerSub();
+      return;
+    }
+
+    if (kind === "allSections") {
+      slideshowSelection.includeAllSections = cb.checked;
+      if (cb.checked) slideshowSelection.sectionIds = [];
+      renderShowPickerList();
+      return;
+    }
+
+    if (kind === "section") {
+      const sid = cb.dataset.id;
+      if (!sid) return;
+
+      slideshowSelection.includeAllSections = false;
+
+      const set = new Set(slideshowSelection.sectionIds || []);
+      if (cb.checked) set.add(sid);
+      else set.delete(sid);
+      slideshowSelection.sectionIds = [...set];
+
+      updateShowPickerSub();
+    }
+  };
+
+  updateShowPickerSub();
+}
+
+showPickerCancel?.addEventListener("click", closeShowPicker);
+
+showPickerClear?.addEventListener("click", () => {
+  slideshowSelection.includeGallery = false;
+  slideshowSelection.includeAllSections = false;
+  slideshowSelection.sectionIds = [];
+  renderShowPickerList();
+});
+
+showPickerSelectAll?.addEventListener("click", () => {
+  slideshowSelection.includeGallery = true;
+  slideshowSelection.includeAllSections = true;
+  slideshowSelection.sectionIds = [];
+  renderShowPickerList();
+});
+
+showPickerApply?.addEventListener("click", () => {
+  closeShowPicker();
+  openShowFromSelection();
+});
+
+/* ---------- Shuffle UI (icône inversée) ---------- */
 
 function syncShuffleUI() {
   if (!shuffleBtn) return;
@@ -1487,86 +1654,25 @@ function syncShuffleUI() {
   const img = shuffleBtn.querySelector("img");
   if (img) {
     img.src = useShuffle
-      ? "../assets/img/icons/play.svg"     // aléatoire actif → icône play
-      : "../assets/img/icons/shuffle.svg"; // ordre actif → icône shuffle
+      ? "../assets/img/icons/play.svg"
+      : "../assets/img/icons/shuffle.svg";
   }
 
-  shuffleBtn.title = useShuffle
-    ? "Lecture dans l’ordre"
-    : "Lecture aléatoire";
-
-  shuffleBtn.setAttribute(
-    "aria-label",
-    useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire"
-  );
+  shuffleBtn.title = useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire";
+  shuffleBtn.setAttribute("aria-label", useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire");
 }
 
+/* ---------- Queue + navigation ---------- */
 
-
-function buildQueue({ keepCurrent = false } = {}) {
-  const currentId = keepCurrent && queue[idx] ? queue[idx].id : null;
-
-  baseQueue = getGalleryOrderQueue();
-  shuffledQueue = shuffle(baseQueue);
-
-  queue = useShuffle ? shuffledQueue : baseQueue;
-
-  if (!queue.length) {
-    idx = 0;
-    return;
-  }
-
-  if (currentId) {
-    const newIndex = queue.findIndex((p) => p.id === currentId);
-    idx = newIndex >= 0 ? newIndex : 0;
-  } else {
-    idx = 0;
-  }
+function rebuildBaseQueueFromSelection() {
+  baseQueue = getQueueForSelection(slideshowSelection);
 }
-
-function rebuildQueuePreserveIndex() {
-  const desiredIndex = idx;
-  const current = queue[desiredIndex] || null;
-
-  baseQueue = getGalleryOrderQueue();
-  if (!baseQueue.length) {
-    queue = [];
-    idx = 0;
-    return;
-  }
-
-  const nextQueue = useShuffle ? shuffle(baseQueue) : baseQueue.slice();
-
-  if (!current) {
-    queue = nextQueue;
-    idx = 0;
-    return;
-  }
-
-  const currentId = current.id;
-  const found = nextQueue.findIndex((p) => p.id === currentId);
-
-  if (found === -1) {
-    queue = nextQueue;
-    idx = 0;
-    return;
-  }
-
-  const target = Math.max(0, Math.min(desiredIndex, nextQueue.length - 1));
-  const [item] = nextQueue.splice(found, 1);
-  nextQueue.splice(target, 0, item);
-
-  queue = nextQueue;
-  idx = target;
-}
-
 
 function restartFromBeginning() {
-  baseQueue = getGalleryOrderQueue();
-  queue = useShuffle ? shuffle(baseQueue) : baseQueue;
+  rebuildBaseQueueFromSelection();
+  queue = useShuffle ? shuffle(baseQueue) : baseQueue.slice();
   idx = 0;
 }
-
 
 function showSlide() {
   if (!queue.length) return;
@@ -1585,8 +1691,7 @@ function next() {
 
   if (idx >= queue.length) {
     if (useShuffle) {
-      shuffledQueue = shuffle(baseQueue);
-      queue = shuffledQueue;
+      queue = shuffle(baseQueue);
     }
     idx = 0;
   }
@@ -1620,17 +1725,22 @@ function syncPlayIcon() {
     : "../assets/img/icons/play.svg";
 }
 
-function openShow() {
-  const q = getGalleryOrderQueue();
-  if (!q.length) {
-    alert("Ajoute d'abord quelques photos.");
+/* ---------- Open/Close slideshow ---------- */
+
+function openShowFromSelection() {
+  rebuildBaseQueueFromSelection();
+
+  if (!baseQueue.length) {
+    alert("Aucune photo dans la sélection. Coche la galerie et/ou des sections.");
     return;
   }
 
   useShuffle = false;
   syncShuffleUI();
 
-  buildQueue();
+  queue = baseQueue.slice();
+  idx = 0;
+
   slideshow?.classList.add("open");
   playing = true;
   syncPlayIcon();
@@ -1643,7 +1753,11 @@ function closeShow() {
   stopAuto();
 }
 
-showBtn?.addEventListener("click", openShow);
+/* ---------- Listeners ---------- */
+
+// Le bouton principal ouvre le picker (pas le show direct)
+showBtn?.addEventListener("click", openShowPicker);
+
 closeShowBtn?.addEventListener("click", closeShow);
 nextSlideBtn?.addEventListener("click", next);
 prevSlideBtn?.addEventListener("click", prev);
@@ -1653,16 +1767,18 @@ togglePlayBtn?.addEventListener("click", () => {
   syncPlayIcon();
 });
 
+// À chaque clic : on inverse (ordre <-> shuffle) ET on redémarre depuis 1/X
 shuffleBtn?.addEventListener("click", () => {
   useShuffle = !useShuffle;
   syncShuffleUI();
 
-  if (!slideshow.classList.contains("open")) return;
+  if (!slideshow?.classList.contains("open")) return;
 
   restartFromBeginning();
   showSlide();
   startAuto();
 });
+
 
 
 
