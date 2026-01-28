@@ -95,10 +95,11 @@
   >
     <div class="box picker-box">
       <div class="top">
-        <div class="picker-title">
+        <div class="upload-title">
           <strong id="pickerTitle">Ajouter des photos</strong>
           <div id="pickerSub" class="upload-sub">0 sélectionnée</div>
         </div>
+
         <div class="controls">
           <button
             id="pickerCancel"
@@ -144,10 +145,11 @@
   >
     <div class="box picker-box">
       <div class="top">
-        <div class="picker-title">
+        <div class="upload-title">
           <strong id="showPickerTitle">Choisir le diaporama</strong>
           <div id="showPickerSub" class="upload-sub">0 sélectionnée</div>
         </div>
+
         <div class="controls">
           <button
             id="showPickerCancel"
@@ -174,7 +176,7 @@
           </button>
         </div>
 
-        <div id="showPickerList"></div>
+        <div id="showPickerList" class="show-picker-list"></div>
       </div>
     </div>
   </div>
@@ -195,6 +197,7 @@
           <strong>Prévisualisation</strong>
           <div id="uploadCount" class="upload-sub">0 fichier</div>
         </div>
+
         <div class="controls">
           <button
             id="uploadCancelBtn"
@@ -242,8 +245,15 @@
     <div class="box viewer-box">
       <div class="top">
         <div id="viewerTitle" class="viewer-title">Photo</div>
+
         <div class="controls">
-          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
+          <a
+            id="viewerDownload"
+            class="iconbtn"
+            title="Télécharger"
+            download
+            aria-label="Télécharger"
+          >
             <img
               class="icon-img"
               src="../assets/img/icons/download.svg"
@@ -254,7 +264,7 @@
             <span class="sr-only">Télécharger</span>
           </a>
 
-          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button">
+          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button" aria-label="Tourner">
             <img
               class="icon-img"
               src="../assets/img/icons/rotate.svg"
@@ -270,6 +280,7 @@
             class="iconbtn danger"
             title="Supprimer"
             type="button"
+            aria-label="Supprimer"
           >
             <img
               class="icon-img"
@@ -308,14 +319,18 @@
     aria-hidden="true"
     role="dialog"
     aria-modal="true"
+    aria-label="Diaporama"
   >
     <div class="box">
       <div class="top">
         <div id="slideCounter">—</div>
-        <div class="controls">
-          <button id="prevSlide" class="iconbtn" title="Précédent" type="button">‹</button>
 
-          <button id="togglePlay" class="iconbtn" title="Pause" type="button">
+        <div class="controls">
+          <button id="prevSlide" class="iconbtn" title="Précédent" type="button" aria-label="Précédent">
+            ‹
+          </button>
+
+          <button id="togglePlay" class="iconbtn" title="Pause" type="button" aria-label="Lecture / Pause">
             <img
               id="togglePlayIcon"
               class="icon-img"
@@ -345,7 +360,9 @@
             <span class="sr-only">Lecture aléatoire</span>
           </button>
 
-          <button id="nextSlide" class="iconbtn" title="Suivant" type="button">›</button>
+          <button id="nextSlide" class="iconbtn" title="Suivant" type="button" aria-label="Suivant">
+            ›
+          </button>
 
           <button
             id="closeShow"
@@ -371,10 +388,21 @@
   <div id="uiModal" class="ui-modal" aria-hidden="true">
     <div class="ui-modal__backdrop" data-close="1"></div>
 
-    <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
+    <div
+      class="ui-modal__panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="uiModalTitle"
+    >
       <div class="ui-modal__head">
         <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
-        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">
+        <button
+          class="ui-modal__close iconbtn"
+          type="button"
+          data-close="1"
+          aria-label="Fermer"
+          title="Fermer"
+        >
           ✕
         </button>
       </div>
