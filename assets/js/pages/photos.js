@@ -1541,6 +1541,13 @@ function rebuildQueuePreserveIndex() {
 }
 
 
+function restartFromBeginning() {
+  baseQueue = getGalleryOrderQueue();
+  queue = useShuffle ? shuffle(baseQueue) : baseQueue;
+  idx = 0;
+}
+
+
 function showSlide() {
   if (!queue.length) return;
   const s = queue[idx];
@@ -1630,11 +1637,15 @@ shuffleBtn?.addEventListener("click", () => {
   useShuffle = !useShuffle;
   syncShuffleUI();
 
-  if (slideshow.classList.contains("open")) {
-    rebuildQueuePreserveIndex();
-    showSlide();
-  }
+  if (!slideshow.classList.contains("open")) return;
+
+  restartFromBeginning();
+  showSlide();
+
+  // optionnel mais recommandé : repartir avec un timer propre
+  startAuto();
 });
+
 
 
 /* -------------------- Upload modal -------------------- */
