@@ -56,6 +56,8 @@ const closeShowBtn = document.getElementById("closeShow");
 const nextSlideBtn = document.getElementById("nextSlide");
 const prevSlideBtn = document.getElementById("prevSlide");
 const shuffleBtn = document.getElementById("shuffleBtn");
+const toggleFullscreenBtn = document.getElementById("toggleFullscreen");
+const toggleFullscreenIcon = document.getElementById("toggleFullscreenIcon");
 const slideshowPicker = document.getElementById("slideshowPicker");
 const showPickerList = document.getElementById("showPickerList");
 const showPickerSub = document.getElementById("showPickerSub");
@@ -1805,6 +1807,124 @@ function syncShuffleUI() {
     useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire"
   );
 }
+
+
+/* ---------- Fullscreen slideshow + auto-hide controls ---------- */
+
+let fsHoverTimer = null;
+
+// On met le fullscreen sur le conteneur slideshow (le modal)
+function isSlideshowFullscreen() {
+  return document.fullscreenElement === slideshow;
+}
+
+function syncFullscreenUI() {
+  const active = isSlideshowFullscreen();
+
+  // Classe CSS pour styles spécifiques
+  slideshow?.classList.toggle("fullscreen", active);
+
+  // En fullscreen : bandeau caché par défaut
+  if (active) {
+    slideshow?.classList.remove("show-controls");
+  }
+
+  // Switch icône + title/aria
+  if (toggleFullscreenIcon && toggleFullscreenBtn) {
+    toggleFullscreenIcon.src = active
+      ? "../assets/img/icons/minimize.svg"
+      : "../assets/img/icons/maximize.svg";
+
+    const label = active ? "Quitter le plein écran" : "Plein écran";
+    toggleFullscreenBtn.title = label;
+    toggleFullscreenBtn.setAttribute("aria-label", label);
+  }
+}
+
+async function enterFullscreen() {
+  if (!slideshow?.requestFullscreen) return;
+  try {
+    await slideshow.requestFullscreen();
+  } catch (e) {
+    // Ignore (fullscreen bloqué par le navigateur, gesture, etc.)
+  }
+}
+
+async function exitFullscreen() {
+  if (!document.fullscreenElement) return;
+  try {
+    await document.exitFullscreen();
+  } catch (e) {
+    // Ignore
+  }
+}
+
+// Click bouton fullscreen
+toggleFullscreenBtn?.addEventListener("click", () => {
+  if (isSlideshowFullscreen()) exitFullscreen();
+  else enterFullscreen();
+});
+
+// Sync quand l’utilisateur sort avec ESC, etc.
+document.addEventListener("fullscreenchange", syncFullscreenUI);
+
+// Auto-hide / show du bandeau en fullscreen :
+// - bandeau caché par défaut
+// - pour le faire réapparaître : placer la souris en haut (zone ~72px) et y rester 1.2s
+slideshow?.addEventListener("mousemove", (e) => {
+  if (!slideshow?.classList.contains("fullscreen")) return;
+
+  const y = e.clientY;
+  const inTopZone = y <= 72;
+
+  if (inTopZone) {
+    if (slideshow.classList.contains("show-controls")) return;
+
+    if (!fsHoverTimer) {
+      fsHoverTimer = setTimeout(() => {
+        slideshow.classList.add("show-controls");
+        fsHoverTimer = null;
+      }, 1200); // 1.2s (ajuste à 1000-2000ms si tu veux)
+    }
+  } else {
+    if (fsHoverTimer) {
+      clearTimeout(fsHoverTimer);
+      fsHoverTimer = null;
+    }
+    slideshow.classList.remove("show-controls");
+  }
+});
+
+// Bonus mobile/tactile : un tap affiche le bandeau 2.5s
+slideshow?.addEventListener("touchstart", () => {
+  if (!slideshow?.classList.contains("fullscreen")) return;
+  if (fsHoverTimer) {
+    clearTimeout(fsHoverTimer);
+    fsHoverTimer = null;
+  }
+  slideshow.classList.add("show-controls");
+  setTimeout(() => {
+    if (slideshow?.classList.contains("fullscreen")) {
+      slideshow.classList.remove("show-controls");
+    }
+  }, 2500);
+});
+
+// IMPORTANT : si on ferme le diaporama pendant le fullscreen, on sort du fullscreen
+const _closeShowOriginal = closeShow;
+closeShow = function () {
+  // si fullscreen actif sur le diaporama, on quitte d’abord
+  if (isSlideshowFullscreen()) exitFullscreen();
+  _closeShowOriginal();
+};
+
+// Init au chargement
+syncFullscreenUI();
+
+
+
+
+
 
 /* ---------- Queue + navigation ---------- */
 

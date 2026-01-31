@@ -740,6 +740,54 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
+/* -------------------- Slideshow: vrai fullscreen (API) -------------------- */
+
+#slideshow.fullscreen.modal{
+  background: #000;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* En fullscreen : on supprime le “glass” pour un noir pur */
+#slideshow.fullscreen .box{
+  background: #000;
+  box-shadow: none;
+  border: none;
+}
+#slideshow.fullscreen .box::before{
+  display:none;
+}
+
+/* L'image doit occuper toute la hauteur, bandeau en overlay */
+#slideshow.fullscreen .imgwrap{
+  height: 100vh;
+  background: #000; /* fond derrière la photo = noir complet */
+}
+
+/* Bandeau controls : caché par défaut, visible via .show-controls */
+#slideshow.fullscreen .top{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+#slideshow.fullscreen:not(.show-controls) .top{
+  opacity: 0;
+  transform: translateY(-12px);
+  pointer-events: none;
+}
+
+#slideshow.fullscreen.show-controls .top{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+
+
 /* -------------------- Upload modal -------------------- */
 
 .upload-body{ padding: 14px; color: rgba(255,255,255,.90); }
