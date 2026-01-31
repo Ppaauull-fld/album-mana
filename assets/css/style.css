@@ -666,17 +666,24 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
-/* Slideshow buttons sizing */
-#togglePlay{ width: 44px; height: 44px; }
-#togglePlayIcon{ width: 18px; height: 18px; display:block; }
+/* Slideshow buttons sizing (tous les boutons du bandeau) */
+#togglePlay,
+#shuffleBtn,
+#toggleFullscreen{
+  width: 44px;
+  height: 44px;
+}
 
-#togglePlay img,
-#togglePlayIcon{
+/* Taille des icônes dans ces boutons */
+#togglePlay .icon-img,
+#shuffleBtn .icon-img,
+#toggleFullscreen .icon-img{
   width: 18px !important;
   height: 18px !important;
   display: block !important;
   object-fit: contain !important;
 }
+
 
 /* Shuffle icon size + active state */
 #shuffleBtn{ width: 44px; height: 44px; }
