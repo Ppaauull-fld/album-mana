@@ -1345,10 +1345,14 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 /* -------------------- Icons / helpers -------------------- */
 
 .icon-img{
-  width:18px;
-  height:18px;
-  display:block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  object-fit: contain;
+  display: block;
 }
+
 
 .modal .iconbtn .icon-img,
 .modal .play-badge .icon-img{
