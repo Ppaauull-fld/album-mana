@@ -35,9 +35,6 @@
     btn.setAttribute("aria-pressed", isDark ? "true" : "false");
     btn.setAttribute("aria-label", isDark ? "Passer au thème clair" : "Passer au thème sombre");
     btn.title = isDark ? "Thème clair" : "Thème sombre";
-
-    const icon = btn.querySelector("img");
-    if (icon) icon.src = isDark ? sunIcon : moonIcon;
   }
 
   function setTheme(theme) {

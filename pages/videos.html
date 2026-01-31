@@ -11,7 +11,9 @@
 <body class="page">
   <header class="topbar">
     <div class="container inner">
-      <a class="back" href="../index.html" aria-label="Retour à l’accueil"><span aria-hidden="true">‹</span> Retour</a>
+      <a class="back" href="../index.html" aria-label="Retour à l’accueil">
+        <span aria-hidden="true">‹</span> Retour
+      </a>
 
       <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
         <img
@@ -26,13 +28,17 @@
 
       <button
         id="themeToggle"
-        class="theme-toggle"
+        class="theme-switch"
         type="button"
         aria-label="Passer au thème sombre"
         aria-pressed="false"
         title="Thème sombre"
       >
-        <img src="../assets/img/icons/moon.svg" alt="" decoding="async" />
+        <span class="theme-switch__track" aria-hidden="true">
+          <img class="theme-switch__icon theme-switch__icon--sun" src="../assets/img/icons/sun.svg" alt="" decoding="async" />
+          <img class="theme-switch__icon theme-switch__icon--moon" src="../assets/img/icons/moon.svg" alt="" decoding="async" />
+          <span class="theme-switch__thumb"></span>
+        </span>
       </button>
     </div>
   </header>
