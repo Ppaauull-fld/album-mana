@@ -46,6 +46,8 @@ const viewerDownload = document.getElementById("viewerDownload");
 const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
 const viewerRotate = document.getElementById("viewerRotate");
+const toggleViewerFullscreenBtn = document.getElementById("toggleViewerFullscreen");
+const toggleViewerFullscreenIcon = document.getElementById("toggleViewerFullscreenIcon");
 
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
@@ -58,6 +60,7 @@ const prevSlideBtn = document.getElementById("prevSlide");
 const shuffleBtn = document.getElementById("shuffleBtn");
 const toggleFullscreenBtn = document.getElementById("toggleFullscreen");
 const toggleFullscreenIcon = document.getElementById("toggleFullscreenIcon");
+
 const slideshowPicker = document.getElementById("slideshowPicker");
 const showPickerList = document.getElementById("showPickerList");
 const showPickerSub = document.getElementById("showPickerSub");
@@ -65,7 +68,6 @@ const showPickerCancel = document.getElementById("showPickerCancel");
 const showPickerSelectAll = document.getElementById("showPickerSelectAll");
 const showPickerClear = document.getElementById("showPickerClear");
 const showPickerApply = document.getElementById("showPickerApply");
-
 
 let photos = [];
 let sections = [];
@@ -77,7 +79,6 @@ let timer = null;
 
 let useShuffle = false;
 let baseQueue = [];
-let shuffledQueue = [];
 
 let pending = [];
 let currentViewed = null;
@@ -510,13 +511,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, items) {
   maxBtn.title = "Agrandir";
   maxBtn.dataset.sectionMaximize = "1";
   maxBtn.innerHTML = `
-    <img
-      class="icon-img"
-      data-maximize-icon
-      src="../assets/img/icons/maximize.svg"
-      alt=""
-      aria-hidden="true"
-    />
+    <img class="icon-img" data-maximize-icon src="../assets/img/icons/maximize.svg" alt="" aria-hidden="true" />
     <span class="sr-only">Agrandir</span>
   `;
 
@@ -576,12 +571,7 @@ function renderAll() {
   for (const s of sections) {
     sectionsWrap.appendChild(
       renderSectionCard(
-        {
-          id: s.id,
-          title: s.title || "Section",
-          editable: true,
-          hideTitle: false,
-        },
+        { id: s.id, title: s.title || "Section", editable: true, hideTitle: false },
         grouped.get(s.id) || []
       )
     );
@@ -716,13 +706,7 @@ function startAutoScroll() {
         if (drag.placeholderEl.parentElement !== grid) {
           grid.appendChild(drag.placeholderEl);
         }
-        placePlaceholder(
-          grid,
-          drag.placeholderEl,
-          drag.lastX,
-          drag.lastY,
-          drag.id
-        );
+        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
       }
     }
 
@@ -743,13 +727,10 @@ function cancelDrag() {
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(
-    `.card-btn[data-id="${drag.id}"]`
-  );
+  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
   if (original) original.classList.remove("dragging");
 
   document.body.classList.remove("drag-active");
-
   drag = null;
 }
 
@@ -834,9 +815,7 @@ function onPointerDown(e) {
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
 
-  if ((e.pointerType || "mouse") !== "touch") {
-    e.preventDefault();
-  }
+  if ((e.pointerType || "mouse") !== "touch") e.preventDefault();
 
   const id = cardEl.dataset.id;
   const srcGrid = cardEl.closest(".section-grid");
@@ -895,13 +874,7 @@ function startDrag(cardEl) {
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
   animateFLIP(drag.srcGrid, beforeRects);
 
-  placePlaceholder(
-    drag.srcGrid,
-    drag.placeholderEl,
-    drag.lastX,
-    drag.lastY,
-    drag.id
-  );
+  placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
 
   document.body.classList.add("drag-active");
   startAutoScroll();
@@ -928,9 +901,7 @@ function onPointerMove(e) {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
     if (Math.hypot(dx, dy) >= DRAG_START_PX) {
-      const cardEl = sectionsWrap?.querySelector(
-        `.card-btn[data-id="${drag.id}"]`
-      );
+      const cardEl = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
       if (cardEl) startDrag(cardEl);
     } else return;
   }
@@ -974,31 +945,24 @@ async function finalizeDrop(state) {
   let dropIndex = 0;
   for (const child of [...targetGrid.children]) {
     if (child === placeholder) break;
-    if (
-      child.classList?.contains("card-btn") &&
-      !child.classList.contains("dragging")
-    ) {
+    if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) {
       dropIndex++;
     }
   }
 
   const grouped = groupPhotos();
-  const targetList = (grouped.get(targetSectionId) || []).filter(
-    (p) => p.id !== state.id
-  );
+  const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
 
   const prev = dropIndex > 0 ? targetList[dropIndex - 1] : null;
   const next = dropIndex < targetList.length ? targetList[dropIndex] : null;
 
-  const prevOrder =
-    prev && typeof prev.order === "number" ? prev.order : prev?.createdAt ?? 0;
+  const prevOrder = prev && typeof prev.order === "number" ? prev.order : prev?.createdAt ?? 0;
   const nextOrder =
     next && typeof next.order === "number"
       ? next.order
       : next?.createdAt ?? prevOrder + 1000;
 
   let newOrder;
-
   if (!prev && !next) newOrder = Date.now();
   else if (!prev && next) newOrder = nextOrder - 1000;
   else if (prev && !next) newOrder = prevOrder + 1000;
@@ -1006,14 +970,8 @@ async function finalizeDrop(state) {
 
   if (prev && next && Math.abs(nextOrder - prevOrder) < 0.000001) {
     try {
-      const renorm = (grouped.get(targetSectionId) || []).filter(
-        (p) => p.id !== state.id
-      );
-      renorm.splice(dropIndex, 0, {
-        id: state.id,
-        createdAt: Date.now(),
-        order: 0,
-      });
+      const renorm = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
+      renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
 
       const base = Date.now();
       for (let i = 0; i < renorm.length; i++) {
@@ -1022,19 +980,14 @@ async function finalizeDrop(state) {
         await updateDoc(doc(db, PHOTOS_COL, pid), { order: ord });
       }
 
-      await updateDoc(doc(db, PHOTOS_COL, state.id), {
-        sectionId: newSectionValue,
-      });
+      await updateDoc(doc(db, PHOTOS_COL, state.id), { sectionId: newSectionValue });
       return;
     } catch (e) {
       console.error("Renormalisation order failed", e);
     }
   }
 
-  await updateDoc(doc(db, PHOTOS_COL, state.id), {
-    sectionId: newSectionValue,
-    order: newOrder,
-  });
+  await updateDoc(doc(db, PHOTOS_COL, state.id), { sectionId: newSectionValue, order: newOrder });
 }
 
 function onPointerUp(e) {
@@ -1054,7 +1007,6 @@ function onPointerUp(e) {
   const placeholder = drag.placeholderEl;
 
   if (drag.pressTimer) clearTimeout(drag.pressTimer);
-
   drag = null;
 
   stopAutoScroll();
@@ -1062,9 +1014,7 @@ function onPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(
-    `.card-btn[data-id="${draggedId}"]`
-  );
+  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${draggedId}"]`);
   if (original) original.classList.remove("dragging");
 
   if (!wasStarted) return;
@@ -1176,9 +1126,7 @@ function createSectionGhost(sectionEl) {
 function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   if (!wrap) return;
 
-  const galleryEl = wrap.querySelector(
-    `.section-card[data-section-card-id="${UNASSIGNED}"]`
-  );
+  const galleryEl = wrap.querySelector(`.section-card[data-section-card-id="${UNASSIGNED}"]`);
 
   const cards = [...wrap.querySelectorAll(".section-card")].filter((c) => {
     const sid = c.dataset.sectionCardId;
@@ -1189,8 +1137,7 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   });
 
   if (!cards.length) {
-    if (galleryEl?.nextSibling)
-      wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
+    if (galleryEl?.nextSibling) wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
     else wrap.appendChild(placeholderEl);
     return;
   }
@@ -1213,7 +1160,6 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
   if (!beforeEl) wrap.appendChild(placeholderEl);
   else wrap.insertBefore(placeholderEl, beforeEl);
 
-  // Ne jamais laisser le placeholder avant la galerie
   if (galleryEl && placeholderEl.previousSibling == null) {
     wrap.insertBefore(placeholderEl, galleryEl.nextSibling);
   }
@@ -1254,7 +1200,6 @@ function onSectionPointerDown(e) {
     handle.setPointerCapture(e.pointerId);
   } catch {}
 }
-
 
 function startSectionDrag(sectionEl) {
   if (!sectionDrag || sectionDrag.started) return;
@@ -1299,12 +1244,7 @@ function onSectionPointerMove(e) {
   sectionDrag.ghostEl.style.top = `${y}px`;
 
   startAutoScrollSection();
-  placeSectionPlaceholderVertical(
-    sectionsWrap,
-    sectionDrag.placeholderEl,
-    sectionDrag.lastY,
-    sectionDrag.id
-  );
+  placeSectionPlaceholderVertical(sectionsWrap, sectionDrag.placeholderEl, sectionDrag.lastY, sectionDrag.id);
 }
 
 async function finalizeSectionDropAndPersist(wrap) {
@@ -1343,10 +1283,7 @@ function onSectionPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(
-    `.section-card[data-section-card-id="${id}"]`
-  );
-
+  const original = sectionsWrap?.querySelector(`.section-card[data-section-card-id="${id}"]`);
   if (original) {
     original.style.opacity = "";
     original.style.pointerEvents = "";
@@ -1376,9 +1313,7 @@ function onSectionPointerUp(e) {
 
 /* -------------------- One single listeners block (no duplicates) -------------------- */
 
-sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, {
-  passive: false,
-});
+sectionsWrap?.addEventListener("pointerdown", onSectionPointerDown, { passive: false });
 sectionsWrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
 
 window.addEventListener("pointermove", onSectionPointerMove, { passive: false });
@@ -1388,19 +1323,52 @@ window.addEventListener("pointerup", onSectionPointerUp);
 window.addEventListener("pointerup", onPointerUp);
 
 window.addEventListener("pointercancel", (e) => {
-  try {
-    onPointerUp(e);
-  } catch {}
-  try {
-    onSectionPointerUp(e);
-  } catch {}
+  try { onPointerUp(e); } catch {}
+  try { onSectionPointerUp(e); } catch {}
 });
 
 /* -------------------- Viewer -------------------- */
 
+function isViewerFullscreen() {
+  return document.fullscreenElement === viewer;
+}
+
+async function enterViewerFullscreen() {
+  if (!viewer?.requestFullscreen) return;
+  try {
+    await viewer.requestFullscreen();
+  } catch {}
+}
+
+async function exitViewerFullscreen() {
+  if (!document.fullscreenElement) return;
+  try {
+    await document.exitFullscreen();
+  } catch {}
+}
+
+function syncViewerFullscreenUI() {
+  const active = isViewerFullscreen();
+
+  viewer?.classList.toggle("fullscreen", active);
+  if (active) viewer?.classList.remove("show-controls");
+
+  if (toggleViewerFullscreenIcon && toggleViewerFullscreenBtn) {
+    toggleViewerFullscreenIcon.src = active
+      ? "../assets/img/icons/minimize.svg"
+      : "../assets/img/icons/maximize.svg";
+
+    const label = active ? "Quitter le plein écran" : "Plein écran";
+    toggleViewerFullscreenBtn.title = label;
+    toggleViewerFullscreenBtn.setAttribute("aria-label", label);
+  }
+}
+
 function openViewer(photo) {
   currentViewed = { ...photo };
+
   if (viewerTitle) viewerTitle.textContent = "Photo";
+
   if (viewerImg) {
     viewerImg.src = bestFull(photo);
     applyRotation(viewerImg, photo.rotation || 0);
@@ -1419,6 +1387,11 @@ function openViewer(photo) {
 }
 
 function closeViewer() {
+  // ✅ Si on ferme le viewer en fullscreen => on quitte d'abord le fullscreen
+  if (isViewerFullscreen()) {
+    exitViewerFullscreen();
+  }
+
   viewer?.classList.remove("open");
   viewer?.setAttribute("aria-hidden", "true");
   currentViewed = null;
@@ -1432,8 +1405,14 @@ viewer?.addEventListener("click", (e) => {
   if (e.target === viewer) closeViewer();
 });
 
+toggleViewerFullscreenBtn?.addEventListener("click", () => {
+  if (isViewerFullscreen()) exitViewerFullscreen();
+  else enterViewerFullscreen();
+});
+
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
+
   const ok = await uiConfirm("Supprimer cette photo de la galerie ?", {
     title: "Supprimer la photo",
     danger: true,
@@ -1469,25 +1448,62 @@ viewerRotate?.addEventListener("click", async () => {
   }
 });
 
+// Auto-hide controls en fullscreen (viewer)
+let viewerFsHoverTimer = null;
 
+viewer?.addEventListener("mousemove", (e) => {
+  if (!viewer?.classList.contains("fullscreen")) return;
 
+  const inTopZone = e.clientY <= 72;
 
+  if (inTopZone) {
+    if (viewer.classList.contains("show-controls")) return;
+
+    if (!viewerFsHoverTimer) {
+      viewerFsHoverTimer = setTimeout(() => {
+        viewer.classList.add("show-controls");
+        viewerFsHoverTimer = null;
+      }, 1200);
+    }
+  } else {
+    if (viewerFsHoverTimer) {
+      clearTimeout(viewerFsHoverTimer);
+      viewerFsHoverTimer = null;
+    }
+    viewer.classList.remove("show-controls");
+  }
+});
+
+viewer?.addEventListener("touchstart", () => {
+  if (!viewer?.classList.contains("fullscreen")) return;
+
+  if (viewerFsHoverTimer) {
+    clearTimeout(viewerFsHoverTimer);
+    viewerFsHoverTimer = null;
+  }
+
+  viewer.classList.add("show-controls");
+  setTimeout(() => {
+    if (viewer?.classList.contains("fullscreen")) {
+      viewer.classList.remove("show-controls");
+    }
+  }, 2500);
+});
+
+// Un seul fullscreenchange pour viewer + slideshow
+document.addEventListener("fullscreenchange", () => {
+  syncViewerFullscreenUI();
+  syncFullscreenUI();
+});
+
+syncViewerFullscreenUI();
 
 /* -------------------- Slideshow (picker + sections + galerie + shuffle) -------------------- */
-/*
-  ✅ Corrigé (notamment ton bug "Tout enlever" qui re-sélectionne quand même une section) :
-  - AUCUNE auto-sélection dans le picker (sinon "Tout enlever" est cassé).
-  - Auto-lancement direct uniquement via openShowSmart() quand totalSources === 1.
-  - "Toutes les sections" n’apparaît que s’il y a ≥ 2 sections avec photos.
-  - Le picker n’affiche QUE les sources disponibles (galerie si non vide + sections non vides).
-  - Shuffle : toggle + restart 1/X à chaque clic.
-  - Icône inversée conservée.
-*/
 
 let slideshowSelection = {
   includeGallery: true,
-  sectionIds: [],            // utilisé seulement si includeAllSections=false
-  includeAllSections: true,  // true => toutes les sections disponibles
+  sectionIds: [],
+  includeAllSections: true,
 };
 
 function shuffle(arr) {
@@ -1498,8 +1514,6 @@ function shuffle(arr) {
   }
   return a;
 }
-
-/* ---------- Availability (sources possibles) ---------- */
 
 function getSlideshowAvailability() {
   const grouped = groupPhotos();
@@ -1515,25 +1529,14 @@ function getSlideshowAvailability() {
 
   const totalSources = (galleryAvailable ? 1 : 0) + availableSectionIds.length;
 
-  return {
-    grouped,
-    galleryAvailable,
-    availableSectionIds,
-    totalSources,
-  };
+  return { grouped, galleryAvailable, availableSectionIds, totalSources };
 }
 
-/**
- * Normalise la sélection par rapport à ce qui existe (évite les ids morts / galerie vide).
- * ⚠️ IMPORTANT : allowAutoPick=false pour le picker, sinon "Tout enlever" se recoche tout seul.
- */
 function normalizeSelectionToAvailability({ allowAutoPick = false } = {}) {
   const { galleryAvailable, availableSectionIds } = getSlideshowAvailability();
 
-  // Galerie
   if (!galleryAvailable) slideshowSelection.includeGallery = false;
 
-  // Sections
   const allowed = new Set(availableSectionIds);
 
   if (slideshowSelection.includeAllSections) {
@@ -1544,24 +1547,20 @@ function normalizeSelectionToAvailability({ allowAutoPick = false } = {}) {
     );
   }
 
-  // Si aucune section dispo => pas de mode allSections
   if (availableSectionIds.length === 0) {
     slideshowSelection.includeAllSections = false;
     slideshowSelection.sectionIds = [];
   }
 
-  // Si "Toutes les sections" n'a pas de sens (0 ou 1 section dispo), on coupe.
   if (availableSectionIds.length < 2) {
     slideshowSelection.includeAllSections = false;
   }
 
-  // ✅ Auto-pick UNIQUEMENT si explicitement demandé (en pratique: pas dans le picker)
   if (allowAutoPick) {
     const hasSomeSections =
       slideshowSelection.includeAllSections ||
       (slideshowSelection.sectionIds || []).length > 0;
 
-    // Si sections dispo mais rien sélectionné côté sections, choisir quelque chose
     if (availableSectionIds.length > 0 && !hasSomeSections) {
       if (availableSectionIds.length >= 2) {
         slideshowSelection.includeAllSections = true;
@@ -1572,28 +1571,23 @@ function normalizeSelectionToAvailability({ allowAutoPick = false } = {}) {
       }
     }
 
-    // Si rien (galerie off + pas de section) mais galerie dispo, on peut remettre la galerie
     if (!slideshowSelection.includeGallery && availableSectionIds.length === 0 && galleryAvailable) {
       slideshowSelection.includeGallery = true;
     }
   }
 }
 
-/* ---------- Queue building (from selection) ---------- */
-
 function getQueueForSelection(sel) {
   const { grouped, galleryAvailable, availableSectionIds } = getSlideshowAvailability();
   const out = [];
 
-  if (sel?.includeGallery && galleryAvailable) {
-    out.push(...(grouped.get(UNASSIGNED) || []));
-  }
+  if (sel?.includeGallery && galleryAvailable) out.push(...(grouped.get(UNASSIGNED) || []));
 
   const includeAll = !!sel?.includeAllSections;
   const allowed = new Set(sel?.sectionIds || []);
 
   for (const s of sections) {
-    if (!availableSectionIds.includes(s.id)) continue; // section vide => ignorée
+    if (!availableSectionIds.includes(s.id)) continue;
     if (includeAll || allowed.has(s.id)) out.push(...(grouped.get(s.id) || []));
   }
 
@@ -1605,7 +1599,6 @@ function getQueueForSelection(sel) {
 function openShowPicker() {
   if (!slideshowPicker) return;
 
-  // ✅ pas d’auto-pick dans le picker
   normalizeSelectionToAvailability({ allowAutoPick: false });
   renderShowPickerList();
 
@@ -1652,13 +1645,11 @@ function renderShowPickerList() {
   showPickerList.innerHTML = "";
   showPickerList.classList.add("show-picker-list");
 
-  // Si "toutes les sections" n’a pas de sens => on le force off, mais ⚠️ sans auto-cocher une section
   const canShowAllSections = availableSectionIds.length >= 2;
   if (!canShowAllSections) slideshowSelection.includeAllSections = false;
 
   const includeAll = !!slideshowSelection.includeAllSections;
 
-  // Galerie (uniquement si elle a des photos)
   if (galleryAvailable) {
     const gItem = document.createElement("label");
     gItem.className = "show-picker-item";
@@ -1674,7 +1665,6 @@ function renderShowPickerList() {
     slideshowSelection.includeGallery = false;
   }
 
-  // "Toutes les sections" (uniquement si ≥ 2 sections non vides)
   if (canShowAllSections) {
     const allItem = document.createElement("label");
     allItem.className = "show-picker-item";
@@ -1688,13 +1678,10 @@ function renderShowPickerList() {
     showPickerList.appendChild(allItem);
   }
 
-  // Sections (uniquement celles qui ont des photos)
   for (const s of sections) {
     if (!availableSectionIds.includes(s.id)) continue;
 
-    const checked = includeAll
-      ? true
-      : (slideshowSelection.sectionIds || []).includes(s.id);
+    const checked = includeAll ? true : (slideshowSelection.sectionIds || []).includes(s.id);
 
     const item = document.createElement("label");
     item.className = "show-picker-item";
@@ -1702,11 +1689,7 @@ function renderShowPickerList() {
     item.style.pointerEvents = includeAll ? "none" : "auto";
 
     item.innerHTML = `
-      <input type="checkbox"
-             data-kind="section"
-             data-id="${s.id}"
-             ${checked ? "checked" : ""}
-             ${includeAll ? "disabled" : ""} />
+      <input type="checkbox" data-kind="section" data-id="${s.id}" ${checked ? "checked" : ""} ${includeAll ? "disabled" : ""} />
       <div class="label">
         <strong>${String(s.title || "Section").replaceAll("<", "&lt;")}</strong>
         <span>Section</span>
@@ -1715,7 +1698,6 @@ function renderShowPickerList() {
     showPickerList.appendChild(item);
   }
 
-  // Delegation
   showPickerList.onchange = (e) => {
     const cb = e.target;
     if (!(cb instanceof HTMLInputElement)) return;
@@ -1756,7 +1738,6 @@ function renderShowPickerList() {
 
 showPickerCancel?.addEventListener("click", closeShowPicker);
 
-// ✅ "Tout enlever" : ne doit plus re-cocher une section automatiquement
 showPickerClear?.addEventListener("click", () => {
   slideshowSelection.includeGallery = false;
   slideshowSelection.includeAllSections = false;
@@ -1774,7 +1755,6 @@ showPickerSelectAll?.addEventListener("click", () => {
     slideshowSelection.sectionIds = [];
   } else {
     slideshowSelection.includeAllSections = false;
-    // on coche la seule section si elle existe (c’est logique pour "Tout sélectionner")
     slideshowSelection.sectionIds = availableSectionIds.length === 1 ? [availableSectionIds[0]] : [];
   }
 
@@ -1796,24 +1776,17 @@ function syncShuffleUI() {
 
   const img = shuffleBtn.querySelector("img");
   if (img) {
-    img.src = useShuffle
-      ? "../assets/img/icons/play.svg"      // aléatoire actif => action = repasser ordre
-      : "../assets/img/icons/shuffle.svg";  // ordre actif   => action = passer en aléatoire
+    img.src = useShuffle ? "../assets/img/icons/play.svg" : "../assets/img/icons/shuffle.svg";
   }
 
   shuffleBtn.title = useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire";
-  shuffleBtn.setAttribute(
-    "aria-label",
-    useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire"
-  );
+  shuffleBtn.setAttribute("aria-label", useShuffle ? "Lecture dans l’ordre" : "Lecture aléatoire");
 }
-
 
 /* ---------- Fullscreen slideshow + auto-hide controls ---------- */
 
 let fsHoverTimer = null;
 
-// On met le fullscreen sur le conteneur slideshow (le modal)
 function isSlideshowFullscreen() {
   return document.fullscreenElement === slideshow;
 }
@@ -1821,15 +1794,9 @@ function isSlideshowFullscreen() {
 function syncFullscreenUI() {
   const active = isSlideshowFullscreen();
 
-  // Classe CSS pour styles spécifiques
   slideshow?.classList.toggle("fullscreen", active);
+  if (active) slideshow?.classList.remove("show-controls");
 
-  // En fullscreen : bandeau caché par défaut
-  if (active) {
-    slideshow?.classList.remove("show-controls");
-  }
-
-  // Switch icône + title/aria
   if (toggleFullscreenIcon && toggleFullscreenBtn) {
     toggleFullscreenIcon.src = active
       ? "../assets/img/icons/minimize.svg"
@@ -1845,37 +1812,25 @@ async function enterFullscreen() {
   if (!slideshow?.requestFullscreen) return;
   try {
     await slideshow.requestFullscreen();
-  } catch (e) {
-    // Ignore (fullscreen bloqué par le navigateur, gesture, etc.)
-  }
+  } catch {}
 }
 
 async function exitFullscreen() {
   if (!document.fullscreenElement) return;
   try {
     await document.exitFullscreen();
-  } catch (e) {
-    // Ignore
-  }
+  } catch {}
 }
 
-// Click bouton fullscreen
 toggleFullscreenBtn?.addEventListener("click", () => {
   if (isSlideshowFullscreen()) exitFullscreen();
   else enterFullscreen();
 });
 
-// Sync quand l’utilisateur sort avec ESC, etc.
-document.addEventListener("fullscreenchange", syncFullscreenUI);
-
-// Auto-hide / show du bandeau en fullscreen :
-// - bandeau caché par défaut
-// - pour le faire réapparaître : placer la souris en haut (zone ~72px) et y rester 1.2s
 slideshow?.addEventListener("mousemove", (e) => {
   if (!slideshow?.classList.contains("fullscreen")) return;
 
-  const y = e.clientY;
-  const inTopZone = y <= 72;
+  const inTopZone = e.clientY <= 72;
 
   if (inTopZone) {
     if (slideshow.classList.contains("show-controls")) return;
@@ -1884,7 +1839,7 @@ slideshow?.addEventListener("mousemove", (e) => {
       fsHoverTimer = setTimeout(() => {
         slideshow.classList.add("show-controls");
         fsHoverTimer = null;
-      }, 1200); // 1.2s (ajuste à 1000-2000ms si tu veux)
+      }, 1200);
     }
   } else {
     if (fsHoverTimer) {
@@ -1895,13 +1850,14 @@ slideshow?.addEventListener("mousemove", (e) => {
   }
 });
 
-// Bonus mobile/tactile : un tap affiche le bandeau 2.5s
 slideshow?.addEventListener("touchstart", () => {
   if (!slideshow?.classList.contains("fullscreen")) return;
+
   if (fsHoverTimer) {
     clearTimeout(fsHoverTimer);
     fsHoverTimer = null;
   }
+
   slideshow.classList.add("show-controls");
   setTimeout(() => {
     if (slideshow?.classList.contains("fullscreen")) {
@@ -1909,22 +1865,6 @@ slideshow?.addEventListener("touchstart", () => {
     }
   }, 2500);
 });
-
-// IMPORTANT : si on ferme le diaporama pendant le fullscreen, on sort du fullscreen
-const _closeShowOriginal = closeShow;
-closeShow = function () {
-  // si fullscreen actif sur le diaporama, on quitte d’abord
-  if (isSlideshowFullscreen()) exitFullscreen();
-  _closeShowOriginal();
-};
-
-// Init au chargement
-syncFullscreenUI();
-
-
-
-
-
 
 /* ---------- Queue + navigation ---------- */
 
@@ -1983,15 +1923,12 @@ function stopAuto() {
 
 function syncPlayIcon() {
   if (!togglePlayIcon) return;
-  togglePlayIcon.src = playing
-    ? "../assets/img/icons/pause.svg"
-    : "../assets/img/icons/play.svg";
+  togglePlayIcon.src = playing ? "../assets/img/icons/pause.svg" : "../assets/img/icons/play.svg";
 }
 
 /* ---------- Open/Close slideshow ---------- */
 
 function openShowFromSelection() {
-  // ✅ depuis le picker: PAS d’auto-pick, sinon "tout enlever" devient impossible
   rebuildBaseQueueFromSelection({ allowAutoPick: false });
 
   if (!baseQueue.length) {
@@ -2020,14 +1957,9 @@ function openShowSmart() {
     return;
   }
 
-  // ✅ Un seul choix => lancement direct
   if (totalSources === 1) {
     if (galleryAvailable) {
-      slideshowSelection = {
-        includeGallery: true,
-        includeAllSections: false,
-        sectionIds: [],
-      };
+      slideshowSelection = { includeGallery: true, includeAllSections: false, sectionIds: [] };
     } else {
       slideshowSelection = {
         includeGallery: false,
@@ -2035,16 +1967,20 @@ function openShowSmart() {
         sectionIds: [availableSectionIds[0]],
       };
     }
-    // ici c’est ok (sélection déjà explicite)
+
     rebuildBaseQueueFromSelection({ allowAutoPick: false });
+
     if (!baseQueue.length) {
       alert("Ajoute d'abord quelques photos.");
       return;
     }
+
     useShuffle = false;
     syncShuffleUI();
+
     queue = baseQueue.slice();
     idx = 0;
+
     slideshow?.classList.add("open");
     playing = true;
     syncPlayIcon();
@@ -2053,18 +1989,19 @@ function openShowSmart() {
     return;
   }
 
-  // ✅ Plusieurs choix => picker
   openShowPicker();
 }
 
 function closeShow() {
+  // ✅ si le diapo est en fullscreen, on sort d’abord du fullscreen
+  if (isSlideshowFullscreen()) exitFullscreen();
+
   slideshow?.classList.remove("open");
   stopAuto();
 }
 
 /* ---------- Listeners ---------- */
 
-// Le bouton principal lance direct si 0/1 choix, sinon ouvre le picker
 showBtn?.addEventListener("click", openShowSmart);
 
 closeShowBtn?.addEventListener("click", closeShow);
@@ -2076,7 +2013,6 @@ togglePlayBtn?.addEventListener("click", () => {
   syncPlayIcon();
 });
 
-// À chaque clic : on inverse (ordre <-> shuffle) ET on redémarre depuis 1/X
 shuffleBtn?.addEventListener("click", () => {
   useShuffle = !useShuffle;
   syncShuffleUI();
@@ -2088,9 +2024,9 @@ shuffleBtn?.addEventListener("click", () => {
   startAuto();
 });
 
-
-
-
+// Init
+syncShuffleUI();
+syncFullscreenUI();
 
 /* -------------------- Upload modal -------------------- */
 
@@ -2111,8 +2047,7 @@ function closeUploadModal() {
 function fmtCount() {
   const n = pending.length;
   if (!uploadCount) return;
-  uploadCount.textContent =
-    n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
+  uploadCount.textContent = n === 0 ? "Aucun fichier" : n === 1 ? "1 fichier" : `${n} fichiers`;
 }
 
 function resetProgressUI() {
@@ -2128,8 +2063,7 @@ function setUploadingState(isUploading) {
   if (arrangeBtn) arrangeBtn.disabled = isUploading;
   if (uploadCancelBtn) uploadCancelBtn.disabled = isUploading;
 
-  if (uploadStartBtn)
-    uploadStartBtn.disabled = isUploading || pending.length === 0;
+  if (uploadStartBtn) uploadStartBtn.disabled = isUploading || pending.length === 0;
 
   if (uploadStartBtn) {
     setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
@@ -2338,8 +2272,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (uploadModal?.classList.contains("open")) {
-    if (e.key === "Escape" && uploadCancelBtn && !uploadCancelBtn.disabled)
-      uploadCancelBtn.click();
+    if (e.key === "Escape" && uploadCancelBtn && !uploadCancelBtn.disabled) uploadCancelBtn.click();
   }
 });
 
@@ -2348,31 +2281,25 @@ document.addEventListener("keydown", (e) => {
 async function main() {
   await ensureAnonAuth();
 
-  onSnapshot(
-    query(collection(db, SECTIONS_COL), orderBy("order", "asc")),
-    (snap) => {
-      sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-
-      if (slideshow?.classList.contains("open")) {
-        buildQueue({ keepCurrent: true });
-        showSlide();
-      }
+  onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
+    sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderAll();
+    // NOTE: plus de buildQueue() (ça n'existe pas dans ton fichier)
+    if (slideshow?.classList.contains("open")) {
+      restartFromBeginning();
+      showSlide();
     }
-  );
+  });
 
-  onSnapshot(
-    query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")),
-    (snap) => {
-      photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderAll();
-
-      if (slideshow?.classList.contains("open")) {
-        buildQueue({ keepCurrent: true });
-        showSlide();
-      }
+  onSnapshot(query(collection(db, PHOTOS_COL), orderBy("createdAt", "desc")), (snap) => {
+    photos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderAll();
+    // NOTE: plus de buildQueue() (ça n'existe pas dans ton fichier)
+    if (slideshow?.classList.contains("open")) {
+      restartFromBeginning();
+      showSlide();
     }
-  );
+  });
 }
 
 main();
