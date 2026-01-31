@@ -232,7 +232,7 @@
   </div>
 
   <!-- ======================================================
-       PHOTO VIEWER
+       PHOTO VIEWER (✅ ajout fullscreen bouton)
        ====================================================== -->
   <div
     id="photoViewer"
@@ -264,7 +264,13 @@
             <span class="sr-only">Télécharger</span>
           </a>
 
-          <button id="viewerRotate" class="iconbtn" title="Tourner" type="button" aria-label="Tourner">
+          <button
+            id="viewerRotate"
+            class="iconbtn"
+            title="Tourner"
+            type="button"
+            aria-label="Tourner"
+          >
             <img
               class="icon-img"
               src="../assets/img/icons/rotate.svg"
@@ -273,6 +279,25 @@
               decoding="async"
             />
             <span class="sr-only">Tourner</span>
+          </button>
+
+          <!-- ✅ Bouton plein écran pour une photo individuelle -->
+          <button
+            id="toggleViewerFullscreen"
+            class="iconbtn"
+            title="Plein écran"
+            type="button"
+            aria-label="Plein écran"
+          >
+            <img
+              id="toggleViewerFullscreenIcon"
+              class="icon-img"
+              src="../assets/img/icons/maximize.svg"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+            <span class="sr-only">Plein écran</span>
           </button>
 
           <button
@@ -364,25 +389,23 @@
             ›
           </button>
 
-
-<button
-  id="toggleFullscreen"
-  class="iconbtn"
-  title="Plein écran"
-  type="button"
-  aria-label="Plein écran"
->
-  <img
-    id="toggleFullscreenIcon"
-    class="icon-img"
-    src="../assets/img/icons/maximize.svg"
-    alt=""
-    aria-hidden="true"
-    decoding="async"
-  />
-  <span class="sr-only">Plein écran</span>
-</button>
-
+          <button
+            id="toggleFullscreen"
+            class="iconbtn"
+            title="Plein écran"
+            type="button"
+            aria-label="Plein écran"
+          >
+            <img
+              id="toggleFullscreenIcon"
+              class="icon-img"
+              src="../assets/img/icons/maximize.svg"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+            <span class="sr-only">Plein écran</span>
+          </button>
 
           <button
             id="closeShow"
