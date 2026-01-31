@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Photos — album-mana</title>
   <link rel="stylesheet" href="../assets/css/style.css" />
+  <script defer src="../assets/js/theme.js"></script>
 </head>
 
 <body class="page">
@@ -21,12 +22,24 @@
         <img
           class="topbar-logo"
           src="../assets/img/logo-noir.svg"
+          data-logo-light="../assets/img/logo-noir.svg"
+          data-logo-dark="../assets/img/logo.svg"
           alt="Accueil"
           decoding="async"
         />
       </a>
 
-      <div style="width:64px" aria-hidden="true"></div>
+      <!-- ✅ Toggle thème (coin droit) -->
+      <button
+        id="themeToggle"
+        class="theme-toggle"
+        type="button"
+        aria-label="Passer au thème sombre"
+        aria-pressed="false"
+        title="Thème sombre"
+      >
+        <img src="../assets/img/icons/moon.svg" alt="" decoding="async" />
+      </button>
     </div>
   </header>
 
@@ -132,8 +145,7 @@
   </div>
 
   <!-- ======================================================
-       SLIDESHOW PICKER (choix galerie/sections)
-       IMPORTANT: ces IDs sont utilisés par le JS slideshow corrigé
+       SLIDESHOW PICKER
        ====================================================== -->
   <div
     id="slideshowPicker"
@@ -232,7 +244,7 @@
   </div>
 
   <!-- ======================================================
-       PHOTO VIEWER (✅ ajout fullscreen bouton)
+       PHOTO VIEWER
        ====================================================== -->
   <div
     id="photoViewer"
@@ -281,7 +293,6 @@
             <span class="sr-only">Tourner</span>
           </button>
 
-          <!-- ✅ Bouton plein écran pour une photo individuelle -->
           <button
             id="toggleViewerFullscreen"
             class="iconbtn"
@@ -351,9 +362,7 @@
         <div id="slideCounter">—</div>
 
         <div class="controls">
-          <button id="prevSlide" class="iconbtn" title="Précédent" type="button" aria-label="Précédent">
-            ‹
-          </button>
+          <button id="prevSlide" class="iconbtn" title="Précédent" type="button" aria-label="Précédent">‹</button>
 
           <button id="togglePlay" class="iconbtn" title="Pause" type="button" aria-label="Lecture / Pause">
             <img
@@ -385,17 +394,9 @@
             <span class="sr-only">Lecture aléatoire</span>
           </button>
 
-          <button id="nextSlide" class="iconbtn" title="Suivant" type="button" aria-label="Suivant">
-            ›
-          </button>
+          <button id="nextSlide" class="iconbtn" title="Suivant" type="button" aria-label="Suivant">›</button>
 
-          <button
-            id="toggleFullscreen"
-            class="iconbtn"
-            title="Plein écran"
-            type="button"
-            aria-label="Plein écran"
-          >
+          <button id="toggleFullscreen" class="iconbtn" title="Plein écran" type="button" aria-label="Plein écran">
             <img
               id="toggleFullscreenIcon"
               class="icon-img"
@@ -407,15 +408,7 @@
             <span class="sr-only">Plein écran</span>
           </button>
 
-          <button
-            id="closeShow"
-            class="iconbtn"
-            title="Fermer"
-            type="button"
-            aria-label="Fermer"
-          >
-            ✕
-          </button>
+          <button id="closeShow" class="iconbtn" title="Fermer" type="button" aria-label="Fermer">✕</button>
         </div>
       </div>
 
@@ -431,23 +424,10 @@
   <div id="uiModal" class="ui-modal" aria-hidden="true">
     <div class="ui-modal__backdrop" data-close="1"></div>
 
-    <div
-      class="ui-modal__panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="uiModalTitle"
-    >
+    <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
       <div class="ui-modal__head">
         <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
-        <button
-          class="ui-modal__close iconbtn"
-          type="button"
-          data-close="1"
-          aria-label="Fermer"
-          title="Fermer"
-        >
-          ✕
-        </button>
+        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer" title="Fermer">✕</button>
       </div>
 
       <div id="uiModalMessage" class="ui-modal__message"></div>

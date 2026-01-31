@@ -5,16 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vidéos — album-mana</title>
   <link rel="stylesheet" href="../assets/css/style.css" />
+  <script defer src="../assets/js/theme.js"></script>
 </head>
 
 <body class="page">
   <header class="topbar">
     <div class="container inner">
-      <a class="back" href="../index.html"><span>‹</span> Retour</a>
+      <a class="back" href="../index.html" aria-label="Retour à l’accueil"><span aria-hidden="true">‹</span> Retour</a>
 
       <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
-        <img class="topbar-logo" src="../assets/img/logo-noir.svg" alt="Accueil" />
+        <img
+          class="topbar-logo"
+          src="../assets/img/logo-noir.svg"
+          data-logo-light="../assets/img/logo-noir.svg"
+          data-logo-dark="../assets/img/logo.svg"
+          alt="Accueil"
+          decoding="async"
+        />
       </a>
+
+      <button
+        id="themeToggle"
+        class="theme-toggle"
+        type="button"
+        aria-label="Passer au thème sombre"
+        aria-pressed="false"
+        title="Thème sombre"
+      >
+        <img src="../assets/img/icons/moon.svg" alt="" decoding="async" />
+      </button>
     </div>
   </header>
 
@@ -38,7 +57,7 @@
     </div>
   </main>
 
-  <!-- Upload modal (même UX que Photos) -->
+  <!-- Upload modal -->
   <div id="uploadModal" class="modal" aria-hidden="true">
     <div class="box">
       <div class="top">
@@ -47,7 +66,7 @@
           <div id="uploadCount" class="upload-sub">0 fichier</div>
         </div>
         <div class="controls">
-          <button id="uploadCancelBtn" class="iconbtn" title="Annuler" type="button">✕</button>
+          <button id="uploadCancelBtn" class="iconbtn" title="Annuler" type="button" aria-label="Annuler">✕</button>
         </div>
       </div>
 
@@ -75,15 +94,15 @@
       <div class="top">
         <div class="viewer-title">Vidéo</div>
         <div class="controls">
-          <a id="viewerDownload" class="iconbtn" title="Télécharger" download>
-            <img class="icon-img" src="../assets/img/icons/download.svg" alt="" />
+          <a id="viewerDownload" class="iconbtn" title="Télécharger" download aria-label="Télécharger">
+            <img class="icon-img" src="../assets/img/icons/download.svg" alt="" aria-hidden="true" decoding="async" />
           </a>
 
-          <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button">
-            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" />
+          <button id="viewerDelete" class="iconbtn danger" title="Supprimer" type="button" aria-label="Supprimer">
+            <img class="icon-img" src="../assets/img/icons/delete.svg" alt="" aria-hidden="true" decoding="async" />
           </button>
 
-          <button id="viewerClose" class="iconbtn" title="Fermer" type="button">✕</button>
+          <button id="viewerClose" class="iconbtn" title="Fermer" type="button" aria-label="Fermer">✕</button>
         </div>
       </div>
 
@@ -93,14 +112,14 @@
     </div>
   </div>
 
-  <!-- uiModal (confirm / prompt) -->
+  <!-- uiModal -->
   <div id="uiModal" class="ui-modal" aria-hidden="true">
     <div class="ui-modal__backdrop" data-close="1"></div>
 
     <div class="ui-modal__panel" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
       <div class="ui-modal__head">
         <div id="uiModalTitle" class="ui-modal__title">Confirmation</div>
-        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer">✕</button>
+        <button class="ui-modal__close iconbtn" type="button" data-close="1" aria-label="Fermer" title="Fermer">✕</button>
       </div>
 
       <div id="uiModalMessage" class="ui-modal__message"></div>

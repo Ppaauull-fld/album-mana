@@ -5,20 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Livre d’or — album-mana</title>
   <link rel="stylesheet" href="../assets/css/style.css" />
+  <script defer src="../assets/js/theme.js"></script>
 </head>
 
 <body class="page">
   <header class="topbar">
     <div class="container inner">
-      <a class="back" href="../index.html"><span>‹</span> Retour</a>
-      <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
-  <img
-    class="topbar-logo"
-    src="../assets/img/logo-noir.svg"
-    alt="Accueil"
-  />
-</a>
+      <a class="back" href="../index.html" aria-label="Retour à l’accueil">
+        <span aria-hidden="true">‹</span> Retour
+      </a>
 
+      <a class="brand-mini" href="../index.html" aria-label="Retour à l’accueil">
+        <img
+          class="topbar-logo"
+          src="../assets/img/logo-noir.svg"
+          data-logo-light="../assets/img/logo-noir.svg"
+          data-logo-dark="../assets/img/logo.svg"
+          alt="Accueil"
+          decoding="async"
+        />
+      </a>
+
+      <button
+        id="themeToggle"
+        class="theme-toggle"
+        type="button"
+        aria-label="Passer au thème sombre"
+        aria-pressed="false"
+        title="Thème sombre"
+      >
+        <img src="../assets/img/icons/moon.svg" alt="" decoding="async" />
+      </button>
+    </div>
   </header>
 
   <main class="section">
@@ -27,7 +45,6 @@
 
       <div class="guest-wrap">
         <div class="guestbar-grid">
-
           <!-- LEFT : outils -->
           <div class="gb-left">
             <div class="segmented" role="tablist" aria-label="Outil">
@@ -51,7 +68,6 @@
 
           <!-- MIDDLE : contrôles -->
           <div class="gb-mid">
-
             <!-- TEXTE -->
             <div id="textControls" class="control-row" style="display:none">
               <select id="font" class="mini-select" title="Police">
@@ -103,7 +119,6 @@
               <input id="penColor" class="mini-color" type="color" value="#111111" title="Couleur" />
               <button id="publish" class="btn primary" type="button">Publier</button>
             </div>
-
           </div>
 
           <!-- RIGHT : actions -->
@@ -134,7 +149,6 @@
               </button>
             </div>
           </div>
-
         </div>
 
         <!-- CANVAS -->

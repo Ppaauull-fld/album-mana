@@ -1,6 +1,7 @@
 :root{
   --bg:#0b0b0c;
 
+  /* Thème clair = actuel */
   --paper:#f6f1ea;
   --ink:#1d1d1f;
   --ink2:rgba(29,29,31,.72);
@@ -34,6 +35,55 @@
   );
 
   --lift: -1px;
+
+  /* TOPBAR (light par défaut) */
+  --topbar-bg: rgba(246,241,234,.65);
+  --topbar-border: rgba(255,255,255,.55);
+  --topbar-grad1: rgba(255,255,255,.40);
+  --topbar-grad2: rgba(255,255,255,.152);
+
+  /* Boutons header (retour + toggle) */
+  --headerbtn-ink: rgba(0,0,0,.78);
+  --headerbtn-bg: rgba(255,255,255,.22);
+  --headerbtn-border: rgba(255,255,255,.28);
+  --headerbtn-bg-hover: rgba(255,255,255,.30);
+  --headerbtn-border-hover: rgba(255,255,255,.36);
+
+  /* Boutons génériques (actions) */
+  --btn-ink: rgba(0,0,0,.82);
+  --btn-primary-bg: rgba(0,0,0,.70);
+  --btn-primary-bg-hover: rgba(0,0,0,.78);
+  --btn-primary-ink: rgba(255,255,255,.92);
+  --focus-ring: rgba(0,0,0,.22);
+}
+
+/* THEME SOMBRE */
+html[data-theme="dark"]{
+  --paper: #0b0b0c;
+  --ink: #f6f1ea;
+  --ink2: rgba(246,241,234,.72);
+  --line: rgba(255,255,255,.10);
+
+  --chip: rgba(255,255,255,.06);
+  --chip2: rgba(255,255,255,.09);
+
+  --topbar-bg: rgba(11,11,12,.62);
+  --topbar-border: rgba(255,255,255,.12);
+  --topbar-grad1: rgba(255,255,255,.12);
+  --topbar-grad2: rgba(255,255,255,.03);
+
+  --headerbtn-ink: rgba(246,241,234,.92);
+  --headerbtn-bg: rgba(255,255,255,.10);
+  --headerbtn-border: rgba(255,255,255,.16);
+  --headerbtn-bg-hover: rgba(255,255,255,.14);
+  --headerbtn-border-hover: rgba(255,255,255,.22);
+
+  --btn-ink: rgba(246,241,234,.92);
+  --btn-primary-bg: rgba(255,255,255,.90);
+  --btn-primary-bg-hover: rgba(255,255,255,.96);
+  --btn-primary-ink: rgba(0,0,0,.92);
+
+  --focus-ring: rgba(255,255,255,.22);
 }
 
 *{box-sizing:border-box}
@@ -70,6 +120,21 @@ img{max-width:100%;display:block}
     linear-gradient(
       to bottom,
       rgba(255,255,255,.45),
+      rgba(255,255,255,0)
+    );
+}
+
+/* Ajustement du “glow” en thème sombre */
+html[data-theme="dark"] .page::before{
+  background:
+    radial-gradient(
+      900px 600px at 50% -200px,
+      rgba(255, 215, 170, .12),
+      rgba(255, 215, 170, 0)
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255,255,255,.08),
       rgba(255,255,255,0)
     );
 }
@@ -171,8 +236,8 @@ img{max-width:100%;display:block}
   position:sticky;
   top:0;
   z-index:10;
-  background: rgba(246,241,234,.65);
-  border-bottom: 1px solid rgba(255,255,255,.55);
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--topbar-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 4px 14px rgba(0,0,0,.06);
@@ -182,7 +247,7 @@ img{max-width:100%;display:block}
   position:absolute;
   inset:0;
   pointer-events:none;
-  background: linear-gradient(180deg, rgba(255,255,255,.40), rgba(255, 255, 255, 0.152));
+  background: linear-gradient(180deg, var(--topbar-grad1), var(--topbar-grad2));
   opacity:.55;
 }
 .topbar .inner{
@@ -215,9 +280,9 @@ img{max-width:100%;display:block}
   letter-spacing:.1px;
   padding: 8px 10px;
   border-radius: 999px;
-  color: rgba(0,0,0,.78);
-  background: rgba(255,255,255,.22);
-  border: 1px solid rgba(255,255,255,.28);
+  color: var(--headerbtn-ink);
+  background: var(--headerbtn-bg);
+  border: 1px solid var(--headerbtn-border);
   box-shadow: 0 18px 50px rgba(0,0,0,.10);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -225,8 +290,8 @@ img{max-width:100%;display:block}
 }
 .back:hover{
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.30);
-  border-color: rgba(255,255,255,.36);
+  background: var(--headerbtn-bg-hover);
+  border-color: var(--headerbtn-border-hover);
   box-shadow: 0 22px 60px rgba(0,0,0,.12);
 }
 .back span{font-size:18px; line-height:1}
@@ -244,6 +309,44 @@ img{max-width:100%;display:block}
   max-width: 320px;
   display:block;
   opacity: .95;
+}
+
+/* ✅ Toggle thème dans le header */
+.theme-toggle{
+  width:44px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  color: var(--headerbtn-ink);
+  background: var(--headerbtn-bg);
+  border: 1px solid var(--headerbtn-border);
+  box-shadow: 0 18px 50px rgba(0,0,0,.10);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  cursor:pointer;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.theme-toggle:hover{
+  transform: translateY(var(--lift));
+  background: var(--headerbtn-bg-hover);
+  border-color: var(--headerbtn-border-hover);
+  box-shadow: 0 22px 60px rgba(0,0,0,.12);
+}
+.theme-toggle:focus-visible{
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.theme-toggle img{
+  width:18px;
+  height:18px;
+  opacity:.92;
+}
+
+@media (max-width: 740px){
+  .topbar .inner{ height: 76px; padding: 8px 0; }
+  .topbar-logo{height: 44px;}
 }
 
 /* -------------------- Page section + actions -------------------- */
@@ -275,7 +378,7 @@ img{max-width:100%;display:block}
   border-radius: 999px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  color: rgba(0,0,0,.82);
+  color: var(--btn-ink);
   font-weight: 560;
   font-size: 14px;
   letter-spacing:.1px;
@@ -300,15 +403,15 @@ img{max-width:100%;display:block}
   background: var(--glass-bg-active);
 }
 .btn.primary{
-  background: rgba(0,0,0,.70);
+  background: var(--btn-primary-bg);
   border: 1px solid rgba(255,255,255,.14);
-  color: rgba(255,255,255,.92);
+  color: var(--btn-primary-ink);
   box-shadow: 0 18px 55px rgba(0,0,0,.26);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 .btn.primary:hover{
-  background: rgba(0,0,0,.78);
+  background: var(--btn-primary-bg-hover);
   box-shadow: 0 22px 70px rgba(0,0,0,.30);
 }
 .btn:disabled{
@@ -321,15 +424,13 @@ img{max-width:100%;display:block}
 .btn:focus-visible,
 .iconbtn:focus-visible,
 .card-btn:focus-visible{
-  outline: 3px solid rgba(0,0,0,.22);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
 @media (max-width: 740px){
   .actions{margin-top: 10px; justify-content:flex-start; flex-wrap:wrap}
   .h1{font-size: 34px}
-  .topbar .inner{ height: 76px; padding: 8px 0; }
-  .topbar-logo{height: 44px;}
 }
 
 /* -------------------- Grid / cards -------------------- */
@@ -404,7 +505,7 @@ img{max-width:100%;display:block}
   -webkit-tap-highlight-color: transparent;
 }
 .card-btn:focus{
-  outline: 2px solid rgba(0,0,0,.25);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
   border-radius: 18px;
 }
@@ -469,12 +570,18 @@ img{max-width:100%;display:block}
   letter-spacing: -0.2px;
 }
 
+/* ✅ section-title lisible en dark */
+html[data-theme="dark"] .section-title{ color: rgba(255,255,255,.92); }
+
 .section-title[contenteditable="true"]{
   padding: 6px 10px;
   border-radius: 12px;
 }
 .section-title[contenteditable="true"]:focus{
   box-shadow: 0 0 0 4px rgba(0,0,0,.08);
+}
+html[data-theme="dark"] .section-title[contenteditable="true"]:focus{
+  box-shadow: 0 0 0 4px rgba(255,255,255,.12);
 }
 
 .section-actions{
@@ -494,6 +601,8 @@ img{max-width:100%;display:block}
   box-shadow: 0 14px 40px rgba(0,0,0,.10);
   transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
+html[data-theme="dark"] .section-head .iconbtn{ color: rgba(255,255,255,.92); }
+
 .section-head .iconbtn:hover{
   transform: translateY(var(--lift));
   background: rgba(255,255,255,.16);
@@ -542,6 +651,10 @@ body.page.arranging .card-btn{
   background: rgba(0,0,0,.03);
   width: 100%;
   height: 260px;
+}
+html[data-theme="dark"] .drop-placeholder{
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.04);
 }
 
 /* -------------------- Modals -------------------- */
@@ -657,7 +770,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   align-items:center;
   justify-content:center;
 }
-/* IMPORTANT: photos entières -> on évite width/height:100% */
 #slideshow.modal img{
   max-width: 100%;
   max-height: 100%;
@@ -666,15 +778,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
-/* Slideshow buttons sizing (tous les boutons du bandeau) */
 #togglePlay,
 #shuffleBtn,
 #toggleFullscreen{
   width: 44px;
   height: 44px;
 }
-
-/* Taille des icônes dans ces boutons */
 #togglePlay .icon-img,
 #shuffleBtn .icon-img,
 #toggleFullscreen .icon-img{
@@ -684,15 +793,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain !important;
 }
 
-
-/* Shuffle icon size + active state */
-#shuffleBtn{ width: 44px; height: 44px; }
-#shuffleBtn .icon-img{
-  width: 18px !important;
-  height: 18px !important;
-  display: block !important;
-  object-fit: contain !important;
-}
 #shuffleBtn.active,
 #shuffleBtn[aria-pressed="true"]{
   background: rgba(255,255,255,.18);
@@ -747,8 +847,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
 }
 
-
-
 /* -------------------- Viewer: vrai fullscreen (API) -------------------- */
 
 #photoViewer.fullscreen.modal{
@@ -770,7 +868,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display:none;
 }
 
-/* Contenu prend tout l’écran */
 #photoViewer.fullscreen .viewer-wrap{
   height: 100vh;
   background: #000;
@@ -780,7 +877,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   justify-content:center;
 }
 
-/* Bandeau controls : caché par défaut, visible via .show-controls */
 #photoViewer.fullscreen .top{
   position: fixed;
   top: 0;
@@ -802,7 +898,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   pointer-events: auto;
 }
 
-/* Bouton fullscreen: même sizing que les autres du viewer */
 #toggleViewerFullscreen{
   width: 44px;
   height: 44px;
@@ -814,7 +909,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain !important;
 }
 
-
 /* -------------------- Slideshow: vrai fullscreen (API) -------------------- */
 
 #slideshow.fullscreen.modal{
@@ -822,24 +916,18 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-
-/* En fullscreen : on supprime le “glass” pour un noir pur */
 #slideshow.fullscreen .box{
   background: #000;
   box-shadow: none;
   border: none;
 }
-#slideshow.fullscreen .box::before{
-  display:none;
-}
+#slideshow.fullscreen .box::before{ display:none; }
 
-/* L'image doit occuper toute la hauteur, bandeau en overlay */
 #slideshow.fullscreen .imgwrap{
   height: 100vh;
-  background: #000; /* fond derrière la photo = noir complet */
+  background: #000;
 }
 
-/* Bandeau controls : caché par défaut, visible via .show-controls */
 #slideshow.fullscreen .top{
   position: fixed;
   top: 0;
@@ -860,8 +948,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   transform: translateY(0);
   pointer-events: auto;
 }
-
-
 
 /* -------------------- Upload modal -------------------- */
 
@@ -1005,14 +1091,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 /* -------------------- Slideshow picker (choisir le diaporama) -------------------- */
 
-/* Fond légèrement plus clair (un poil plus blanc) */
 #slideshowPicker.modal{
   background: rgba(0,0,0,.44);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Panel (même signature que les autres) */
 #slideshowPicker .box{
   width: min(520px, calc(100vw - 32px));
   border-radius: 18px;
@@ -1034,21 +1118,18 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   mask: radial-gradient(70% 60% at 25% 15%, #000 0%, transparent 55%);
 }
 
-/* Header */
 #slideshowPicker .top{
   padding: 14px 16px;
   background: rgba(255,255,255,.08);
   border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
-/* Body / actions */
 #slideshowPicker .picker-body{ padding: 14px 16px 0 16px; }
 #slideshowPicker .picker-actions{
   margin: 0;
   padding: 14px 16px 16px;
 }
 
-/* Boutons */
 #slideshowPicker .picker-actions .btn{
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
@@ -1069,7 +1150,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background: rgba(255,255,255,.92);
 }
 
-/* Liste */
 #slideshowPicker .show-picker-list,
 #slideshowPicker #showPickerList{
   display:flex;
@@ -1078,7 +1158,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   padding: 0 16px 16px;
 }
 
-/* Ligne */
 #slideshowPicker .show-picker-item{
   display:flex;
   align-items:center;
@@ -1103,7 +1182,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 55px rgba(0,0,0,.22);
 }
 
-/* Texte */
 #slideshowPicker .show-picker-item .label{ display:flex; flex-direction:column; gap:3px; min-width:0; }
 #slideshowPicker .show-picker-item .label strong{
   font-size: 15px;
@@ -1116,7 +1194,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   color: rgba(255,255,255,.72);
 }
 
-/* Checkbox redesign SANS ✓ : cadre arrondi + remplissage arrondi parfaitement aligné */
 #slideshowPicker .show-picker-item input[type="checkbox"]{
   -webkit-appearance: none;
   appearance: none;
@@ -1136,8 +1213,8 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 #slideshowPicker .show-picker-item input[type="checkbox"]::after{
   content:"";
   position:absolute;
-  inset: 4px;                 /* <- garantit la forme identique (inset régulier) */
-  border-radius: 7px;         /* <- (10px - 3px) approx : visuellement pile aligné */
+  inset: 4px;
+  border-radius: 7px;
   background: transparent;
   transition: background .12s ease, transform .12s ease, box-shadow .12s ease;
   transform: scale(.96);
@@ -1161,7 +1238,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   outline-offset: 3px;
 }
 
-/* Surlignage de la ligne (si ton JS ajoute .selected sur l'item) */
 #slideshowPicker .show-picker-item.selected{
   background: rgba(255,255,255,.17);
   border-color: rgba(255,255,255,.30);
@@ -1178,7 +1254,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   opacity: .55;
 }
 
-/* Mobile */
 @media (max-width: 740px){
   #slideshowPicker .picker-actions{ justify-content:flex-start; flex-wrap:wrap; }
 }
@@ -1260,9 +1335,13 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   color: rgba(0,0,0,.78);
   transition: background .15s ease, transform .15s ease;
 }
+html[data-theme="dark"] .seg-btn{ color: rgba(255,255,255,.92); }
+
 .seg-btn:hover{ background: rgba(255,255,255,.16); transform: translateY(var(--lift)); }
 .seg-btn:active{ transform: translateY(0px); background: rgba(255,255,255,.20); }
 .seg-btn.active{ background: rgba(255,255,255,.22); color: rgba(0,0,0,.86); }
+html[data-theme="dark"] .seg-btn.active{ color: rgba(255,255,255,.96); }
+
 .seg-btn.tiny{ width: 44px; font-size: 16px; }
 
 .seg-divider{
@@ -1274,6 +1353,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   border-radius: 99px;
   align-self:center;
 }
+html[data-theme="dark"] .seg-divider{ background: rgba(255,255,255,.14); }
 
 .control-row{
   display:flex;
@@ -1301,6 +1381,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 14px 40px rgba(0,0,0,.10);
+  color: var(--ink);
 }
 .mini-select{
   min-width: 170px;
@@ -1314,8 +1395,15 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
 }
+html[data-theme="dark"] .mini-select{
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255,255,255,.70) 50%),
+    linear-gradient(135deg, rgba(255,255,255,.70) 50%, transparent 50%);
+}
+
 .mini-select--compact{ min-width: 92px; width: 92px; padding-right: 30px; }
 .mini-number{ width: 86px; }
+
 .mini-color{
   width: 44px;
   padding: 0;
@@ -1332,6 +1420,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .mini-color:focus{
   outline: none;
   box-shadow: 0 0 0 4px rgba(0,0,0,.08);
+}
+html[data-theme="dark"] .mini-select:focus,
+html[data-theme="dark"] .mini-number:focus,
+html[data-theme="dark"] .mini-color:focus{
+  box-shadow: 0 0 0 4px rgba(255,255,255,.12);
 }
 
 .export-wrap{ display:inline-flex; align-items:center; gap:10px; }
@@ -1352,6 +1445,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 14px 40px rgba(0,0,0,.10);
 }
+html[data-theme="dark"] .hint{ color: rgba(255,255,255,.78); }
 
 /* -------------------- Canvas editor -------------------- */
 
@@ -1367,6 +1461,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display:block;
   background:#fff;
   touch-action: none;
+}
+html[data-theme="dark"] .canvas-wrap.editor,
+html[data-theme="dark"] #guestCanvas{
+  background:#fff; /* on garde un canvas blanc pour écrire, même en dark */
 }
 
 .editor-shell{
@@ -1407,6 +1505,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   font: 500 16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  color: var(--ink);
 }
 
 .editor-actions{
@@ -1427,7 +1526,6 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   object-fit: contain;
   display: block;
 }
-
 
 .modal .iconbtn .icon-img,
 .modal .play-badge .icon-img{
@@ -1520,6 +1618,10 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   border: 2px dashed rgba(0,0,0,.18);
   background: rgba(0,0,0,.03);
   min-height: 120px;
+}
+html[data-theme="dark"] .section-placeholder{
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.04);
 }
 
 .section-resize{ display:none !important; }
