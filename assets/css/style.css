@@ -1657,3 +1657,8 @@ body.page.arranging .section-move:active{ cursor: grabbing; }
   color:#fff;
 }
 .btn.danger:hover{ background: #d24646; }
+
+
+
+.viewer-wrap { overflow: hidden; }
+.imgwrap { overflow: hidden; }
