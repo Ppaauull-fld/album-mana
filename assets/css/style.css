@@ -1019,7 +1019,24 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 /* -------------------- Upload modal -------------------- */
 
-.upload-body{ padding: 14px; color: rgba(255,255,255,.90); }
+#uploadModal .box{
+  max-height: calc(100vh - 32px);
+  display:flex;
+  flex-direction:column;
+}
+
+#uploadModal .top{
+  flex: 0 0 auto;
+}
+
+.upload-body{
+  padding: 14px;
+  color: rgba(255,255,255,.90);
+  display:flex;
+  flex-direction:column;
+  gap: 12px;
+  min-height: 0;
+}
 .upload-title{ display:flex; flex-direction:column; gap:2px; }
 .upload-sub{ font-size:12px; color: rgba(255,255,255,.70); }
 
@@ -1027,6 +1044,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
+  overflow:auto;
+  min-height: 0;
+  max-height: min(56vh, 620px);
+  padding-right: 4px;
 }
 .upload-item{
   display:grid;
@@ -1096,15 +1117,21 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 .upload-progress{
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 0;
+  padding-top: 10px;
   border-top: 1px solid rgba(255,255,255,.12);
+  flex: 0 0 auto;
 }
 .upload-progress-row{ display:flex; align-items:center; gap:12px; }
 .upload-progress-row progress{ width:100%; height: 14px; }
 .upload-progress-text{ min-width: 70px; text-align:right; font-size: 12px; color: rgba(255,255,255,.78); }
 .upload-progress-detail{ margin-top: 8px; font-size: 12px; color: rgba(255,255,255,.78); }
-.upload-actions{ margin-top: 14px; display:flex; justify-content:flex-end; }
+.upload-actions{
+  margin-top: 0;
+  display:flex;
+  justify-content:flex-end;
+  flex: 0 0 auto;
+}
 
 /* -------------------- Picker (section picker + slideshow picker) -------------------- */
 
