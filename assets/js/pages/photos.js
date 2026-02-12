@@ -20,8 +20,12 @@ const PHOTOS_COL = "photos";
 const SECTIONS_COL = "photoSections";
 const UNASSIGNED = "__unassigned__";
 
-const LONG_PRESS_MS = 260;
-const DRAG_START_PX = 8;
+const IS_COARSE_POINTER =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
+const LONG_PRESS_MS = IS_COARSE_POINTER ? 320 : 260;
+const DRAG_START_PX = IS_COARSE_POINTER ? 10 : 8;
 
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("photoInput");

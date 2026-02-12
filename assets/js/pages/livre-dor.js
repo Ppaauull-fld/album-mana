@@ -74,6 +74,9 @@ let drag = null;
 const HANDLE_RADIUS = 14;
 const MIN_W = 60;
 const MIN_H = 40;
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_MAX_DIST = 22;
+let lastTextTap = { time: 0, x: 0, y: 0, id: null };
 
 // drawing local (non publié)
 let isDrawing = false;
@@ -906,6 +909,39 @@ async function onPointerMove(e) {
   redraw();
 }
 
+function openTextEditorForItem(it) {
+  if (!it || it.kind !== "text") return;
+  selectedId = it.id;
+  redraw();
+
+  const hp = worldToScreen({ x: it.x, y: it.y });
+  showEditor(hp.x, hp.y, it.text || "", {
+    mode: "edit",
+    id: it.id,
+    worldX: it.x,
+    worldY: it.y,
+  });
+}
+
+function tryOpenTextEditorOnTouchDoubleTap(it, e) {
+  if (!it || it.kind !== "text") return;
+
+  const now = Date.now();
+  const sp = posFromEvent(e);
+  const dt = now - Number(lastTextTap.time || 0);
+  const dx = sp.x - Number(lastTextTap.x || 0);
+  const dy = sp.y - Number(lastTextTap.y || 0);
+  const sameItem = lastTextTap.id === it.id;
+
+  if (sameItem && dt <= DOUBLE_TAP_MS && Math.hypot(dx, dy) <= DOUBLE_TAP_MAX_DIST) {
+    lastTextTap = { time: 0, x: 0, y: 0, id: null };
+    openTextEditorForItem(it);
+    return;
+  }
+
+  lastTextTap = { time: now, x: sp.x, y: sp.y, id: it.id };
+}
+
 async function onPointerUp(e) {
   if (!canvas) return;
   if (editorOpen()) return;
@@ -939,7 +975,12 @@ async function onPointerUp(e) {
   if (!it) return;
 
   const changed = it.x !== orig.x || it.y !== orig.y || it.w !== orig.w || it.h !== orig.h;
-  if (!changed) return;
+  if (!changed) {
+    if ((e.pointerType || "") === "touch") {
+      tryOpenTextEditorOnTouchDoubleTap(it, e);
+    }
+    return;
+  }
 
   try {
     const ref = doc(db, "guestbook", it.id);
@@ -976,17 +1017,7 @@ canvas?.addEventListener("dblclick", (e) => {
 
   const hit = itemHit(wp.x, wp.y);
   if (!hit || hit.kind !== "text") return;
-
-  selectedId = hit.id;
-  redraw();
-
-  const hp = worldToScreen({ x: hit.x, y: hit.y });
-  showEditor(hp.x, hp.y, hit.text || "", {
-    mode: "edit",
-    id: hit.id,
-    worldX: hit.x,
-    worldY: hit.y,
-  });
+  openTextEditorForItem(hit);
 });
 
 // Pan au scroll (trackpad / molette) => seulement en mode move
