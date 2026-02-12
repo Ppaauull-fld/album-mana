@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadVideo } from "../cloudinary.js";
+import { setBtnLoading } from "../ui.js";
 
 import {
   collection,
@@ -217,11 +218,7 @@ function setUploadingState(isUploading) {
   uploadCancelBtn.disabled = isUploading;
   uploadStartBtn.disabled = isUploading || pending.length === 0;
 
-  if (isUploading) {
-    uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
-  } else {
-    uploadStartBtn.textContent = "Envoyer";
-  }
+  setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
 }
 
 function fmtCount() {

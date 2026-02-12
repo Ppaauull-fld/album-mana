@@ -956,8 +956,6 @@ await updateDoc(ref, after);
 
 undoStack.push({ type: "update", id: it.id, before, after });
 redoStack.length = 0;
-
-    redoStack.length = 0;
   } catch (e2) {
     alert("Impossible de déplacer/redimensionner : " + (e2?.message || e2));
   }
@@ -1119,7 +1117,6 @@ publishBtn?.addEventListener("click", async () => {
     alert("Erreur publication : " + (e?.message || e));
   } finally {
     setBtnLoading(publishBtn, false);
-    publishBtn.textContent = "Publier";
   }
 });
 

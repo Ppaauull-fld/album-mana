@@ -2067,11 +2067,6 @@ function setUploadingState(isUploading) {
 
   if (uploadStartBtn) {
     setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
-    if (isUploading) {
-      uploadStartBtn.innerHTML = `<span class="spinner" aria-hidden="true"></span>Envoi…`;
-    } else {
-      uploadStartBtn.textContent = "Envoyer";
-    }
   }
 }
 
