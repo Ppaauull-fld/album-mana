@@ -28,6 +28,7 @@ const input = document.getElementById("videoInput");
 const addBtn = document.getElementById("addVideoBtn");
 const addSectionBtn = document.getElementById("addSectionBtn");
 const arrangeBtn = document.getElementById("arrangeBtn");
+const actionsBar = document.querySelector(".actions");
 
 // Upload UI
 const uploadModal = document.getElementById("uploadModal");
@@ -52,6 +53,12 @@ let pending = []; // [{file, url}]
 let currentViewed = null;
 
 let arranging = false;
+let selectedItemIds = new Set();
+let bulkDeleteBtn = null;
+
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
+}
 
 /* =========================
    Modal helpers (existing modals)
@@ -322,7 +329,10 @@ function setArranging(on) {
     cancelDrag();
     cancelSectionDrag();
     cancelSectionResize();
+    setSelectedIds([]);
   }
+
+  syncBulkDeleteBtn();
 }
 
 arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
@@ -473,6 +483,9 @@ function renderItemCard(it) {
   card.className = "card card-btn";
   card.title = "Lire";
   card.dataset.id = it.id;
+  const isSelected = selectedItemIds.has(it.id);
+  card.classList.toggle("is-selected", isSelected);
+  card.setAttribute("aria-pressed", isSelected ? "true" : "false");
 
   const img = document.createElement("img");
   img.className = "thumb";
@@ -488,6 +501,99 @@ function renderItemCard(it) {
   });
 
   return card;
+}
+
+function selectedCount() {
+  return selectedItemIds.size;
+}
+
+function ensureBulkDeleteBtn() {
+  if (bulkDeleteBtn) return bulkDeleteBtn;
+  if (!actionsBar) return null;
+
+  bulkDeleteBtn = document.createElement("button");
+  bulkDeleteBtn.type = "button";
+  bulkDeleteBtn.className = "btn danger";
+  bulkDeleteBtn.style.display = "none";
+  bulkDeleteBtn.addEventListener("click", deleteSelectedItems);
+  actionsBar.appendChild(bulkDeleteBtn);
+  return bulkDeleteBtn;
+}
+
+function syncBulkDeleteBtn() {
+  const btn = ensureBulkDeleteBtn();
+  if (!btn) return;
+  const n = selectedCount();
+  const visible = arranging && n > 0;
+  btn.style.display = visible ? "inline-flex" : "none";
+  btn.disabled = !visible;
+  btn.textContent = n <= 1 ? "Supprimer la selection" : `Supprimer ${n} videos`;
+}
+
+function syncSelectedCardsUi() {
+  sectionsWrap?.querySelectorAll(".card-btn[data-id]").forEach((el) => {
+    const id = el.dataset.id;
+    const selected = !!id && selectedItemIds.has(id);
+    el.classList.toggle("is-selected", selected);
+    el.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+}
+
+function setSelectedIds(ids) {
+  selectedItemIds = new Set(ids || []);
+  syncSelectedCardsUi();
+  syncBulkDeleteBtn();
+}
+
+function toggleItemSelection(id) {
+  if (!id) return;
+  const next = new Set(selectedItemIds);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  setSelectedIds(next);
+}
+
+function pruneSelectionAgainstData() {
+  const available = new Set(items.map((it) => it.id));
+  const next = new Set();
+  for (const id of selectedItemIds) {
+    if (available.has(id)) next.add(id);
+  }
+  selectedItemIds = next;
+}
+
+async function deleteSelectedItems() {
+  const ids = [...selectedItemIds];
+  if (!ids.length) return;
+
+  const n = ids.length;
+  const ok = await uiConfirm(
+    n === 1
+      ? "Supprimer 1 video selectionnee de la galerie ?"
+      : `Supprimer ${n} videos selectionnees de la galerie ?`,
+    {
+      title: "Supprimer des videos",
+      danger: true,
+      okText: n === 1 ? "Supprimer la video" : `Supprimer ${n} videos`,
+      cancelText: "Annuler",
+    }
+  );
+  if (!ok) return;
+
+  const btn = ensureBulkDeleteBtn();
+  if (btn) btn.disabled = true;
+
+  try {
+    const batch = writeBatch(db);
+    for (const id of ids) batch.delete(doc(db, ITEMS_COL, id));
+    await batch.commit();
+    setSelectedIds([]);
+  } catch (e) {
+    console.error(e);
+    alert("Suppression multiple impossible.");
+  } finally {
+    syncBulkDeleteBtn();
+  }
 }
 
 function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
@@ -592,6 +698,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
 
 function renderAll() {
   if (!sectionsWrap) return;
+  pruneSelectionAgainstData();
 
   const grouped = groupItems();
   sectionsWrap.innerHTML = "";
@@ -607,6 +714,9 @@ function renderAll() {
       renderSectionCard({ id: s.id, title: s.title || "Section", editable: true, hideTitle: false }, grouped.get(s.id) || [])
     );
   }
+
+  syncSelectedCardsUi();
+  syncBulkDeleteBtn();
 }
 
 /* =========================
@@ -692,7 +802,7 @@ function startAutoScroll() {
         if (drag.placeholderEl.parentElement !== grid) {
           grid.appendChild(drag.placeholderEl);
         }
-        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
       }
     }
 
@@ -713,8 +823,11 @@ function cancelDrag() {
   if (drag.ghostEl) drag.ghostEl.remove();
   if (drag.placeholderEl) drag.placeholderEl.remove();
 
-  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
-  if (original) original.classList.remove("dragging");
+  const draggedIds = [...(drag.draggedIds || [drag.id])];
+  for (const id of draggedIds) {
+    const original = sectionsWrap?.querySelector(`.card-btn[data-id="${id}"]`);
+    if (original) original.classList.remove("dragging");
+  }
 
   document.body.classList.remove("drag-active");
   drag = null;
@@ -729,7 +842,7 @@ function createPlaceholderFromCard(cardEl) {
   return ph;
 }
 
-function createGhostFromCard(cardEl) {
+function createGhostFromCard(cardEl, count = 1) {
   const rect = cardEl.getBoundingClientRect();
   const ghost = cardEl.cloneNode(true);
   ghost.classList.add("drag-ghost");
@@ -743,6 +856,14 @@ function createGhostFromCard(cardEl) {
   ghost.style.transform = "scale(0.94)";
   ghost.style.boxShadow = "0 24px 70px rgba(0,0,0,.22)";
   ghost.style.borderRadius = "18px";
+
+  if (count > 1) {
+    const badge = document.createElement("div");
+    badge.className = "drag-count-badge";
+    badge.textContent = `${count}`;
+    ghost.appendChild(badge);
+  }
+
   return ghost;
 }
 
@@ -751,9 +872,9 @@ function gridFromPoint(x, y) {
   return el?.closest?.(".section-grid") || null;
 }
 
-function placePlaceholder(gridEl, placeholderEl, x, y, draggedId) {
+function placePlaceholder(gridEl, placeholderEl, x, y, draggedIdsSet) {
   const cards = [...gridEl.querySelectorAll(".card-btn")].filter(
-    (c) => c.dataset.id !== draggedId && !c.classList.contains("dragging")
+    (c) => !draggedIdsSet?.has(c.dataset.id) && !c.classList.contains("dragging")
   );
 
   if (!cards.length) {
@@ -823,6 +944,9 @@ function onPointerDown(e) {
     placeholderEl: null,
     offsetX: e.clientX - rect.left,
     offsetY: e.clientY - rect.top,
+    moved: false,
+    draggedIds: [],
+    draggedIdsSet: new Set(),
   };
 
   try {
@@ -841,6 +965,16 @@ function startDrag(cardEl) {
   if (!drag || drag.started) return;
 
   drag.started = true;
+  const selectedIdsForDrag =
+    selectedItemIds.has(drag.id) && selectedItemIds.size > 0
+      ? [...selectedItemIds]
+      : [drag.id];
+  drag.draggedIds = [...new Set(selectedIdsForDrag)];
+  drag.draggedIdsSet = new Set(drag.draggedIds);
+
+  if (!selectedItemIds.has(drag.id) || selectedItemIds.size <= 1) {
+    setSelectedIds(drag.draggedIds);
+  }
 
   if (drag.pressTimer) {
     clearTimeout(drag.pressTimer);
@@ -848,17 +982,20 @@ function startDrag(cardEl) {
   }
 
   drag.placeholderEl = createPlaceholderFromCard(cardEl);
-  drag.ghostEl = createGhostFromCard(cardEl);
+  drag.ghostEl = createGhostFromCard(cardEl, drag.draggedIds.length);
 
   document.body.appendChild(drag.ghostEl);
 
   const beforeRects = getRects(drag.srcGrid);
-  cardEl.classList.add("dragging");
+  for (const id of drag.draggedIds) {
+    const el = sectionsWrap?.querySelector(`.card-btn[data-id="${id}"]`);
+    if (el) el.classList.add("dragging");
+  }
 
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
   animateFLIP(drag.srcGrid, beforeRects);
 
-  placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+  placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
 
   document.body.classList.add("drag-active");
   startAutoScroll();
@@ -870,6 +1007,9 @@ function onPointerMove(e) {
 
   drag.lastX = e.clientX;
   drag.lastY = e.clientY;
+  if (Math.hypot(drag.lastX - drag.startX, drag.lastY - drag.startY) > 4) {
+    drag.moved = true;
+  }
 
   if (!drag.started && drag.pointerType === "touch") {
     const dx = drag.lastX - drag.startX;
@@ -913,7 +1053,7 @@ function onPointerMove(e) {
     animateFLIP(grid, beforeNew);
   }
 
-  placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.id);
+  placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
 }
 
 async function finalizeDrop(state) {
@@ -932,41 +1072,35 @@ async function finalizeDrop(state) {
     if (child.classList?.contains("card-btn") && !child.classList.contains("dragging")) dropIndex++;
   }
 
+  const movedIds = [...(state.draggedIds || [state.id])];
+  const movedSet = new Set(movedIds);
+
   const grouped = groupItems();
-  const targetList = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
+  const targetList = (grouped.get(targetSectionId) || []).filter((p) => !movedSet.has(p.id));
+  const movedList = items
+    .filter((it) => movedSet.has(it.id))
+    .sort((a, b) => {
+      const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
+      const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
+      return ao - bo;
+    });
 
-  const prev = dropIndex > 0 ? targetList[dropIndex - 1] : null;
-  const next = dropIndex < targetList.length ? targetList[dropIndex] : null;
+  const safeIndex = clamp(dropIndex, 0, targetList.length);
+  const finalList = [
+    ...targetList.slice(0, safeIndex),
+    ...movedList,
+    ...targetList.slice(safeIndex),
+  ];
 
-  const prevOrder = prev && typeof prev.order === "number" ? prev.order : prev?.createdAt ?? 0;
-  const nextOrder = next && typeof next.order === "number" ? next.order : next?.createdAt ?? prevOrder + 1000;
-
-  let newOrder;
-  if (!prev && !next) newOrder = Date.now();
-  else if (!prev && next) newOrder = nextOrder - 1000;
-  else if (prev && !next) newOrder = prevOrder + 1000;
-  else newOrder = (prevOrder + nextOrder) / 2;
-
-  if (prev && next && Math.abs(nextOrder - prevOrder) < 0.000001) {
-    try {
-      const renorm = (grouped.get(targetSectionId) || []).filter((p) => p.id !== state.id);
-      renorm.splice(dropIndex, 0, { id: state.id, createdAt: Date.now(), order: 0 });
-
-      const base = Date.now();
-      for (let i = 0; i < renorm.length; i++) {
-        const pid = renorm[i].id;
-        const ord = base + i * 1000;
-        await updateDoc(doc(db, ITEMS_COL, pid), { order: ord });
-      }
-
-      await updateDoc(doc(db, ITEMS_COL, state.id), { sectionId: newSectionValue });
-      return;
-    } catch (e) {
-      console.error("Renormalisation order failed", e);
-    }
+  const base = Date.now();
+  const batch = writeBatch(db);
+  for (let i = 0; i < finalList.length; i++) {
+    batch.update(doc(db, ITEMS_COL, finalList[i].id), {
+      sectionId: newSectionValue,
+      order: base + i * 1000,
+    });
   }
-
-  await updateDoc(doc(db, ITEMS_COL, state.id), { sectionId: newSectionValue, order: newOrder });
+  await batch.commit();
 }
 
 function onPointerUp(e) {
@@ -974,9 +1108,15 @@ function onPointerUp(e) {
   if (e.pointerId !== drag.pointerId) return;
 
   const wasStarted = drag.started;
-  const state = { id: drag.id, started: drag.started, placeholderEl: drag.placeholderEl };
+  const state = {
+    id: drag.id,
+    started: drag.started,
+    placeholderEl: drag.placeholderEl,
+    draggedIds: drag.draggedIds,
+    moved: drag.moved,
+  };
 
-  const draggedId = drag.id;
+  const draggedIds = [...(drag.draggedIds || [drag.id])];
   const ghost = drag.ghostEl;
   const placeholder = drag.placeholderEl;
 
@@ -989,9 +1129,14 @@ function onPointerUp(e) {
 
   if (ghost) ghost.remove();
 
-  const original = sectionsWrap?.querySelector(`.card-btn[data-id="${draggedId}"]`);
-  if (original) original.classList.remove("dragging");
+  for (const id of draggedIds) {
+    const original = sectionsWrap?.querySelector(`.card-btn[data-id="${id}"]`);
+    if (original) original.classList.remove("dragging");
+  }
 
+  if (!wasStarted && !state.moved) {
+    toggleItemSelection(state.id);
+  }
   if (!wasStarted) return;
 
   if (placeholder && placeholder.parentElement) {
