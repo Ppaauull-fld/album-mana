@@ -133,11 +133,15 @@ function cycleGridCols() {
   applyGridCols(next);
 }
 
+function getDefaultGridCols() {
+  return window.matchMedia("(max-width: 740px)").matches ? 2 : 4;
+}
+
 function initGridLayout() {
   if (gridLayoutInitialized || !gridLayoutBtn) return;
   gridLayoutInitialized = true;
 
-  applyGridCols(2);
+  applyGridCols(getDefaultGridCols());
 
   gridLayoutBtn.addEventListener("click", (e) => {
     e.preventDefault();
