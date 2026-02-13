@@ -51,6 +51,45 @@
         <div class="guestbar-grid">
           <!-- LEFT : outils -->
           <div class="gb-left">
+            <div class="tool-picker-mobile" id="toolPickerMobile">
+              <button
+                id="toolPickerBtn"
+                class="btn tool-picker-btn"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-label="Choisir un outil"
+              >
+                <img
+                  id="toolPickerCurrentIcon"
+                  class="icon-img"
+                  src="../assets/img/icons/cursor.svg"
+                  alt=""
+                />
+                <span id="toolPickerCurrentLabel">Curseur</span>
+                <span class="tool-picker-caret" aria-hidden="true">▾</span>
+              </button>
+
+              <div id="toolPickerMenu" class="tool-picker-menu" role="menu" hidden>
+                <button class="tool-picker-option" type="button" data-mode="cursor" role="menuitem">
+                  <img class="icon-img" src="../assets/img/icons/cursor.svg" alt="" />
+                  Curseur
+                </button>
+                <button class="tool-picker-option" type="button" data-mode="move" role="menuitem">
+                  <img class="icon-img" src="../assets/img/icons/move.svg" alt="" />
+                  Déplacement
+                </button>
+                <button class="tool-picker-option" type="button" data-mode="text" role="menuitem">
+                  <img class="icon-img" src="../assets/img/icons/text.svg" alt="" />
+                  Texte
+                </button>
+                <button class="tool-picker-option" type="button" data-mode="draw" role="menuitem">
+                  <img class="icon-img" src="../assets/img/icons/pencil.svg" alt="" />
+                  Dessin
+                </button>
+              </div>
+            </div>
+
             <div class="segmented" role="tablist" aria-label="Outil">
               <button id="toolCursor" class="seg-btn active" type="button" role="tab" aria-selected="true" title="Curseur">
                 <img class="icon-img" src="../assets/img/icons/cursor.svg" alt="" />

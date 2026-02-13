@@ -25,6 +25,10 @@ const toolCursorBtn = document.getElementById("toolCursor");
 const toolMoveBtn = document.getElementById("toolMove");
 const toolTextBtn = document.getElementById("toolText");
 const toolDrawBtn = document.getElementById("toolDraw");
+const toolPickerBtn = document.getElementById("toolPickerBtn");
+const toolPickerMenu = document.getElementById("toolPickerMenu");
+const toolPickerCurrentIcon = document.getElementById("toolPickerCurrentIcon");
+const toolPickerCurrentLabel = document.getElementById("toolPickerCurrentLabel");
 
 const textControls = document.getElementById("textControls");
 const drawControls = document.getElementById("drawControls");
@@ -67,6 +71,12 @@ const editorCancel = document.getElementById("editorCancel");
 let mode = "cursor"; // cursor | move | text | draw
 let items = [];
 const imageCache = new Map();
+const TOOL_META = {
+  cursor: { label: "Curseur", icon: "../assets/img/icons/cursor.svg" },
+  move: { label: "Deplacement", icon: "../assets/img/icons/move.svg" },
+  text: { label: "Texte", icon: "../assets/img/icons/text.svg" },
+  draw: { label: "Dessin", icon: "../assets/img/icons/pencil.svg" },
+};
 
 let selectedId = null;
 let drag = null;
@@ -127,6 +137,33 @@ function getSelectedItem() {
 }
 function getCanvasCssRect() {
   return canvas?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, top: 0 };
+}
+
+function closeToolPicker() {
+  if (!toolPickerMenu || !toolPickerBtn) return;
+  toolPickerMenu.hidden = true;
+  toolPickerBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleToolPicker() {
+  if (!toolPickerMenu || !toolPickerBtn) return;
+  const willOpen = !!toolPickerMenu.hidden;
+  toolPickerMenu.hidden = !willOpen;
+  toolPickerBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+}
+
+function updateToolPickerUi(nextMode) {
+  if (!toolPickerMenu) return;
+  const meta = TOOL_META[nextMode] || TOOL_META.cursor;
+  if (toolPickerCurrentIcon) toolPickerCurrentIcon.src = meta.icon;
+  if (toolPickerCurrentLabel) toolPickerCurrentLabel.textContent = meta.label;
+
+  const options = [...toolPickerMenu.querySelectorAll(".tool-picker-option[data-mode]")];
+  for (const option of options) {
+    const isActive = option.getAttribute("data-mode") === nextMode;
+    option.classList.toggle("active", isActive);
+    option.setAttribute("aria-checked", isActive ? "true" : "false");
+  }
 }
 
 /* =========================
@@ -222,6 +259,8 @@ function setMode(next) {
   toolMoveBtn?.setAttribute("aria-selected", mode === "move" ? "true" : "false");
   toolTextBtn?.setAttribute("aria-selected", mode === "text" ? "true" : "false");
   toolDrawBtn?.setAttribute("aria-selected", mode === "draw" ? "true" : "false");
+  updateToolPickerUi(mode);
+  closeToolPicker();
 
   if (textControls) textControls.style.display = mode === "text" ? "" : "none";
   if (drawControls) drawControls.style.display = mode === "draw" ? "" : "none";
@@ -1452,11 +1491,24 @@ toolCursorBtn?.addEventListener("click", () => setMode("cursor"));
 toolMoveBtn?.addEventListener("click", () => setMode("move"));
 toolTextBtn?.addEventListener("click", () => setMode("text"));
 toolDrawBtn?.addEventListener("click", () => setMode("draw"));
+toolPickerBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleToolPicker();
+});
+
+toolPickerMenu?.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.(".tool-picker-option[data-mode]");
+  if (!btn) return;
+  const picked = btn.getAttribute("data-mode");
+  if (!picked) return;
+  setMode(picked);
+});
 
 /* =========================
    Keyboard (Ctrl+Z / Ctrl+Shift+Z)
    ========================= */
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeToolPicker();
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1471,6 +1523,12 @@ document.addEventListener("keydown", (e) => {
     if (e.shiftKey) redo();
     else undo();
   }
+});
+
+document.addEventListener("click", (e) => {
+  if (!toolPickerMenu || toolPickerMenu.hidden) return;
+  if (e.target?.closest?.("#toolPickerMobile")) return;
+  closeToolPicker();
 });
 
 /* =========================
