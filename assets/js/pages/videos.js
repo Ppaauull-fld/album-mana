@@ -32,6 +32,9 @@ const input = document.getElementById("videoInput");
 const addBtn = document.getElementById("addVideoBtn");
 const addSectionBtn = document.getElementById("addSectionBtn");
 const arrangeBtn = document.getElementById("arrangeBtn");
+const gridLayoutBtn = document.getElementById("gridLayoutBtn");
+const gridLayoutLabel = document.getElementById("gridLayoutLabel");
+const gridLayoutMenu = document.getElementById("gridLayoutMenu");
 const actionsBar = document.querySelector(".actions");
 
 // Upload UI
@@ -59,9 +62,77 @@ let currentViewed = null;
 let arranging = false;
 let selectedItemIds = new Set();
 let bulkDeleteBtn = null;
+let currentGridCols = 2;
+const GRID_LAYOUT_KEY = "videos.gridCols";
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function getGridButtons() {
+  return [...(gridLayoutMenu?.querySelectorAll("[data-grid-cols]") || [])];
+}
+
+function closeGridMenu() {
+  if (!gridLayoutMenu || !gridLayoutBtn) return;
+  gridLayoutMenu.hidden = true;
+  gridLayoutBtn.setAttribute("aria-expanded", "false");
+}
+
+function updateGridMenuUI() {
+  if (gridLayoutLabel) gridLayoutLabel.textContent = `Grille ${currentGridCols}`;
+  getGridButtons().forEach((btn) => {
+    const val = Number(btn.getAttribute("data-grid-cols") || 0);
+    const active = val === currentGridCols;
+    btn.setAttribute("aria-checked", active ? "true" : "false");
+  });
+}
+
+function applyGridCols(next, { persist = true } = {}) {
+  const cols = clamp(Number(next) || 2, 1, 4);
+  currentGridCols = cols;
+  document.body?.setAttribute("data-grid-cols", String(cols));
+  updateGridMenuUI();
+  if (persist) {
+    try {
+      localStorage.setItem(GRID_LAYOUT_KEY, String(cols));
+    } catch {}
+  }
+}
+
+function initGridLayout() {
+  if (!gridLayoutBtn || !gridLayoutMenu) return;
+
+  const fallback = window.innerWidth <= 740 ? 2 : 4;
+  let saved = fallback;
+  try {
+    saved = Number(localStorage.getItem(GRID_LAYOUT_KEY) || fallback);
+  } catch {}
+  applyGridCols(saved, { persist: false });
+
+  gridLayoutBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = gridLayoutMenu.hidden;
+    gridLayoutMenu.hidden = !willOpen;
+    gridLayoutBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  });
+
+  getGridButtons().forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const cols = Number(btn.getAttribute("data-grid-cols") || 0);
+      applyGridCols(cols, { persist: true });
+      closeGridMenu();
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!gridLayoutMenu.hidden && !e.target?.closest?.(".grid-layout")) closeGridMenu();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeGridMenu();
+  });
 }
 
 /* =========================
@@ -225,9 +296,11 @@ function setUploadingState(isUploading) {
   addBtn.disabled = isUploading;
   addSectionBtn && (addSectionBtn.disabled = isUploading);
   arrangeBtn && (arrangeBtn.disabled = isUploading);
+  gridLayoutBtn && (gridLayoutBtn.disabled = isUploading);
 
   uploadCancelBtn.disabled = isUploading;
   uploadStartBtn.disabled = isUploading || pending.length === 0;
+  if (isUploading) closeGridMenu();
 
   setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
 }
@@ -1690,6 +1763,7 @@ document.addEventListener("keydown", (e) => {
    ========================= */
 async function main() {
   await ensureAnonAuth();
+  initGridLayout();
 
   onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
     sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
