@@ -1523,12 +1523,16 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 .tool-picker-mobile{
   display: none;
   position: relative;
+  width: 100%;
+  max-width: 220px;
 }
 
 .tool-picker-btn{
   min-height: 40px;
+  width: 100%;
   padding: 8px 12px;
   gap: 8px;
+  justify-content: flex-start;
 }
 
 .tool-picker-btn .icon-img{
@@ -1548,6 +1552,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   left: 0;
   z-index: 30;
   min-width: 176px;
+  width: 100%;
   padding: 8px;
   border-radius: 16px;
   border: 1px solid var(--glass-border);
@@ -2690,10 +2695,11 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .guestbar-grid{
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
     grid-template-areas:
-      "left right"
-      "mid mid";
+      "left"
+      "right"
+      "mid";
     gap: 8px;
     padding: 10px;
     align-items: start;
@@ -2707,11 +2713,17 @@ html[data-theme="dark"] .section-placeholder{
 
   .gb-right{
     grid-area: right;
-    justify-content: flex-end;
+    justify-content: flex-start;
     flex-wrap: nowrap;
     gap: 6px;
     min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .gb-right::-webkit-scrollbar{ display: none; }
+  .gb-right > *{ flex: 0 0 auto; }
 
   .gb-right .segmented{
     padding: 3px;
@@ -2720,10 +2732,23 @@ html[data-theme="dark"] .section-placeholder{
 
   .tool-picker-mobile{
     display: inline-flex !important;
+    width: 100%;
+    max-width: none;
   }
 
   .tool-picker-btn{
-    min-width: 128px;
+    min-width: 0;
+    width: 100%;
+    justify-content: space-between;
+    padding-right: 14px;
+  }
+
+  .tool-picker-menu{
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    top: calc(100% + 8px);
+    z-index: 40;
   }
 
   .gb-left > .segmented[role="tablist"]{

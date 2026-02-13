@@ -25,7 +25,7 @@ const toolCursorBtn = document.getElementById("toolCursor");
 const toolMoveBtn = document.getElementById("toolMove");
 const toolTextBtn = document.getElementById("toolText");
 const toolDrawBtn = document.getElementById("toolDraw");
-const toolTabsGroup = document.querySelector('.gb-left .segmented[role="tablist"]');
+const toolTabsGroup = document.getElementById("toolTabsGroup");
 const toolPickerBtn = document.getElementById("toolPickerBtn");
 const toolPickerMenu = document.getElementById("toolPickerMenu");
 const toolPickerCurrentIcon = document.getElementById("toolPickerCurrentIcon");
@@ -146,7 +146,10 @@ function isMobileToolPickerLayout() {
 
 function syncToolPickerLayout() {
   const mobile = isMobileToolPickerLayout();
-  if (toolTabsGroup) toolTabsGroup.style.display = mobile ? "none" : "";
+  if (toolTabsGroup) {
+    toolTabsGroup.hidden = mobile;
+    toolTabsGroup.style.display = mobile ? "none" : "inline-flex";
+  }
   if (toolPickerBtn?.parentElement) {
     toolPickerBtn.parentElement.style.display = mobile ? "inline-flex" : "none";
   }
