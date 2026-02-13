@@ -2614,10 +2614,11 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .guestbar-grid{
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
     grid-template-areas:
-      "left right"
-      "mid mid";
+      "left"
+      "right"
+      "mid";
     gap: 8px;
     padding: 10px;
     align-items: start;
@@ -2631,11 +2632,17 @@ html[data-theme="dark"] .section-placeholder{
 
   .gb-right{
     grid-area: right;
-    justify-content: flex-end;
+    justify-content: flex-start;
     flex-wrap: nowrap;
     gap: 6px;
     min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .gb-right::-webkit-scrollbar{ display: none; }
+  .gb-right > *{ flex: 0 0 auto; }
 
   .gb-right .segmented{
     padding: 3px;
@@ -2643,15 +2650,11 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .gb-left .segmented{
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    justify-content: space-between;
+    overflow: visible;
   }
-  .gb-left .segmented::-webkit-scrollbar{ display: none; }
 
   .gb-mid{
     grid-area: mid;
