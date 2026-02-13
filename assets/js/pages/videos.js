@@ -34,7 +34,6 @@ const addSectionBtn = document.getElementById("addSectionBtn");
 const arrangeBtn = document.getElementById("arrangeBtn");
 const gridLayoutBtn = document.getElementById("gridLayoutBtn");
 const gridLayoutLabel = document.getElementById("gridLayoutLabel");
-const gridLayoutMenu = document.getElementById("gridLayoutMenu");
 const actionsBar = document.querySelector(".actions");
 
 // Upload UI
@@ -63,117 +62,46 @@ let arranging = false;
 let selectedItemIds = new Set();
 let bulkDeleteBtn = null;
 let currentGridCols = 2;
-const GRID_LAYOUT_KEY = "videos.gridCols";
 let gridLayoutInitialized = false;
+const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }
 
-function getGridButtons() {
-  return [...(gridLayoutMenu?.querySelectorAll("[data-grid-cols]") || [])];
-}
-
-function closeGridMenu() {
-  if (!gridLayoutMenu || !gridLayoutBtn) return;
-  gridLayoutMenu.hidden = true;
-  gridLayoutBtn.setAttribute("aria-expanded", "false");
-}
-
 function updateGridMenuUI() {
   if (gridLayoutLabel) gridLayoutLabel.textContent = `Grille ${currentGridCols}`;
-  getGridButtons().forEach((btn) => {
-    const val = Number(btn.getAttribute("data-grid-cols") || 0);
-    const active = val === currentGridCols;
-    btn.setAttribute("aria-checked", active ? "true" : "false");
-  });
+  if (gridLayoutBtn) {
+    const i = GRID_CYCLE_ORDER.indexOf(currentGridCols);
+    const next = i === -1 ? 2 : GRID_CYCLE_ORDER[(i + 1) % GRID_CYCLE_ORDER.length];
+    gridLayoutBtn.setAttribute("aria-label", `Passer la grille a ${next} colonnes`);
+    gridLayoutBtn.setAttribute("aria-expanded", "false");
+  }
 }
 
-function applyGridCols(next, { persist = true } = {}) {
+function applyGridCols(next) {
   const cols = clamp(Number(next) || 2, 1, 4);
   currentGridCols = cols;
   document.body?.setAttribute("data-grid-cols", String(cols));
   updateGridMenuUI();
-  if (persist) {
-    try {
-      localStorage.setItem(GRID_LAYOUT_KEY, String(cols));
-    } catch {}
-  }
 }
 
 function cycleGridCols() {
-  const next = currentGridCols >= 4 ? 1 : currentGridCols + 1;
-  applyGridCols(next, { persist: true });
+  const i = GRID_CYCLE_ORDER.indexOf(currentGridCols);
+  const next = i === -1 ? 2 : GRID_CYCLE_ORDER[(i + 1) % GRID_CYCLE_ORDER.length];
+  applyGridCols(next);
 }
 
 function initGridLayout() {
-  if (gridLayoutInitialized || !gridLayoutBtn || !gridLayoutMenu) return;
+  if (gridLayoutInitialized || !gridLayoutBtn) return;
   gridLayoutInitialized = true;
 
-  const fallback = window.innerWidth <= 740 ? 2 : 4;
-  let saved = fallback;
-  try {
-    saved = Number(localStorage.getItem(GRID_LAYOUT_KEY) || fallback);
-  } catch {}
-  applyGridCols(saved, { persist: false });
-
-  let pressTimer = null;
-  let longPressTriggered = false;
-  const clearPress = () => {
-    if (!pressTimer) return;
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  };
-
-  gridLayoutBtn.addEventListener("pointerdown", (e) => {
-    if ((e.pointerType || "mouse") !== "touch") return;
-    longPressTriggered = false;
-    clearPress();
-    pressTimer = setTimeout(() => {
-      longPressTriggered = true;
-      gridLayoutMenu.hidden = false;
-      gridLayoutBtn.setAttribute("aria-expanded", "true");
-      try { navigator.vibrate?.(8); } catch {}
-    }, 340);
-  });
-  gridLayoutBtn.addEventListener("pointerup", clearPress);
-  gridLayoutBtn.addEventListener("pointercancel", clearPress);
-  gridLayoutBtn.addEventListener("pointerleave", clearPress);
+  applyGridCols(2);
 
   gridLayoutBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (longPressTriggered) {
-      longPressTriggered = false;
-      return;
-    }
-    if (!gridLayoutMenu.hidden) {
-      closeGridMenu();
-      return;
-    }
-    cycleGridCols();
-  });
-
-  gridLayoutBtn.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    gridLayoutMenu.hidden = false;
-    gridLayoutBtn.setAttribute("aria-expanded", "true");
-  });
-
-  getGridButtons().forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const cols = Number(btn.getAttribute("data-grid-cols") || 0);
-      applyGridCols(cols, { persist: true });
-      closeGridMenu();
-    });
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!gridLayoutMenu.hidden && !e.target?.closest?.(".grid-layout")) closeGridMenu();
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeGridMenu();
+    e.stopPropagation();
+    cycleGridCols();
   });
 }
 
@@ -342,7 +270,6 @@ function setUploadingState(isUploading) {
 
   uploadCancelBtn.disabled = isUploading;
   uploadStartBtn.disabled = isUploading || pending.length === 0;
-  if (isUploading) closeGridMenu();
 
   setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
 }
@@ -1664,7 +1591,7 @@ function renderPending() {
     meta.appendChild(info);
 
     const remove = document.createElement("button");
-    remove.className = "upload-remove";
+    remove.className = "upload-remove upload-remove-compact";
     remove.type = "button";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
