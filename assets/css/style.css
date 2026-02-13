@@ -2150,12 +2150,18 @@ html[data-theme="dark"] .section-placeholder{
 
   .actions{
     margin-top: 8px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     align-items: stretch;
     gap: 8px;
   }
-  .actions .btn{
+  .actions > .btn,
+  .actions > .grid-layout{
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+  .actions .btn,
+  .actions .grid-layout > .btn{
     width: 100%;
     justify-content: center;
     min-height: 46px;
@@ -2173,7 +2179,7 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .actions > #startSlideshowBtn{
-    grid-column: 1 / -1;
+    flex-basis: 100%;
   }
 
   .grid,
@@ -2201,11 +2207,14 @@ html[data-theme="dark"] .section-placeholder{
 
   .modal{
     padding: 8px;
-    background: rgba(0,0,0,.66);
+    background: rgba(8,8,10,.84);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .modal .box{
     width: 100%;
+    max-height: calc(100vh - 16px);
     max-height: calc(100dvh - 16px);
     border-radius: 16px;
   }
@@ -2222,7 +2231,47 @@ html[data-theme="dark"] .section-placeholder{
 
   .viewer-box{
     width: 100%;
+    max-height: calc(100vh - 16px);
     max-height: calc(100dvh - 16px);
+  }
+
+  #photoViewer.modal,
+  #animatedViewer.modal,
+  #videoViewer.modal{
+    padding: 0;
+    background: rgba(8,8,10,.94);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  #photoViewer .box,
+  #animatedViewer .box,
+  #videoViewer .box{
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    background: #101012;
+  }
+
+  #photoViewer .top,
+  #animatedViewer .top,
+  #videoViewer .top{
+    padding-top: calc(8px + env(safe-area-inset-top));
+    background: rgba(18,18,20,.92);
+  }
+
+  #photoViewer .viewer-wrap,
+  #animatedViewer .viewer-wrap,
+  #videoViewer .viewer-wrap{
+    padding: 8px;
+    height: calc(100vh - 74px - env(safe-area-inset-top));
+    height: calc(100dvh - 74px - env(safe-area-inset-top));
+    background: #0f0f10;
   }
 
   .viewer-wrap{
@@ -2234,23 +2283,35 @@ html[data-theme="dark"] .section-placeholder{
     border-radius: 14px;
   }
 
-  #photoViewer .viewer-wrap{
-    height: calc(100dvh - 116px);
+  #photoViewer .viewer-wrap,
+  #animatedViewer .viewer-wrap,
+  #videoViewer .viewer-wrap{
+    height: calc(100vh - 74px - env(safe-area-inset-top));
+    height: calc(100dvh - 74px - env(safe-area-inset-top));
   }
 
   #slideshow.modal .box{
     width: 100%;
+    height: 100vh;
     height: 100dvh;
   }
 
   #slideshow.modal .imgwrap{
+    height: calc(100vh - 62px);
     height: calc(100dvh - 62px);
   }
 
   #uploadModal .box{
+    max-height: calc(100vh - 12px);
     max-height: calc(100dvh - 12px);
-    background: rgba(24,24,24,.86);
-    border: 1px solid rgba(255,255,255,.20);
+    background: #18191c;
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow: 0 24px 80px rgba(0,0,0,.56);
+  }
+  #uploadModal.modal{
+    background: rgba(6,6,8,.94);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .upload-body{
@@ -2272,8 +2333,8 @@ html[data-theme="dark"] .section-placeholder{
   .upload-item{
     border-radius: 16px;
     grid-template-rows: 124px auto auto;
-    background: rgba(255,255,255,.12);
-    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none;
@@ -2287,6 +2348,7 @@ html[data-theme="dark"] .section-placeholder{
     object-fit: cover;
     background: #121212;
     border-bottom: 1px solid rgba(255,255,255,.12);
+    image-orientation: from-image;
   }
 
   .upload-meta{
@@ -2458,9 +2520,9 @@ html[data-theme="dark"] .section-placeholder{
 
 @media (max-width: 560px){
   .hero .center{
-    justify-content: flex-start;
-    padding-top: 84px;
-    padding-bottom: calc(170px + env(safe-area-inset-bottom));
+    justify-content: center;
+    padding-top: 56px;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
   }
 
   .logo img{
@@ -2468,13 +2530,18 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .nav-glass{
-    bottom: max(88px, calc(16px + env(safe-area-inset-bottom)));
+    position: static;
+    left: auto;
+    transform: none;
+    bottom: auto;
+    margin-top: 22px;
     width: min(92vw, 420px);
     border-radius: 18px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 8px;
+    animation: none;
   }
 
   .nav-glass a{
@@ -2504,7 +2571,12 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .actions{
-    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .actions > .btn,
+  .actions > .grid-layout{
+    flex-basis: 100%;
   }
 
   .grid-layout-menu{
@@ -2512,7 +2584,53 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .upload-grid{
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: auto;
+    padding-right: 0;
+  }
+
+  .upload-item{
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0;
+    border-radius: 14px;
+    padding: 8px;
+    min-height: 104px;
+    align-items: center;
+  }
+
+  .upload-thumb{
+    width: 88px;
+    height: 88px;
+    border-radius: 12px;
+    border-bottom: none;
+  }
+
+  .upload-meta{
+    padding: 0 0 0 10px;
+    min-width: 0;
+  }
+
+  .upload-name{
+    font-size: 13px;
+    max-height: 2.6em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+
+  .upload-info{
+    margin-top: 2px;
+  }
+
+  .upload-remove{
+    margin: 8px 0 0 10px;
+    width: fit-content;
+    min-width: 92px;
+    padding: 8px 12px;
   }
 
   .upload-progress-row{
@@ -2616,4 +2734,25 @@ html[data-theme="dark"]{
     border: 1px solid rgba(0,0,0,.10);
     box-shadow: 0 10px 24px rgba(0,0,0,.16);
   }
+}
+
+/* Compatibilite: memes regles dark sans CSS nesting */
+html[data-theme="dark"] .btn .btn-icon{ filter: brightness(0) invert(1); }
+html[data-theme="dark"] .actions .btn.primary,
+html[data-theme="dark"] #startSlideshowBtn.btn.primary{
+  background: rgba(0,0,0,.72);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+}
+html[data-theme="dark"] .actions .btn.primary .btn-icon,
+html[data-theme="dark"] #startSlideshowBtn .btn-icon{ filter: brightness(0) invert(1); }
+html[data-theme="dark"] .seg-btn .icon-img,
+html[data-theme="dark"] .iconbtn .icon-img{ filter: brightness(0) invert(1); }
+html[data-theme="dark"] .seg-btn{ color: rgba(255,255,255,.86); }
+html[data-theme="dark"] .seg-btn.active{ color: rgba(255,255,255,.95); }
+html[data-theme="dark"] .seg-divider{ background: rgba(255,255,255,.18); }
+html[data-theme="dark"] .hint{
+  color: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
 }

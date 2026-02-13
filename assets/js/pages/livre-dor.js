@@ -736,6 +736,16 @@ async function onPointerDown(e) {
   if (editorOpen()) return;
   if (e.button != null && e.button !== 0) return;
 
+  if ((e.pointerType || "") === "touch") {
+    const rect = getCanvasCssRect();
+    const localX = e.clientX - rect.left;
+    const gutter = 24;
+    if (localX <= gutter || localX >= rect.width - gutter) {
+      // Laisse le geste à la page pour faciliter le scroll vertical mobile.
+      return;
+    }
+  }
+
   // MOVE tool => pan uniquement
   if (mode === "move") {
     isPanning = true;

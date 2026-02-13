@@ -65,6 +65,7 @@ let selectedItemIds = new Set();
 let bulkDeleteBtn = null;
 let currentGridCols = 2;
 const GRID_LAYOUT_KEY = "animated.gridCols";
+let gridLayoutInitialized = false;
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
@@ -101,8 +102,14 @@ function applyGridCols(next, { persist = true } = {}) {
   }
 }
 
+function cycleGridCols() {
+  const next = currentGridCols >= 4 ? 1 : currentGridCols + 1;
+  applyGridCols(next, { persist: true });
+}
+
 function initGridLayout() {
-  if (!gridLayoutBtn || !gridLayoutMenu) return;
+  if (gridLayoutInitialized || !gridLayoutBtn || !gridLayoutMenu) return;
+  gridLayoutInitialized = true;
 
   const fallback = window.innerWidth <= 740 ? 2 : 4;
   let saved = fallback;
@@ -111,11 +118,46 @@ function initGridLayout() {
   } catch {}
   applyGridCols(saved, { persist: false });
 
+  let pressTimer = null;
+  let longPressTriggered = false;
+  const clearPress = () => {
+    if (!pressTimer) return;
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+
+  gridLayoutBtn.addEventListener("pointerdown", (e) => {
+    if ((e.pointerType || "mouse") !== "touch") return;
+    longPressTriggered = false;
+    clearPress();
+    pressTimer = setTimeout(() => {
+      longPressTriggered = true;
+      gridLayoutMenu.hidden = false;
+      gridLayoutBtn.setAttribute("aria-expanded", "true");
+      try { navigator.vibrate?.(8); } catch {}
+    }, 340);
+  });
+  gridLayoutBtn.addEventListener("pointerup", clearPress);
+  gridLayoutBtn.addEventListener("pointercancel", clearPress);
+  gridLayoutBtn.addEventListener("pointerleave", clearPress);
+
   gridLayoutBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const willOpen = gridLayoutMenu.hidden;
-    gridLayoutMenu.hidden = !willOpen;
-    gridLayoutBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    if (longPressTriggered) {
+      longPressTriggered = false;
+      return;
+    }
+    if (!gridLayoutMenu.hidden) {
+      closeGridMenu();
+      return;
+    }
+    cycleGridCols();
+  });
+
+  gridLayoutBtn.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    gridLayoutMenu.hidden = false;
+    gridLayoutBtn.setAttribute("aria-expanded", "true");
   });
 
   getGridButtons().forEach((btn) => {
@@ -1732,8 +1774,8 @@ document.addEventListener("keydown", (e) => {
    Firestore realtime
    ========================= */
 async function main() {
-  await ensureAnonAuth();
   initGridLayout();
+  await ensureAnonAuth();
 
   onSnapshot(query(collection(db, SECTIONS_COL), orderBy("order", "asc")), (snap) => {
     sections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
