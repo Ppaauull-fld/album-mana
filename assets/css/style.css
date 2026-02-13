@@ -1548,44 +1548,52 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   left: 0;
   z-index: 30;
   min-width: 176px;
-  padding: 6px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.22);
-  background: rgba(255,255,255,.15);
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 14px 40px rgba(0,0,0,.22);
+  box-shadow: var(--glass-shadow);
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .tool-picker-option{
-  display: inline-flex;
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  text-decoration: none;
+  display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
-  height: 38px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink);
-  font-weight: 560;
+  height: 40px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.08);
+  color: var(--btn-ink) !important;
+  font-weight: 580;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .tool-picker-option .icon-img{
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
 }
 
 .tool-picker-option:hover{
-  background: rgba(255,255,255,.18);
-  border-color: rgba(255,255,255,.26);
+  background: rgba(255,255,255,.14);
+  border-color: rgba(255,255,255,.22);
 }
 
 .tool-picker-option.active{
-  background: rgba(255,255,255,.24);
-  border-color: rgba(255,255,255,.30);
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.28);
 }
 
 @media (max-width: 860px){
@@ -2711,15 +2719,15 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .tool-picker-mobile{
-    display: inline-flex;
+    display: inline-flex !important;
   }
 
   .tool-picker-btn{
     min-width: 128px;
   }
 
-  .gb-left > .segmented{
-    display: none;
+  .gb-left > .segmented[role="tablist"]{
+    display: none !important;
   }
 
   .gb-left .segmented{

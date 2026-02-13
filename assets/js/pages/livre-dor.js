@@ -25,6 +25,7 @@ const toolCursorBtn = document.getElementById("toolCursor");
 const toolMoveBtn = document.getElementById("toolMove");
 const toolTextBtn = document.getElementById("toolText");
 const toolDrawBtn = document.getElementById("toolDraw");
+const toolTabsGroup = document.querySelector('.gb-left .segmented[role="tablist"]');
 const toolPickerBtn = document.getElementById("toolPickerBtn");
 const toolPickerMenu = document.getElementById("toolPickerMenu");
 const toolPickerCurrentIcon = document.getElementById("toolPickerCurrentIcon");
@@ -137,6 +138,19 @@ function getSelectedItem() {
 }
 function getCanvasCssRect() {
   return canvas?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, top: 0 };
+}
+
+function isMobileToolPickerLayout() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 560px)").matches;
+}
+
+function syncToolPickerLayout() {
+  const mobile = isMobileToolPickerLayout();
+  if (toolTabsGroup) toolTabsGroup.style.display = mobile ? "none" : "";
+  if (toolPickerBtn?.parentElement) {
+    toolPickerBtn.parentElement.style.display = mobile ? "inline-flex" : "none";
+  }
+  if (!mobile) closeToolPicker();
 }
 
 function closeToolPicker() {
@@ -1538,6 +1552,7 @@ async function main() {
   try {
     await ensureAnonAuth();
 
+    syncToolPickerLayout();
     hideEditor();
 
     const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
@@ -1576,6 +1591,7 @@ async function main() {
 
     dprResize();
     window.addEventListener("resize", dprResize);
+    window.addEventListener("resize", syncToolPickerLayout);
 
     setAlignUI("left");
     setMode("cursor");
