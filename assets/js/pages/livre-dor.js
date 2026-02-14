@@ -141,11 +141,17 @@ function getCanvasCssRect() {
 }
 
 function isMobileToolPickerLayout() {
-  return false;
+  if (typeof window === "undefined") return false;
+  const w = window.innerWidth || document.documentElement?.clientWidth || 0;
+  const h = window.innerHeight || document.documentElement?.clientHeight || 0;
+  const isPortrait = h >= w;
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+  return coarse && isPortrait && w <= 700;
 }
 
 function syncToolPickerLayout() {
   const mobile = isMobileToolPickerLayout();
+  document.body?.classList.toggle("guest-mobile-picker-layout", mobile);
   if (toolTabsGroup) {
     toolTabsGroup.hidden = mobile;
     toolTabsGroup.style.display = mobile ? "none" : "inline-flex";
@@ -1595,6 +1601,7 @@ async function main() {
     dprResize();
     window.addEventListener("resize", dprResize);
     window.addEventListener("resize", syncToolPickerLayout);
+    window.addEventListener("orientationchange", syncToolPickerLayout);
 
     setAlignUI("left");
     setMode("cursor");
