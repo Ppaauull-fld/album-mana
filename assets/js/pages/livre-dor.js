@@ -141,7 +141,7 @@ function getCanvasCssRect() {
 }
 
 function isMobileToolPickerLayout() {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 560px)").matches;
+  return false;
 }
 
 function syncToolPickerLayout() {
