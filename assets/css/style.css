@@ -1480,7 +1480,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 .guest-wrap{
   border-radius: 22px;
-  overflow:hidden;
+  overflow:visible;
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.14);
   box-shadow: 0 18px 55px rgba(0,0,0,.10);
@@ -1508,6 +1508,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background: rgba(255,255,255,.04);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  position: relative;
+  z-index: 20;
 }
 
 .gb-left,.gb-mid,.gb-right{
@@ -1525,6 +1529,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   position: relative;
   width: 100%;
   max-width: 220px;
+  z-index: 80;
 }
 
 .tool-picker-btn{
@@ -1550,7 +1555,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 30;
+  z-index: 120;
   min-width: 176px;
   width: 100%;
   padding: 8px;
@@ -1757,6 +1762,9 @@ html[data-theme="dark"] .hint{ color: rgba(255,255,255,.78); }
   height: 72vh;
   background:#fff;
   touch-action: manipulation;
+  border-bottom-left-radius: 22px;
+  border-bottom-right-radius: 22px;
+  overflow: hidden;
 }
 
 .canvas-scroll-gutter{
@@ -2577,12 +2585,27 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .editor-shell{
-    width: calc(100% - 16px);
+    left: 8px !important;
+    top: 8px !important;
+    right: 8px;
+    width: auto !important;
+    max-height: min(52dvh, 380px);
+    overflow: auto;
+    z-index: 90;
   }
 
   .editor-shell .floating-editor{
     min-height: 88px;
+    max-height: min(30dvh, 240px);
     font-size: 16px;
+    resize: vertical;
+  }
+
+  .editor-actions{
+    position: sticky;
+    bottom: 0;
+    padding-top: 8px;
+    background: linear-gradient(to top, rgba(255,255,255,.55), rgba(255,255,255,0));
   }
 
   .section-card.is-fullscreen{

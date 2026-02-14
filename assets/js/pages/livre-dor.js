@@ -559,12 +559,27 @@ function showEditor(screenX, screenY, initial, state) {
   editorState = { ...state, x: wx, y: wy };
 
   editorShell.style.display = "block";
-  editorShell.style.left = `${screenX}px`;
-  editorShell.style.top = `${screenY}px`;
+  const compactLayout = window.matchMedia?.("(max-width: 900px)")?.matches ?? false;
+  const targetX = compactLayout ? 8 : screenX;
+  const targetY = compactLayout ? 8 : screenY;
+  editorShell.style.left = `${targetX}px`;
+  editorShell.style.top = `${targetY}px`;
 
   floatingEditor.value = initial || "";
 
   requestAnimationFrame(() => {
+    const rect = getCanvasCssRect();
+    const margin = 8;
+    const boxW = editorShell.offsetWidth || 320;
+    const boxH = editorShell.offsetHeight || 180;
+
+    const maxLeft = Math.max(margin, rect.width - boxW - margin);
+    const maxTop = Math.max(margin, rect.height - boxH - margin);
+    const left = clamp(targetX, margin, maxLeft);
+    const top = clamp(targetY, margin, maxTop);
+    editorShell.style.left = `${left}px`;
+    editorShell.style.top = `${top}px`;
+
     floatingEditor.focus({ preventScroll: true });
     floatingEditor.setSelectionRange(floatingEditor.value.length, floatingEditor.value.length);
   });
