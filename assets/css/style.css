@@ -2736,8 +2736,29 @@ html[data-theme="dark"] .section-placeholder{
     display: none !important;
   }
 
-  .gb-left > .segmented[role="tablist"]{
-    display: inline-flex !important;
+  @media (orientation: portrait){
+    .tool-picker-mobile{
+      display: inline-flex !important;
+      width: auto;
+      max-width: none;
+    }
+    .tool-picker-btn{
+      width: auto;
+      min-width: 54px;
+      padding: 0 10px;
+      gap: 6px;
+      justify-content: center;
+    }
+    #toolPickerCurrentLabel{
+      display: none;
+    }
+    .tool-picker-menu{
+      width: 180px;
+      min-width: 180px;
+    }
+    .gb-left > .segmented[role="tablist"]{
+      display: none !important;
+    }
   }
 
   .gb-left .segmented{
@@ -2776,51 +2797,35 @@ html[data-theme="dark"] .section-placeholder{
   .control-row::-webkit-scrollbar{ display: none; }
   .control-row > *{ flex: 0 0 auto; }
 
-  body.guest-mobile-picker-layout .guestbar-grid{
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "left"
-      "right"
-      "mid";
-  }
-
-  body.guest-mobile-picker-layout .gb-left,
-  body.guest-mobile-picker-layout .gb-right,
-  body.guest-mobile-picker-layout .gb-mid{
-    width: 100%;
-    overflow: visible;
-  }
-
-  body.guest-mobile-picker-layout .gb-right{
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   body.guest-mobile-picker-layout .tool-picker-mobile{
     display: inline-flex !important;
-    width: 100%;
+    width: auto;
     max-width: none;
   }
 
   body.guest-mobile-picker-layout .tool-picker-btn{
-    width: 100%;
+    width: auto;
+    min-width: 54px;
+    padding: 0 10px;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  body.guest-mobile-picker-layout #toolPickerCurrentLabel{
+    display: none;
+  }
+
+  body.guest-mobile-picker-layout .tool-picker-caret{
+    display: inline-block;
+  }
+
+  body.guest-mobile-picker-layout .tool-picker-menu{
+    width: 180px;
+    min-width: 180px;
   }
 
   body.guest-mobile-picker-layout .gb-left > .segmented[role="tablist"]{
     display: none !important;
-  }
-
-  body.guest-mobile-picker-layout .gb-mid{
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-bottom: 0;
-  }
-
-  body.guest-mobile-picker-layout .control-row{
-    flex-wrap: wrap;
-    overflow: visible;
-    padding-bottom: 0;
   }
 
   .seg-btn{

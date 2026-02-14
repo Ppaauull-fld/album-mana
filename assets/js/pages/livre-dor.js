@@ -142,11 +142,11 @@ function getCanvasCssRect() {
 
 function isMobileToolPickerLayout() {
   if (typeof window === "undefined") return false;
+  const mqPortraitMobile = window.matchMedia?.("(max-width: 860px) and (orientation: portrait)")?.matches;
+  if (mqPortraitMobile) return true;
   const w = window.innerWidth || document.documentElement?.clientWidth || 0;
   const h = window.innerHeight || document.documentElement?.clientHeight || 0;
-  const isPortrait = h >= w;
-  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
-  return coarse && isPortrait && w <= 700;
+  return w <= 700 && h >= w;
 }
 
 function syncToolPickerLayout() {
@@ -829,6 +829,13 @@ async function onPointerDown(e) {
   // hit test toujours actif (même en text/draw)
   const hit = itemHit(x, y);
   if (hit) {
+    if (mode === "text" && hit.kind !== "text") {
+      selectedId = null;
+      redraw();
+      showEditor(sp.x, sp.y, "", { mode: "create", worldX: x, worldY: y });
+      return;
+    }
+
     selectedId = hit.id;
 
     const h = handleHit(hit, x, y);
