@@ -1564,6 +1564,10 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   gap: 6px;
 }
 
+.tool-picker-menu[hidden]{
+  display: none !important;
+}
+
 .tool-picker-option{
   -webkit-appearance: none;
   appearance: none;
@@ -2882,6 +2886,43 @@ html[data-theme="dark"] .section-placeholder{
 
   .upload-progress-text{
     min-width: 58px;
+  }
+}
+
+@media (max-width: 560px) and (orientation: portrait){
+  .gb-left{
+    align-items: stretch;
+  }
+
+  .tool-picker-mobile{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .tool-picker-btn{
+    min-height: 46px;
+    padding: 10px 14px;
+  }
+
+  .tool-picker-menu{
+    position: static;
+    margin-top: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    z-index: auto;
+  }
+
+  .gb-right{
+    width: 100%;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 8px;
+  }
+
+  .gb-right .export-wrap{
+    margin-left: auto;
   }
 }
 
