@@ -1796,7 +1796,6 @@ html[data-theme="dark"] #guestCanvas{
   touch-action: auto;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  position:relative;
   overflow:hidden;
 }
 .editor-shell::before{

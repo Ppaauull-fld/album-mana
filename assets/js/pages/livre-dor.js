@@ -801,8 +801,9 @@ async function onPointerDown(e) {
   if ((e.pointerType || "") === "touch") {
     const rect = getCanvasCssRect();
     const localX = e.clientX - rect.left;
-    const gutter = 24;
-    if (localX <= gutter || localX >= rect.width - gutter) {
+    const gutter = 18;
+    const allowPageScroll = mode === "move";
+    if (allowPageScroll && (localX <= gutter || localX >= rect.width - gutter)) {
       // Laisse le geste à la page pour faciliter le scroll vertical mobile.
       return;
     }
@@ -1514,18 +1515,38 @@ toolCursorBtn?.addEventListener("click", () => setMode("cursor"));
 toolMoveBtn?.addEventListener("click", () => setMode("move"));
 toolTextBtn?.addEventListener("click", () => setMode("text"));
 toolDrawBtn?.addEventListener("click", () => setMode("draw"));
+let skipToolPickerClick = false;
+toolPickerBtn?.addEventListener("pointerdown", (e) => {
+  if ((e.pointerType || "") !== "touch") return;
+  e.preventDefault();
+  e.stopPropagation();
+  skipToolPickerClick = true;
+  toggleToolPicker();
+});
 toolPickerBtn?.addEventListener("click", (e) => {
+  if (skipToolPickerClick) {
+    skipToolPickerClick = false;
+    return;
+  }
   e.stopPropagation();
   toggleToolPicker();
 });
 
-toolPickerMenu?.addEventListener("click", (e) => {
+function handleToolPickerSelection(e) {
   const btn = e.target?.closest?.(".tool-picker-option[data-mode]");
   if (!btn) return;
   const picked = btn.getAttribute("data-mode");
   if (!picked) return;
+  e.stopPropagation();
   setMode(picked);
+}
+
+toolPickerMenu?.addEventListener("pointerdown", (e) => {
+  if ((e.pointerType || "") !== "touch") return;
+  e.preventDefault();
+  handleToolPickerSelection(e);
 });
+toolPickerMenu?.addEventListener("click", handleToolPickerSelection);
 
 /* =========================
    Keyboard (Ctrl+Z / Ctrl+Shift+Z)
