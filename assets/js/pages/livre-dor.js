@@ -255,7 +255,7 @@ function updateMinimapToggleUi() {
   minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
   minimapToggleBtn.setAttribute("aria-label", closeLabel);
   minimapToggleBtn.title = closeLabel;
-  if (minimapToggleIcon) minimapToggleIcon.src = "../assets/img/icons/minus.svg";
+  if (minimapToggleIcon) minimapToggleIcon.src = "../assets/img/icons/Chevron down.svg";
   if (minimapExpandBtn) {
     minimapExpandBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
     minimapExpandBtn.setAttribute("aria-label", openLabel);
