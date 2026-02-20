@@ -1518,26 +1518,87 @@ window.addEventListener("pointercancel", (e) => {
 
 /* -------------------- Viewer -------------------- */
 
+let viewerPseudoFullscreen = false;
+let slideshowPseudoFullscreen = false;
+
+function getFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function requestNativeFullscreen(el) {
+  if (!el) return false;
+  const fn =
+    el.requestFullscreen ||
+    el.webkitRequestFullscreen ||
+    el.mozRequestFullScreen ||
+    el.msRequestFullscreen;
+  if (!fn) return false;
+  try {
+    const out = fn.call(el);
+    if (out && typeof out.then === "function") await out;
+    if (getFullscreenElement() === el) return true;
+
+    // Certains navigateurs mobiles mettent un court instant a exposer fullscreenElement.
+    for (let i = 0; i < 6; i++) {
+      await wait(50);
+      if (getFullscreenElement() === el) return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function exitNativeFullscreen() {
+  const fn =
+    document.exitFullscreen ||
+    document.webkitExitFullscreen ||
+    document.mozCancelFullScreen ||
+    document.msExitFullscreen;
+  if (!fn) return false;
+  try {
+    const out = fn.call(document);
+    if (out && typeof out.then === "function") await out;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isViewerFullscreen() {
-  return document.fullscreenElement === viewer;
+  return getFullscreenElement() === viewer || viewerPseudoFullscreen;
 }
 
 async function enterViewerFullscreen() {
-  if (!viewer?.requestFullscreen) return;
-  try {
-    await viewer.requestFullscreen();
-  } catch {}
+  if (!viewer) return;
+  const ok = await requestNativeFullscreen(viewer);
+  viewerPseudoFullscreen = !ok;
+  syncViewerFullscreenUI();
 }
 
 async function exitViewerFullscreen() {
-  if (!document.fullscreenElement) return;
-  try {
-    await document.exitFullscreen();
-  } catch {}
+  if (getFullscreenElement()) {
+    await exitNativeFullscreen();
+  }
+  viewerPseudoFullscreen = false;
+  syncViewerFullscreenUI();
 }
 
 function syncViewerFullscreenUI() {
-  const active = isViewerFullscreen();
+  const nativeActive = getFullscreenElement() === viewer;
+  if (nativeActive) viewerPseudoFullscreen = false;
+  const active = nativeActive || viewerPseudoFullscreen;
 
   viewer?.classList.toggle("fullscreen", active);
   if (active) viewer?.classList.remove("show-controls");
@@ -1680,10 +1741,14 @@ viewer?.addEventListener("touchstart", () => {
 });
 
 // Un seul fullscreenchange pour viewer + slideshow
-document.addEventListener("fullscreenchange", () => {
+function onAnyFullscreenChange() {
   syncViewerFullscreenUI();
   syncFullscreenUI();
-});
+}
+document.addEventListener("fullscreenchange", onAnyFullscreenChange);
+document.addEventListener("webkitfullscreenchange", onAnyFullscreenChange);
+document.addEventListener("mozfullscreenchange", onAnyFullscreenChange);
+document.addEventListener("MSFullscreenChange", onAnyFullscreenChange);
 
 syncViewerFullscreenUI();
 
@@ -1977,11 +2042,13 @@ function syncShuffleUI() {
 let fsHoverTimer = null;
 
 function isSlideshowFullscreen() {
-  return document.fullscreenElement === slideshow;
+  return getFullscreenElement() === slideshow || slideshowPseudoFullscreen;
 }
 
 function syncFullscreenUI() {
-  const active = isSlideshowFullscreen();
+  const nativeActive = getFullscreenElement() === slideshow;
+  if (nativeActive) slideshowPseudoFullscreen = false;
+  const active = nativeActive || slideshowPseudoFullscreen;
 
   slideshow?.classList.toggle("fullscreen", active);
   if (active) slideshow?.classList.remove("show-controls");
@@ -1998,17 +2065,18 @@ function syncFullscreenUI() {
 }
 
 async function enterFullscreen() {
-  if (!slideshow?.requestFullscreen) return;
-  try {
-    await slideshow.requestFullscreen();
-  } catch {}
+  if (!slideshow) return;
+  const ok = await requestNativeFullscreen(slideshow);
+  slideshowPseudoFullscreen = !ok;
+  syncFullscreenUI();
 }
 
 async function exitFullscreen() {
-  if (!document.fullscreenElement) return;
-  try {
-    await document.exitFullscreen();
-  } catch {}
+  if (getFullscreenElement()) {
+    await exitNativeFullscreen();
+  }
+  slideshowPseudoFullscreen = false;
+  syncFullscreenUI();
 }
 
 toggleFullscreenBtn?.addEventListener("click", () => {
