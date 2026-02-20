@@ -626,7 +626,7 @@ html[data-theme="dark"] .theme-switch__thumb{
   min-height: 18px;
   object-fit: contain;
   opacity: 1;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.3));
+  filter: brightness(0) invert(1) drop-shadow(0 1px 1.5px rgba(0,0,0,.22));
   transition: opacity .14s ease, filter .14s ease;
 }
 .card-favorite-toggle.is-favorite .card-favorite-icon{
