@@ -1755,11 +1755,25 @@ viewer?.addEventListener("mousemove", (e) => {
   }
 });
 
-viewer?.addEventListener("touchstart", () => {
+viewer?.addEventListener("touchstart", (e) => {
+  if (!viewer?.classList.contains("fullscreen")) return;
+  if (e.target?.closest?.(".top")) return;
+
   if (viewerFsHoverTimer) {
     clearTimeout(viewerFsHoverTimer);
     viewerFsHoverTimer = null;
   }
+
+  if (viewer.classList.contains("show-controls")) {
+    if (viewerTouchHideTimer) {
+      clearTimeout(viewerTouchHideTimer);
+      viewerTouchHideTimer = null;
+    }
+    viewerControlsPinnedUntil = 0;
+    viewer.classList.remove("show-controls");
+    return;
+  }
+
   revealViewerControlsTemporarily();
 });
 
@@ -2160,11 +2174,25 @@ slideshow?.addEventListener("mousemove", (e) => {
   }
 });
 
-slideshow?.addEventListener("touchstart", () => {
+slideshow?.addEventListener("touchstart", (e) => {
+  if (!slideshow?.classList.contains("fullscreen")) return;
+  if (e.target?.closest?.(".top")) return;
+
   if (fsHoverTimer) {
     clearTimeout(fsHoverTimer);
     fsHoverTimer = null;
   }
+
+  if (slideshow.classList.contains("show-controls")) {
+    if (slideshowTouchHideTimer) {
+      clearTimeout(slideshowTouchHideTimer);
+      slideshowTouchHideTimer = null;
+    }
+    slideshowControlsPinnedUntil = 0;
+    slideshow.classList.remove("show-controls");
+    return;
+  }
+
   revealSlideshowControlsTemporarily();
 });
 
