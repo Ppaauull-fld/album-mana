@@ -307,6 +307,11 @@ html[data-theme="dark"] .page::before{
   box-shadow: 0 22px 60px rgba(0,0,0,.12);
 }
 .back span{font-size:18px; line-height:1}
+.back .icon-img{
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
 
 .brand-mini{
   flex: 1;
@@ -3056,6 +3061,7 @@ html[data-theme="dark"] .actions .btn.primary .btn-icon,
 html[data-theme="dark"] #startSlideshowBtn .btn-icon{ filter: brightness(0) invert(1); }
 html[data-theme="dark"] .seg-btn .icon-img,
 html[data-theme="dark"] .iconbtn .icon-img{ filter: brightness(0) invert(1); }
+html[data-theme="dark"] .back .icon-img{ filter: brightness(0) invert(1); }
 html[data-theme="dark"] .seg-btn{ color: rgba(255,255,255,.86); }
 html[data-theme="dark"] .seg-btn.active{ color: rgba(255,255,255,.95); }
 html[data-theme="dark"] .seg-divider{ background: rgba(255,255,255,.18); }
