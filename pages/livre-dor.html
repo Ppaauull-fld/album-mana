@@ -224,22 +224,24 @@
 
           <div id="minimapShell" class="minimap-shell">
             <div id="minimapPanel" class="minimap-panel">
+              <div class="minimap-head">
+                <span class="minimap-title">Mini-carte</span>
+                <button
+                  id="minimapToggle"
+                  class="minimap-toggle"
+                  type="button"
+                  aria-expanded="true"
+                  aria-controls="minimapPanel"
+                  aria-label="Masquer la mini-carte"
+                  title="Masquer la mini-carte"
+                >
+                  <img id="minimapToggleIcon" class="icon-img" src="../assets/img/icons/Chevron down.svg" alt="" />
+                </button>
+              </div>
               <div class="minimap-stage">
                 <canvas id="minimapCanvas" class="minimap-canvas" aria-label="Mini-carte de navigation du livre d'or"></canvas>
               </div>
             </div>
-
-            <button
-              id="minimapToggle"
-              class="minimap-toggle"
-              type="button"
-              aria-expanded="true"
-              aria-controls="minimapPanel"
-              aria-label="Masquer la mini-carte"
-              title="Masquer la mini-carte"
-            >
-              <img id="minimapToggleIcon" class="icon-img" src="../assets/img/icons/Chevron down.svg" alt="" />
-            </button>
 
             <button
               id="minimapExpandBtn"

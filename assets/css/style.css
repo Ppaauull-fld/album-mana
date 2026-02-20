@@ -1903,15 +1903,15 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-shell{
-  --minimap-surface: rgba(255,255,255,.12);
-  --minimap-border: rgba(255,255,255,.28);
-  --minimap-outline: rgba(0,0,0,.18);
-  --minimap-bump-width: 68px;
-  --minimap-bump-height: 32px;
-  --minimap-bump-right: 14px;
-  --minimap-bump-lift: 32px;
-  --minimap-toggle-width: 36px;
-  --minimap-toggle-height: 28px;
+  --minimap-surface-top: rgba(255,255,255,.34);
+  --minimap-surface-bottom: rgba(255,255,255,.20);
+  --minimap-border: rgba(255,255,255,.40);
+  --minimap-head-text: rgba(0,0,0,.58);
+  --minimap-stage-bg: rgba(243,243,243,.96);
+  --minimap-stage-border: rgba(0,0,0,.16);
+  --minimap-toggle-bg: rgba(255,255,255,.52);
+  --minimap-toggle-bg-hover: rgba(255,255,255,.66);
+  --minimap-toggle-border: rgba(255,255,255,.62);
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -1929,77 +1929,78 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-panel{
   width: 300px;
   height: 200px;
-  padding: 13px;
-  border-radius: 34px;
-  border: 1px solid var(--minimap-outline);
-  background: var(--minimap-surface);
-  box-shadow: none;
+  padding: 10px;
+  border-radius: 30px;
+  border: 1px solid var(--minimap-border);
+  background: linear-gradient(180deg, var(--minimap-surface-top), var(--minimap-surface-bottom));
+  box-shadow: 0 18px 54px rgba(0,0,0,.14), inset 0 1px 0 rgba(255,255,255,.34);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   position: relative;
   z-index: 1;
-  overflow: visible;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
 }
 
-.minimap-panel::before{
-  content: "";
-  position: absolute;
-  top: calc(-1 * var(--minimap-bump-lift));
-  right: var(--minimap-bump-right);
-  width: var(--minimap-bump-width);
-  height: var(--minimap-bump-height);
-  border: 1px solid var(--minimap-outline);
-  border-bottom: none;
-  border-radius: 999px 999px 0 0;
-  background: var(--minimap-surface);
-  z-index: 2;
-  pointer-events: none;
+.minimap-head{
+  min-height: 32px;
+  padding: 2px 2px 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.minimap-panel::after{
-  content: "";
-  position: absolute;
-  top: -1px;
-  right: calc(var(--minimap-bump-right) - 3px);
-  width: calc(var(--minimap-bump-width) + 6px);
-  height: 3px;
-  background: var(--minimap-surface);
-  border-radius: 0 0 4px 4px;
-  z-index: 3;
-  pointer-events: none;
+.minimap-title{
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--minimap-head-text);
+  user-select: none;
 }
 
 .minimap-stage{
   width: 100%;
   height: 100%;
-  border: 2px solid #b8b8b8;
-  background: #f3f3f3;
+  border: 1px solid var(--minimap-stage-border);
+  border-radius: 20px;
+  background: var(--minimap-stage-bg);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
   overflow: hidden;
 }
 
 .minimap-toggle{
-  position: absolute;
-  top: calc((-1 * var(--minimap-bump-lift)) + ((var(--minimap-bump-height) - var(--minimap-toggle-height)) / 2));
-  right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - var(--minimap-toggle-width)) / 2));
-  width: var(--minimap-toggle-width);
-  height: var(--minimap-toggle-height);
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  box-shadow: none;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  border: 1px solid var(--minimap-toggle-border);
+  background: var(--minimap-toggle-bg);
+  color: var(--headerbtn-ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 26px rgba(0,0,0,.14);
   display: grid;
   place-items: center;
   cursor: pointer;
-  z-index: 3;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
 .minimap-toggle:hover{
-  background: transparent;
+  transform: translateY(var(--lift));
+  background: var(--minimap-toggle-bg-hover);
+  border-color: var(--minimap-border);
+}
+
+.minimap-toggle:focus-visible{
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .minimap-toggle .icon-img{
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
   position: relative;
   z-index: 2;
@@ -2011,7 +2012,7 @@ html[data-theme="dark"] #guestCanvas{
   padding: 0 18px;
   border-radius: 999px;
   border: 1px solid var(--minimap-border);
-  background: var(--minimap-surface);
+  background: linear-gradient(180deg, var(--minimap-surface-top), var(--minimap-surface-bottom));
   box-shadow: 0 18px 50px rgba(0,0,0,.10);
   color: var(--headerbtn-ink);
   font-size: 14px;
@@ -2886,23 +2887,34 @@ html[data-theme="dark"] .section-placeholder{
   .minimap-shell{
     right: 8px;
     bottom: max(8px, env(safe-area-inset-bottom));
-    --minimap-bump-width: 52px;
-    --minimap-bump-height: 24px;
-    --minimap-bump-right: 10px;
-    --minimap-bump-lift: 24px;
-    --minimap-toggle-width: 30px;
-    --minimap-toggle-height: 24px;
   }
 
   .minimap-panel{
     width: 206px;
     height: 146px;
-    padding: 9px;
-    border-radius: 24px;
+    padding: 8px;
+    border-radius: 22px;
+    gap: 6px;
+  }
+
+  .minimap-head{
+    min-height: 28px;
+    padding: 1px 1px 0 6px;
+  }
+
+  .minimap-title{
+    font-size: 10px;
+    letter-spacing: .06em;
   }
 
   .minimap-stage{
-    border-width: 1px;
+    border-radius: 14px;
+  }
+
+  .minimap-toggle{
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
   }
 
   .minimap-toggle .icon-img{
@@ -3358,18 +3370,28 @@ html[data-theme="dark"] .minimap-toggle .icon-img{
 }
 
 html[data-theme="dark"] .minimap-toggle{
-  background: transparent;
   color: var(--headerbtn-ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 12px 30px rgba(0,0,0,.38);
 }
 
 html[data-theme="dark"] .minimap-shell{
-  --minimap-surface: rgba(255,255,255,.08);
-  --minimap-border: rgba(255,255,255,.18);
-  --minimap-outline: rgba(255,255,255,.24);
+  --minimap-surface-top: rgba(34,34,38,.88);
+  --minimap-surface-bottom: rgba(20,20,24,.82);
+  --minimap-border: rgba(255,255,255,.22);
+  --minimap-head-text: rgba(255,255,255,.72);
+  --minimap-stage-bg: rgba(14,14,16,.74);
+  --minimap-stage-border: rgba(255,255,255,.18);
+  --minimap-toggle-bg: rgba(255,255,255,.12);
+  --minimap-toggle-bg-hover: rgba(255,255,255,.18);
+  --minimap-toggle-border: rgba(255,255,255,.24);
+}
+
+html[data-theme="dark"] .minimap-stage{
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
 }
 
 html[data-theme="dark"] .minimap-expand{
-  background: var(--minimap-surface);
+  background: linear-gradient(180deg, var(--minimap-surface-top), var(--minimap-surface-bottom));
   border-color: var(--minimap-border);
   color: var(--headerbtn-ink);
 }
