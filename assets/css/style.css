@@ -109,6 +109,8 @@ img{max-width:100%;display:block}
   position: relative;
   background: var(--paper);
   overscroll-behavior-y: none;
+  min-height: 100vh;
+  min-height: 100lvh;
 }
 
 .page::before{
@@ -143,6 +145,14 @@ html[data-theme="dark"] .page::before{
       rgba(255,255,255,.08),
       rgba(255,255,255,0)
     );
+}
+
+.page-home{
+  background: var(--bg);
+}
+
+.page-home::before{
+  display:none;
 }
 
 .container{
@@ -187,7 +197,13 @@ html[data-theme="dark"] .page::before{
 
 /* -------------------- Hero -------------------- */
 
-.hero{position:relative;min-height:100vh;background:var(--bg);overflow:hidden}
+.hero{
+  position:relative;
+  min-height:100vh;
+  min-height:100lvh;
+  background:var(--bg);
+  overflow:hidden;
+}
 .hero .strips{position:absolute;inset:-40px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;filter:saturate(1.06) contrast(1.04);transform:translateZ(0)}
 .hero .strip{background-size:cover;background-position:center;opacity:.92}
 .hero .strip:nth-child(1){background-image:url("../img/hero-1.jpg")}
@@ -195,7 +211,19 @@ html[data-theme="dark"] .page::before{
 .hero .strip:nth-child(3){background-image:url("../img/hero-3.jpg")}
 .hero .strip:nth-child(4){background-image:url("../img/hero-4.jpg")}
 .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 520px at 50% 35%, rgba(0,0,0,.10), rgba(0,0,0,.48)),linear-gradient(to bottom, rgba(0,0,0,.16), rgba(0,0,0,.55));pointer-events:none}
-.hero .center{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 16px 140px;color:#fff;text-align:center}
+.hero .center{
+  position:relative;
+  z-index:2;
+  min-height:100vh;
+  min-height:100lvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:56px 16px 140px;
+  color:#fff;
+  text-align:center;
+}
 .logo{background:transparent;border:none;box-shadow:none;padding:0;border-radius:0;display:grid;place-items:center;margin:0 auto 18px auto}
 .logo img{width:clamp(320px, 28vw, 480px);height:auto;display:block;filter:drop-shadow(0 22px 60px rgba(0,0,0,.5))}
 .hero h1{margin:0;font-size:34px;font-weight:650;letter-spacing:.2px}
