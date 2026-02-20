@@ -68,6 +68,7 @@ const editorCancel = document.getElementById("editorCancel");
 const minimapShell = document.getElementById("minimapShell");
 const minimapToggleBtn = document.getElementById("minimapToggle");
 const minimapToggleIcon = document.getElementById("minimapToggleIcon");
+const minimapExpandBtn = document.getElementById("minimapExpandBtn");
 const minimapPanel = document.getElementById("minimapPanel");
 const minimapCanvas = document.getElementById("minimapCanvas");
 const minimapCtx = minimapCanvas?.getContext?.("2d");
@@ -243,15 +244,23 @@ function drawMinimapStroke(stroke, frame, color) {
 function updateMinimapToggleUi() {
   if (!minimapToggleBtn || !minimapPanel) return;
   const expanded = !minimapCollapsed;
-  const label = expanded ? "Masquer la mini-carte" : "Afficher la mini-carte";
-  const icon = expanded ? "../assets/img/icons/minus.svg" : "../assets/img/icons/grid.svg";
+  const closeLabel = "Masquer la mini-carte";
+  const openLabel = "Afficher la mini-carte";
 
-  minimapPanel.hidden = !expanded;
   minimapShell?.classList.toggle("is-collapsed", !expanded);
+  minimapPanel.hidden = !expanded;
+  minimapToggleBtn.hidden = !expanded;
+  if (minimapExpandBtn) minimapExpandBtn.hidden = expanded;
+
   minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  minimapToggleBtn.setAttribute("aria-label", label);
-  minimapToggleBtn.title = label;
-  if (minimapToggleIcon) minimapToggleIcon.src = icon;
+  minimapToggleBtn.setAttribute("aria-label", closeLabel);
+  minimapToggleBtn.title = closeLabel;
+  if (minimapToggleIcon) minimapToggleIcon.src = "../assets/img/icons/minus.svg";
+  if (minimapExpandBtn) {
+    minimapExpandBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    minimapExpandBtn.setAttribute("aria-label", openLabel);
+    minimapExpandBtn.title = openLabel;
+  }
 }
 
 function setMinimapCollapsed(nextCollapsed) {
@@ -1414,6 +1423,12 @@ minimapToggleBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
   setMinimapCollapsed(!minimapCollapsed);
+});
+
+minimapExpandBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setMinimapCollapsed(false);
 });
 
 minimapCanvas?.addEventListener("pointerdown", onMinimapPointerDown);
