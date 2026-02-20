@@ -926,7 +926,6 @@ html[data-theme="dark"] .drop-placeholder{
   height: 18px;
   min-width: 18px;
   min-height: 18px;
-  filter: brightness(0) invert(1);
 }
 
 @media (min-width: 980px){

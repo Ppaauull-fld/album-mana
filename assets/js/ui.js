@@ -80,16 +80,36 @@ export function initSectionJumpButton(opts = {}) {
   const icon = btn.querySelector(".icon-img");
   const sr = btn.querySelector(".sr-only");
 
-  let direction = "down";
+  let direction = "";
   let rafId = 0;
   let ro = null;
   const prefersReducedMotion =
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function targetSectionsY() {
-    const r = sectionsEl.getBoundingClientRect();
-    return Math.max(0, Math.round(window.scrollY + r.top - 10));
+  function topbarOffset() {
+    const topbar = document.querySelector(".topbar");
+    if (!topbar) return 10;
+    return Math.max(10, Math.round(topbar.getBoundingClientRect().height + 8));
+  }
+
+  function toDocumentY(el) {
+    const r = el.getBoundingClientRect();
+    return Math.round(window.scrollY + r.top - topbarOffset());
+  }
+
+  function maxScrollY() {
+    return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  }
+
+  function targetDownY() {
+    const firstRealSection = sectionsEl.querySelector(
+      '.section-card[data-section-card-id]:not([data-section-card-id="__unassigned__"])'
+    );
+    if (firstRealSection) {
+      return Math.max(0, Math.min(maxScrollY(), toDocumentY(firstRealSection)));
+    }
+    return maxScrollY();
   }
 
   function setDirection(next) {
@@ -117,13 +137,13 @@ export function initSectionJumpButton(opts = {}) {
       return;
     }
 
-    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const maxScroll = maxScrollY();
     if (maxScroll < 20) {
       btn.classList.remove("is-visible");
       return;
     }
 
-    const showUp = window.scrollY + threshold >= targetSectionsY();
+    const showUp = window.scrollY + threshold >= targetDownY();
     setDirection(showUp ? "up" : "down");
     btn.classList.add("is-visible");
   }
@@ -137,7 +157,7 @@ export function initSectionJumpButton(opts = {}) {
   }
 
   btn.addEventListener("click", () => {
-    const top = direction === "up" ? 0 : targetSectionsY();
+    const top = direction === "up" ? 0 : targetDownY();
     window.scrollTo({
       top,
       behavior: prefersReducedMotion ? "auto" : "smooth",
