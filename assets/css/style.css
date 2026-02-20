@@ -1926,7 +1926,7 @@ html[data-theme="dark"] #guestCanvas{
   border-radius: 34px;
   border: 1px solid var(--minimap-border);
   background: var(--minimap-surface);
-  box-shadow: 0 14px 26px rgba(0,0,0,.12);
+  box-shadow: 0 12px 22px rgba(0,0,0,.12);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   position: relative;
@@ -1957,16 +1957,14 @@ html[data-theme="dark"] #guestCanvas{
 
 .minimap-toggle{
   position: absolute;
-  top: -30px;
+  top: -29px;
   right: 28px;
   width: 60px;
   height: 60px;
   border-radius: 999px;
-  border: 1px solid var(--headerbtn-border);
-  background: var(--headerbtn-bg);
-  box-shadow: 0 12px 24px rgba(0,0,0,.14);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--minimap-border);
+  background: var(--minimap-surface);
+  box-shadow: none;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -1974,8 +1972,8 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-toggle:hover{
-  background: var(--headerbtn-bg-hover);
-  border-color: var(--headerbtn-border-hover);
+  background: var(--minimap-surface);
+  border-color: var(--minimap-border);
 }
 
 .minimap-toggle .icon-img{
@@ -3346,8 +3344,8 @@ html[data-theme="dark"] .minimap-toggle .icon-img{
 }
 
 html[data-theme="dark"] .minimap-toggle{
-  background: var(--headerbtn-bg);
-  border-color: var(--headerbtn-border);
+  background: var(--minimap-surface);
+  border-color: var(--minimap-border);
   color: var(--headerbtn-ink);
 }
 
