@@ -1937,14 +1937,27 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-panel::before{
   content: "";
   position: absolute;
-  top: -24px;
-  right: 22px;
-  width: 52px;
-  height: 52px;
+  top: -28px;
+  right: 19px;
+  width: 58px;
+  height: 30px;
   border: 1px solid var(--minimap-border);
-  border-radius: 999px;
+  border-bottom: none;
+  border-radius: 28px 28px 0 0;
   background: var(--minimap-surface);
-  z-index: -1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.minimap-panel::after{
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 20px;
+  width: 56px;
+  height: 3px;
+  background: var(--minimap-surface);
+  z-index: 3;
   pointer-events: none;
 }
 
@@ -1958,9 +1971,9 @@ html[data-theme="dark"] #guestCanvas{
 
 .minimap-toggle{
   position: absolute;
-  top: -10px;
-  right: 32px;
-  width: 32px;
+  top: -19px;
+  right: 30px;
+  width: 36px;
   height: 28px;
   border-radius: 12px;
   border: none;
@@ -2868,18 +2881,25 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-panel::before{
-    top: -18px;
+    top: -19px;
+    right: 12px;
+    width: 44px;
+    height: 20px;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .minimap-panel::after{
+    top: -1px;
     right: 13px;
-    width: 40px;
-    height: 40px;
-    border-radius: 999px;
+    width: 42px;
+    height: 2px;
   }
 
   .minimap-toggle{
-    width: 28px;
+    width: 30px;
     height: 24px;
-    top: -8px;
-    right: 19px;
+    top: -13px;
+    right: 18px;
   }
 
   .minimap-panel{
