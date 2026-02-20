@@ -32,8 +32,16 @@ const IS_COARSE_POINTER =
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   window.matchMedia("(pointer: coarse)").matches;
-const LONG_PRESS_MS = IS_COARSE_POINTER ? 320 : 260;
+const LONG_PRESS_MS = IS_COARSE_POINTER ? 180 : 260;
 const DRAG_START_PX = IS_COARSE_POINTER ? 10 : 8;
+const TOUCH_DRAG_START_PX = IS_COARSE_POINTER ? 6 : DRAG_START_PX;
+const AUTO_SCROLL_EDGE_PX = IS_COARSE_POINTER ? 190 : 110;
+const AUTO_SCROLL_MAX_SPEED = IS_COARSE_POINTER ? 42 : 26;
+const TOUCH_PLACE_BIAS_Y = IS_COARSE_POINTER ? 18 : 0;
+const TOUCH_AXIS_LOCK_RATIO = 1.35;
+const ROW_MERGE_TOLERANCE_RATIO = IS_COARSE_POINTER ? 0.62 : 0.45;
+const ROW_VERTICAL_BAND_RATIO = IS_COARSE_POINTER ? 0.36 : 0.22;
+const ROW_VERTICAL_BAND_MIN = IS_COARSE_POINTER ? 16 : 10;
 
 const sectionsWrap = document.getElementById("sectionsWrap");
 const input = document.getElementById("videoInput");
@@ -76,6 +84,40 @@ const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function edgeAutoScrollSpeed(coord, size, edge, maxSpeed) {
+  if (coord < edge) {
+    const strength = clamp(1 - coord / edge, 0, 1);
+    return -(strength * strength * maxSpeed);
+  }
+  if (coord > size - edge) {
+    const strength = clamp(1 - (size - coord) / edge, 0, 1);
+    return strength * strength * maxSpeed;
+  }
+  return 0;
+}
+
+function resolveDragPlacementPoint(state) {
+  if (!state || state.pointerType !== "touch") {
+    return { x: state?.lastX ?? 0, y: state?.lastY ?? 0 };
+  }
+
+  const dx = state.lastX - state.startX;
+  const dy = state.lastY - state.startY;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  let x = state.lastX;
+  let y = state.lastY + TOUCH_PLACE_BIAS_Y;
+
+  if (absDy > absDx * TOUCH_AXIS_LOCK_RATIO) {
+    x = state.startX;
+  } else if (absDx > absDy * TOUCH_AXIS_LOCK_RATIO) {
+    y = state.startY + TOUCH_PLACE_BIAS_Y;
+  }
+
+  return { x, y };
 }
 
 function compareFavoriteThenOrder(a, b) {
@@ -905,32 +947,29 @@ function startAutoScroll() {
       return;
     }
 
-    const edge = 90;
-    const maxSpeed = 22;
-    const W = window.innerWidth;
     const H = window.innerHeight;
-
-    const x = drag.lastX;
     const y = drag.lastY;
+    const vy = edgeAutoScrollSpeed(y, H, AUTO_SCROLL_EDGE_PX, AUTO_SCROLL_MAX_SPEED);
 
-    let vx = 0;
-    let vy = 0;
+    if (vy) {
+      window.scrollBy(0, vy);
 
-    if (y < edge) vy = -maxSpeed * (1 - y / edge);
-    else if (y > H - edge) vy = maxSpeed * (1 - (H - y) / edge);
-
-    if (x < edge) vx = -maxSpeed * (1 - x / edge);
-    else if (x > W - edge) vx = maxSpeed * (1 - (W - x) / edge);
-
-    if (vx || vy) {
-      window.scrollBy(vx, vy);
-
-      const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
+      const placementPoint = resolveDragPlacementPoint(drag);
+      const grid =
+        gridFromPoint(placementPoint.x, placementPoint.y) ||
+        gridFromPoint(drag.lastX, drag.lastY) ||
+        drag.srcGrid;
       if (grid && drag.placeholderEl) {
         if (drag.placeholderEl.parentElement !== grid) {
           grid.appendChild(drag.placeholderEl);
         }
-        placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
+        placePlaceholder(
+          grid,
+          drag.placeholderEl,
+          placementPoint.x,
+          placementPoint.y,
+          drag.draggedIdsSet
+        );
       }
     }
 
@@ -1013,27 +1052,83 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedIdsSet) {
     return;
   }
 
-  const itemsInfo = cards
+  const items = cards
     .map((el) => {
       const r = el.getBoundingClientRect();
       return {
         el,
         r,
         cx: r.left + r.width / 2,
-        cy: r.top + r.height / 2,
-        rowTol: Math.max(12, r.height * 0.35),
       };
     })
     .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
 
-  let beforeEl = null;
-  for (const it of itemsInfo) {
-    const sameRow = Math.abs(y - it.cy) <= it.rowTol;
-    if (y < it.cy || (sameRow && x < it.cx)) {
-      beforeEl = it.el;
-      break;
+  const rows = [];
+  for (const it of items) {
+    const prev = rows[rows.length - 1];
+    if (!prev) {
+      rows.push({
+        top: it.r.top,
+        bottom: it.r.bottom,
+        items: [it],
+      });
+      continue;
+    }
+
+    const prevHeight = Math.max(1, prev.bottom - prev.top);
+    const tol = Math.max(12, Math.min(prevHeight, it.r.height) * ROW_MERGE_TOLERANCE_RATIO);
+    if (Math.abs(it.r.top - prev.top) <= tol) {
+      prev.top = Math.min(prev.top, it.r.top);
+      prev.bottom = Math.max(prev.bottom, it.r.bottom);
+      prev.items.push(it);
+    } else {
+      rows.push({
+        top: it.r.top,
+        bottom: it.r.bottom,
+        items: [it],
+      });
     }
   }
+
+  for (const row of rows) {
+    row.items.sort((a, b) => a.r.left - b.r.left);
+  }
+
+  let rowIndex = rows.findIndex((row) => y <= row.bottom);
+  if (rowIndex === -1) rowIndex = rows.length - 1;
+
+  const row = rows[rowIndex];
+  const nextRowFirst = rows[rowIndex + 1]?.items?.[0]?.el || null;
+
+  let beforeEl = null;
+
+  if (y < row.top) {
+    beforeEl = row.items[0].el;
+  } else {
+    const rowMid = (row.top + row.bottom) / 2;
+    const verticalBand = Math.max(
+      ROW_VERTICAL_BAND_MIN,
+      (row.bottom - row.top) * ROW_VERTICAL_BAND_RATIO
+    );
+
+    if (Math.abs(y - rowMid) > verticalBand) {
+      beforeEl = y < rowMid ? row.items[0].el : nextRowFirst;
+    } else {
+      for (const it of row.items) {
+        if (x < it.cx) {
+          beforeEl = it.el;
+          break;
+        }
+      }
+      if (!beforeEl) beforeEl = nextRowFirst;
+    }
+  }
+
+  const alreadyPlaced =
+    placeholderEl.parentElement === gridEl &&
+    ((!beforeEl && gridEl.lastElementChild === placeholderEl) ||
+      (beforeEl && beforeEl.previousElementSibling === placeholderEl));
+  if (alreadyPlaced) return;
 
   const beforeRects = getRects(gridEl);
 
@@ -1127,7 +1222,14 @@ function startDrag(cardEl) {
   drag.srcGrid.insertBefore(drag.placeholderEl, cardEl);
   animateFLIP(drag.srcGrid, beforeRects);
 
-  placePlaceholder(drag.srcGrid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
+  const placementPoint = resolveDragPlacementPoint(drag);
+  placePlaceholder(
+    drag.srcGrid,
+    drag.placeholderEl,
+    placementPoint.x,
+    placementPoint.y,
+    drag.draggedIdsSet
+  );
 
   document.body.classList.add("drag-active");
   startAutoScroll();
@@ -1146,11 +1248,16 @@ function onPointerMove(e) {
   if (!drag.started && drag.pointerType === "touch") {
     const dx = drag.lastX - drag.startX;
     const dy = drag.lastY - drag.startY;
-    if (Math.hypot(dx, dy) > 10) {
-      if (drag.pressTimer) clearTimeout(drag.pressTimer);
-      drag.pressTimer = null;
+    if (Math.hypot(dx, dy) >= TOUCH_DRAG_START_PX) {
+      if (drag.pressTimer) {
+        clearTimeout(drag.pressTimer);
+        drag.pressTimer = null;
+      }
+      const cardEl = sectionsWrap?.querySelector(`.card-btn[data-id="${drag.id}"]`);
+      if (cardEl) startDrag(cardEl);
+    } else {
+      return;
     }
-    return;
   }
 
   if (!drag.started && drag.pointerType !== "touch") {
@@ -1163,6 +1270,7 @@ function onPointerMove(e) {
   }
 
   if (!drag.started) return;
+  if (drag.pointerType === "touch") e.preventDefault();
 
   const x = drag.lastX - drag.offsetX;
   const y = drag.lastY - drag.offsetY;
@@ -1171,7 +1279,11 @@ function onPointerMove(e) {
 
   startAutoScroll();
 
-  const grid = gridFromPoint(drag.lastX, drag.lastY) || drag.srcGrid;
+  const placementPoint = resolveDragPlacementPoint(drag);
+  const grid =
+    gridFromPoint(placementPoint.x, placementPoint.y) ||
+    gridFromPoint(drag.lastX, drag.lastY) ||
+    drag.srcGrid;
   if (!grid) return;
 
   const oldParent = drag.placeholderEl.parentElement;
@@ -1185,7 +1297,13 @@ function onPointerMove(e) {
     animateFLIP(grid, beforeNew);
   }
 
-  placePlaceholder(grid, drag.placeholderEl, drag.lastX, drag.lastY, drag.draggedIdsSet);
+  placePlaceholder(
+    grid,
+    drag.placeholderEl,
+    placementPoint.x,
+    placementPoint.y,
+    drag.draggedIdsSet
+  );
 }
 
 async function finalizeDrop(state) {
@@ -1303,16 +1421,21 @@ function startAutoScrollSection() {
       return;
     }
 
-    const edge = 90;
-    const maxSpeed = 22;
     const H = window.innerHeight;
     const y = sectionDrag.lastY;
+    const vy = edgeAutoScrollSpeed(y, H, AUTO_SCROLL_EDGE_PX, AUTO_SCROLL_MAX_SPEED);
 
-    let vy = 0;
-    if (y < edge) vy = -maxSpeed * (1 - y / edge);
-    else if (y > H - edge) vy = maxSpeed * (1 - (H - y) / edge);
-
-    if (vy) window.scrollBy(0, vy);
+    if (vy) {
+      window.scrollBy(0, vy);
+      if (sectionDrag?.placeholderEl) {
+        placeSectionPlaceholderVertical(
+          sectionsWrap,
+          sectionDrag.placeholderEl,
+          sectionDrag.lastY,
+          sectionDrag.id
+        );
+      }
+    }
 
     autoScrollSectionRaf = requestAnimationFrame(step);
   };
