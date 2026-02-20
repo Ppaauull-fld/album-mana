@@ -1906,10 +1906,12 @@ html[data-theme="dark"] #guestCanvas{
   --minimap-surface: rgba(255,255,255,.12);
   --minimap-border: rgba(255,255,255,.28);
   --minimap-outline: rgba(0,0,0,.18);
-  --minimap-bump-width: 64px;
-  --minimap-bump-height: 34px;
-  --minimap-bump-right: 16px;
-  --minimap-bump-lift: 30px;
+  --minimap-bump-width: 68px;
+  --minimap-bump-height: 32px;
+  --minimap-bump-right: 14px;
+  --minimap-bump-lift: 32px;
+  --minimap-toggle-width: 36px;
+  --minimap-toggle-height: 28px;
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -1931,7 +1933,7 @@ html[data-theme="dark"] #guestCanvas{
   border-radius: 34px;
   border: 1px solid var(--minimap-outline);
   background: var(--minimap-surface);
-  box-shadow: 0 12px 22px rgba(0,0,0,.12);
+  box-shadow: none;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   position: relative;
@@ -1958,11 +1960,11 @@ html[data-theme="dark"] #guestCanvas{
   content: "";
   position: absolute;
   top: -1px;
-  right: calc(var(--minimap-bump-right) + 1px);
-  width: calc(var(--minimap-bump-width) - 2px);
-  height: 8px;
+  right: calc(var(--minimap-bump-right) - 3px);
+  width: calc(var(--minimap-bump-width) + 6px);
+  height: 3px;
   background: var(--minimap-surface);
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 4px 4px;
   z-index: 3;
   pointer-events: none;
 }
@@ -1977,10 +1979,10 @@ html[data-theme="dark"] #guestCanvas{
 
 .minimap-toggle{
   position: absolute;
-  top: -19px;
-  right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - 36px) / 2));
-  width: 36px;
-  height: 28px;
+  top: calc((-1 * var(--minimap-bump-lift)) + ((var(--minimap-bump-height) - var(--minimap-toggle-height)) / 2));
+  right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - var(--minimap-toggle-width)) / 2));
+  width: var(--minimap-toggle-width);
+  height: var(--minimap-toggle-height);
   border-radius: 999px;
   border: none;
   background: transparent;
@@ -2884,17 +2886,12 @@ html[data-theme="dark"] .section-placeholder{
   .minimap-shell{
     right: 8px;
     bottom: max(8px, env(safe-area-inset-bottom));
-    --minimap-bump-width: 50px;
+    --minimap-bump-width: 52px;
     --minimap-bump-height: 24px;
     --minimap-bump-right: 10px;
-    --minimap-bump-lift: 21px;
-  }
-
-  .minimap-toggle{
-    width: 30px;
-    height: 24px;
-    top: -13px;
-    right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - 30px) / 2));
+    --minimap-bump-lift: 24px;
+    --minimap-toggle-width: 30px;
+    --minimap-toggle-height: 24px;
   }
 
   .minimap-panel{
