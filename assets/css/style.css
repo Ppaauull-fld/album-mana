@@ -1905,10 +1905,11 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-shell{
   --minimap-surface: rgba(255,255,255,.12);
   --minimap-border: rgba(255,255,255,.28);
-  --minimap-bump-width: 58px;
-  --minimap-bump-height: 30px;
-  --minimap-bump-right: 19px;
-  --minimap-bump-lift: 28px;
+  --minimap-outline: rgba(0,0,0,.18);
+  --minimap-bump-width: 64px;
+  --minimap-bump-height: 34px;
+  --minimap-bump-right: 16px;
+  --minimap-bump-lift: 30px;
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -1928,11 +1929,9 @@ html[data-theme="dark"] #guestCanvas{
   height: 200px;
   padding: 13px;
   border-radius: 34px;
-  border: none;
+  border: 1px solid var(--minimap-outline);
   background: var(--minimap-surface);
-  box-shadow:
-    0 12px 22px rgba(0,0,0,.12),
-    inset 0 0 0 1px var(--minimap-border);
+  box-shadow: 0 12px 22px rgba(0,0,0,.12);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   position: relative;
@@ -1947,9 +1946,10 @@ html[data-theme="dark"] #guestCanvas{
   right: var(--minimap-bump-right);
   width: var(--minimap-bump-width);
   height: var(--minimap-bump-height);
+  border: 1px solid var(--minimap-outline);
+  border-bottom: none;
   border-radius: 999px 999px 0 0;
   background: var(--minimap-surface);
-  box-shadow: inset 0 0 0 1px var(--minimap-border);
   z-index: 2;
   pointer-events: none;
 }
@@ -1960,7 +1960,7 @@ html[data-theme="dark"] #guestCanvas{
   top: -1px;
   right: calc(var(--minimap-bump-right) + 1px);
   width: calc(var(--minimap-bump-width) - 2px);
-  height: 6px;
+  height: 8px;
   background: var(--minimap-surface);
   border-radius: 0 0 8px 8px;
   z-index: 3;
@@ -1978,7 +1978,7 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-toggle{
   position: absolute;
   top: -19px;
-  right: calc(var(--minimap-bump-right) + 11px);
+  right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - 36px) / 2));
   width: 36px;
   height: 28px;
   border-radius: 999px;
@@ -2884,17 +2884,17 @@ html[data-theme="dark"] .section-placeholder{
   .minimap-shell{
     right: 8px;
     bottom: max(8px, env(safe-area-inset-bottom));
-    --minimap-bump-width: 44px;
-    --minimap-bump-height: 20px;
-    --minimap-bump-right: 12px;
-    --minimap-bump-lift: 19px;
+    --minimap-bump-width: 50px;
+    --minimap-bump-height: 24px;
+    --minimap-bump-right: 10px;
+    --minimap-bump-lift: 21px;
   }
 
   .minimap-toggle{
     width: 30px;
     height: 24px;
     top: -13px;
-    right: calc(var(--minimap-bump-right) + 6px);
+    right: calc(var(--minimap-bump-right) + ((var(--minimap-bump-width) - 30px) / 2));
   }
 
   .minimap-panel{
@@ -3368,6 +3368,7 @@ html[data-theme="dark"] .minimap-toggle{
 html[data-theme="dark"] .minimap-shell{
   --minimap-surface: rgba(255,255,255,.08);
   --minimap-border: rgba(255,255,255,.18);
+  --minimap-outline: rgba(255,255,255,.24);
 }
 
 html[data-theme="dark"] .minimap-expand{
