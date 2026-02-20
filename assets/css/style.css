@@ -1903,6 +1903,8 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-shell{
+  --minimap-surface: rgba(255,255,255,.12);
+  --minimap-border: rgba(255,255,255,.28);
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -1918,8 +1920,6 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-panel{
-  --minimap-surface: rgba(255,255,255,.20);
-  --minimap-border: rgba(255,255,255,.34);
   width: 300px;
   height: 200px;
   padding: 13px;
@@ -1936,13 +1936,13 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-panel::before{
   content: "";
   position: absolute;
-  top: -24px;
-  right: 19px;
-  width: 78px;
-  height: 30px;
+  top: -21px;
+  right: 22px;
+  width: 68px;
+  height: 24px;
   border: 1px solid var(--minimap-border);
   border-bottom: none;
-  border-radius: 26px 26px 0 0;
+  border-radius: 22px 22px 0 0;
   background: var(--minimap-surface);
   z-index: 1;
 }
@@ -1957,14 +1957,14 @@ html[data-theme="dark"] #guestCanvas{
 
 .minimap-toggle{
   position: absolute;
-  top: -29px;
-  right: 28px;
-  width: 60px;
-  height: 60px;
+  top: -24px;
+  right: 31px;
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
   border: 1px solid var(--minimap-border);
   background: var(--minimap-surface);
-  box-shadow: 2px 0 6px rgba(0,0,0,.04);
+  box-shadow: none;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -1977,8 +1977,8 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-toggle .icon-img{
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
 }
 
@@ -1987,8 +1987,8 @@ html[data-theme="dark"] #guestCanvas{
   height: 48px;
   padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid var(--headerbtn-border);
-  background: var(--headerbtn-bg);
+  border: 1px solid var(--minimap-border);
+  background: var(--minimap-surface);
   box-shadow: 0 18px 50px rgba(0,0,0,.10);
   color: var(--headerbtn-ink);
   font-size: 14px;
@@ -2866,18 +2866,18 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-panel::before{
-    top: -18px;
-    right: 12px;
-    width: 60px;
-    height: 24px;
-    border-radius: 18px 18px 0 0;
+    top: -15px;
+    right: 14px;
+    width: 52px;
+    height: 19px;
+    border-radius: 16px 16px 0 0;
   }
 
   .minimap-toggle{
-    width: 48px;
-    height: 48px;
-    top: -24px;
-    right: 18px;
+    width: 42px;
+    height: 42px;
+    top: -19px;
+    right: 19px;
   }
 
   .minimap-panel{
@@ -2892,8 +2892,8 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-toggle .icon-img{
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
   }
 
   .minimap-expand{
@@ -3349,14 +3349,14 @@ html[data-theme="dark"] .minimap-toggle{
   color: var(--headerbtn-ink);
 }
 
-html[data-theme="dark"] .minimap-panel{
-  --minimap-surface: rgba(255,255,255,.10);
-  --minimap-border: rgba(255,255,255,.20);
+html[data-theme="dark"] .minimap-shell{
+  --minimap-surface: rgba(255,255,255,.08);
+  --minimap-border: rgba(255,255,255,.18);
 }
 
 html[data-theme="dark"] .minimap-expand{
-  background: var(--headerbtn-bg);
-  border-color: var(--headerbtn-border);
+  background: var(--minimap-surface);
+  border-color: var(--minimap-border);
   color: var(--headerbtn-ink);
 }
 
