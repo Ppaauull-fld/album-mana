@@ -1964,7 +1964,7 @@ html[data-theme="dark"] #guestCanvas{
   border-radius: 999px;
   border: 1px solid var(--minimap-border);
   background: var(--minimap-surface);
-  box-shadow: none;
+  box-shadow: 2px 0 6px rgba(0,0,0,.04);
   display: grid;
   place-items: center;
   cursor: pointer;
