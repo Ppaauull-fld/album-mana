@@ -1936,15 +1936,16 @@ html[data-theme="dark"] #guestCanvas{
 .minimap-panel::before{
   content: "";
   position: absolute;
-  top: -21px;
-  right: 22px;
-  width: 68px;
-  height: 24px;
+  top: -18px;
+  right: 24px;
+  width: 56px;
+  height: 20px;
   border: 1px solid var(--minimap-border);
   border-bottom: none;
-  border-radius: 22px 22px 0 0;
+  border-radius: 18px 18px 0 0;
   background: var(--minimap-surface);
   z-index: 1;
+  pointer-events: none;
 }
 
 .minimap-stage{
@@ -1957,18 +1958,18 @@ html[data-theme="dark"] #guestCanvas{
 
 .minimap-toggle{
   position: absolute;
-  top: -24px;
-  right: 31px;
-  width: 52px;
-  height: 52px;
+  top: -21px;
+  right: 29px;
+  width: 46px;
+  height: 46px;
   border-radius: 999px;
-  border: 1px solid var(--minimap-border);
+  border: none;
   background: var(--minimap-surface);
   box-shadow: none;
   display: grid;
   place-items: center;
   cursor: pointer;
-  z-index: 2;
+  z-index: 0;
 }
 
 .minimap-toggle:hover{
@@ -1977,9 +1978,11 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-toggle .icon-img{
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
+  position: relative;
+  z-index: 2;
 }
 
 .minimap-expand{
@@ -2866,18 +2869,18 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-panel::before{
-    top: -15px;
-    right: 14px;
-    width: 52px;
-    height: 19px;
-    border-radius: 16px 16px 0 0;
+    top: -13px;
+    right: 16px;
+    width: 46px;
+    height: 16px;
+    border-radius: 14px 14px 0 0;
   }
 
   .minimap-toggle{
-    width: 42px;
-    height: 42px;
-    top: -19px;
-    right: 19px;
+    width: 38px;
+    height: 38px;
+    top: -17px;
+    right: 22px;
   }
 
   .minimap-panel{
@@ -2892,8 +2895,8 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-toggle .icon-img{
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
   }
 
   .minimap-expand{
