@@ -1,6 +1,10 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadVideo } from "../cloudinary.js";
-import { setBtnLoading } from "../ui.js";
+import {
+  setBtnLoading,
+  initSectionJumpButton,
+  initPullToRefreshGuard,
+} from "../ui.js";
 
 import {
   collection,
@@ -1734,6 +1738,13 @@ document.addEventListener("keydown", (e) => {
 /* =========================
    Firestore realtime
    ========================= */
+initPullToRefreshGuard();
+initSectionJumpButton({
+  sectionsEl: sectionsWrap,
+  downIconSrc: "../assets/img/icons/Arrow%20down.svg",
+  upIconSrc: "../assets/img/icons/Arrow%20up.svg",
+});
+
 async function main() {
   initGridLayout();
   await ensureAnonAuth();

@@ -55,6 +55,185 @@ export function setBtnLoading(btn, isLoading, opts = {}) {
   }
 }
 
+export function initSectionJumpButton(opts = {}) {
+  const sectionsEl = opts.sectionsEl;
+  if (!sectionsEl || !document.body) return null;
+
+  const downIconSrc = opts.downIconSrc || "../assets/img/icons/Arrow%20down.svg";
+  const upIconSrc = opts.upIconSrc || "../assets/img/icons/Arrow%20up.svg";
+  const threshold = Number(opts.threshold || 120);
+  const btnId = opts.id || "pageSectionJumpBtn";
+
+  let btn = document.getElementById(btnId);
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = btnId;
+    btn.className = "iconbtn page-jump-btn";
+    btn.innerHTML = `
+      <img class="icon-img" src="${downIconSrc}" alt="" aria-hidden="true" decoding="async" />
+      <span class="sr-only">Aller aux sections</span>
+    `.trim();
+    document.body.appendChild(btn);
+  }
+
+  const icon = btn.querySelector(".icon-img");
+  const sr = btn.querySelector(".sr-only");
+
+  let direction = "down";
+  let rafId = 0;
+  let ro = null;
+  const prefersReducedMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function targetSectionsY() {
+    const r = sectionsEl.getBoundingClientRect();
+    return Math.max(0, Math.round(window.scrollY + r.top - 10));
+  }
+
+  function setDirection(next) {
+    if (next === direction) return;
+    direction = next;
+
+    const isUp = direction === "up";
+    if (icon) icon.src = isUp ? upIconSrc : downIconSrc;
+
+    const label = isUp ? "Aller en haut de la page" : "Aller aux sections";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+    btn.setAttribute("data-direction", direction);
+    if (sr) sr.textContent = label;
+  }
+
+  function syncButton() {
+    if (!sectionsEl.isConnected || !btn.isConnected) return;
+
+    const blocked =
+      document.documentElement.classList.contains("noscroll") ||
+      document.body.classList.contains("noscroll");
+    if (blocked) {
+      btn.classList.remove("is-visible");
+      return;
+    }
+
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    if (maxScroll < 20) {
+      btn.classList.remove("is-visible");
+      return;
+    }
+
+    const showUp = window.scrollY + threshold >= targetSectionsY();
+    setDirection(showUp ? "up" : "down");
+    btn.classList.add("is-visible");
+  }
+
+  function scheduleSync() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      syncButton();
+    });
+  }
+
+  btn.addEventListener("click", () => {
+    const top = direction === "up" ? 0 : targetSectionsY();
+    window.scrollTo({
+      top,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  });
+
+  window.addEventListener("scroll", scheduleSync, { passive: true });
+  window.addEventListener("resize", scheduleSync, { passive: true });
+
+  if (typeof ResizeObserver !== "undefined") {
+    ro = new ResizeObserver(scheduleSync);
+    ro.observe(document.body);
+    ro.observe(sectionsEl);
+  }
+
+  scheduleSync();
+
+  return () => {
+    window.removeEventListener("scroll", scheduleSync);
+    window.removeEventListener("resize", scheduleSync);
+    if (ro) ro.disconnect();
+  };
+}
+
+export function initPullToRefreshGuard() {
+  const isCoarsePointer =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches;
+
+  if (!isCoarsePointer || !("ontouchstart" in window)) return;
+  if (document.documentElement.dataset.pullToRefreshGuard === "1") return;
+  document.documentElement.dataset.pullToRefreshGuard = "1";
+
+  let touchStartY = 0;
+
+  function canScrollableParentConsume(target, deltaY) {
+    let el = target instanceof Element ? target : null;
+
+    while (el && el !== document.body && el !== document.documentElement) {
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
+      const canScrollY =
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+        el.scrollHeight > el.clientHeight + 1;
+
+      if (canScrollY) {
+        if (deltaY > 0 && el.scrollTop > 0) return true;
+        if (deltaY < 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+      }
+
+      el = el.parentElement;
+    }
+
+    return false;
+  }
+
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 1) return;
+      touchStartY = e.touches[0].clientY;
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches.length !== 1) return;
+
+      if (
+        document.documentElement.classList.contains("noscroll") ||
+        document.body.classList.contains("noscroll")
+      ) {
+        return;
+      }
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - touchStartY;
+      if (Math.abs(deltaY) < 6) return;
+      if (canScrollableParentConsume(e.target, deltaY)) return;
+
+      const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop >= maxScroll - 1;
+
+      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+        e.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
