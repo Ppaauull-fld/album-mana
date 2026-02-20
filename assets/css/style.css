@@ -1907,10 +1907,6 @@ html[data-theme="dark"] #guestCanvas{
   right: 14px;
   bottom: 14px;
   z-index: 8;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
   pointer-events: none;
 }
 
@@ -1919,49 +1915,14 @@ html[data-theme="dark"] #guestCanvas{
   pointer-events: auto;
 }
 
-.minimap-toggle{
-  min-width: 142px;
-  height: 48px;
-  padding: 0 18px;
-  gap: 10px;
-  border-radius: 999px;
-  border: 1px solid #e8e8e8;
-  background: #f4f4f4;
-  box-shadow: 0 10px 24px rgba(0,0,0,.10);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #373737;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.minimap-toggle .icon-img{
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-}
-
-.minimap-toggle-text{
-  line-height: 1;
-}
-
-.minimap-toggle:hover{
-  transform: translateY(-1px);
-  background: #f8f8f8;
-}
-
 .minimap-panel{
   width: 296px;
   height: 196px;
   padding: 12px;
-  border-radius: 30px;
+  border-radius: 34px;
   border: 1px solid #e5e5e5;
   background: #ececec;
-  box-shadow: 0 18px 30px rgba(0,0,0,.10);
-  position: relative;
+  box-shadow: 0 14px 24px rgba(0,0,0,.10);
 }
 
 .minimap-stage{
@@ -1970,6 +1931,41 @@ html[data-theme="dark"] #guestCanvas{
   border: 2px solid #bcbcbc;
   background: #f7f7f7;
   overflow: hidden;
+}
+
+.minimap-toggle{
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  border: 1px solid #e7e7e7;
+  background: #efefef;
+  box-shadow: 0 8px 18px rgba(0,0,0,.12);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transform: translate(22%, -42%);
+  z-index: 2;
+}
+
+.minimap-toggle:hover{
+  background: #f5f5f5;
+}
+
+.minimap-toggle .icon-img{
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.minimap-shell.is-collapsed .minimap-panel{
+  display: none;
+}
+
+.minimap-shell.is-collapsed .minimap-toggle{
+  transform: translate(0, 0);
 }
 
 .minimap-canvas{
@@ -2803,26 +2799,28 @@ html[data-theme="dark"] .section-placeholder{
   .minimap-shell{
     right: 8px;
     bottom: max(8px, env(safe-area-inset-bottom));
-    gap: 8px;
   }
 
   .minimap-toggle{
-    min-width: 132px;
-    height: 42px;
-    padding: 0 14px;
-    gap: 8px;
-    font-size: 12px;
+    width: 46px;
+    height: 46px;
+    transform: translate(16%, -42%);
   }
 
   .minimap-panel{
     width: 188px;
     height: 134px;
     padding: 9px;
-    border-radius: 22px;
+    border-radius: 24px;
   }
 
   .minimap-stage{
     border-width: 1px;
+  }
+
+  .minimap-toggle .icon-img{
+    width: 20px;
+    height: 20px;
   }
 
   .section-card.is-fullscreen{

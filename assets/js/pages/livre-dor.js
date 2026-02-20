@@ -65,9 +65,9 @@ const editorShell = document.getElementById("editorShell");
 const floatingEditor = document.getElementById("floatingEditor");
 const editorOk = document.getElementById("editorOk");
 const editorCancel = document.getElementById("editorCancel");
+const minimapShell = document.getElementById("minimapShell");
 const minimapToggleBtn = document.getElementById("minimapToggle");
 const minimapToggleIcon = document.getElementById("minimapToggleIcon");
-const minimapToggleText = document.getElementById("minimapToggleText");
 const minimapPanel = document.getElementById("minimapPanel");
 const minimapCanvas = document.getElementById("minimapCanvas");
 const minimapCtx = minimapCanvas?.getContext?.("2d");
@@ -244,16 +244,14 @@ function updateMinimapToggleUi() {
   if (!minimapToggleBtn || !minimapPanel) return;
   const expanded = !minimapCollapsed;
   const label = expanded ? "Masquer la mini-carte" : "Afficher la mini-carte";
-  const buttonText = expanded ? "Masquer" : "Mini-carte";
   const icon = expanded ? "../assets/img/icons/minus.svg" : "../assets/img/icons/grid.svg";
 
   minimapPanel.hidden = !expanded;
-  minimapToggleBtn.classList.toggle("is-collapsed", !expanded);
+  minimapShell?.classList.toggle("is-collapsed", !expanded);
   minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
   minimapToggleBtn.setAttribute("aria-label", label);
   minimapToggleBtn.title = label;
   if (minimapToggleIcon) minimapToggleIcon.src = icon;
-  if (minimapToggleText) minimapToggleText.textContent = buttonText;
 }
 
 function setMinimapCollapsed(nextCollapsed) {
