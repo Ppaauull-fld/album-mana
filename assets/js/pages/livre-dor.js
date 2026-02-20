@@ -66,6 +66,7 @@ const floatingEditor = document.getElementById("floatingEditor");
 const editorOk = document.getElementById("editorOk");
 const editorCancel = document.getElementById("editorCancel");
 const minimapToggleBtn = document.getElementById("minimapToggle");
+const minimapToggleText = document.getElementById("minimapToggleText");
 const minimapPanel = document.getElementById("minimapPanel");
 const minimapCanvas = document.getElementById("minimapCanvas");
 const minimapCtx = minimapCanvas?.getContext?.("2d");
@@ -242,11 +243,14 @@ function updateMinimapToggleUi() {
   if (!minimapToggleBtn || !minimapPanel) return;
   const expanded = !minimapCollapsed;
   const label = expanded ? "Masquer la mini-carte" : "Afficher la mini-carte";
+  const buttonText = expanded ? "Masquer" : "Mini-carte";
 
   minimapPanel.hidden = !expanded;
+  minimapToggleBtn.classList.toggle("is-collapsed", !expanded);
   minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
   minimapToggleBtn.setAttribute("aria-label", label);
   minimapToggleBtn.title = label;
+  if (minimapToggleText) minimapToggleText.textContent = buttonText;
 }
 
 function setMinimapCollapsed(nextCollapsed) {
@@ -1888,6 +1892,11 @@ toolPickerMenu?.addEventListener("click", handleToolPickerSelection);
    ========================= */
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeToolPicker();
+  if (!editorOpen() && e.key.toLowerCase() === "m" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    setMinimapCollapsed(!minimapCollapsed);
+    return;
+  }
   if (editorOpen()) {
     if (e.key === "Escape") hideEditor();
     if (e.key === "Enter" && !e.shiftKey) {

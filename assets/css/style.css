@@ -1920,17 +1920,33 @@ html[data-theme="dark"] #guestCanvas{
 }
 
 .minimap-toggle{
-  width: 40px;
+  min-width: 40px;
   height: 40px;
+  padding: 0 12px;
+  gap: 8px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.28);
   background: rgba(255,255,255,.84);
   box-shadow: 0 10px 26px rgba(0,0,0,.16);
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  color: rgba(0,0,0,.76);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.minimap-toggle .icon-img{
+  width: 16px;
+  height: 16px;
+}
+
+.minimap-toggle-text{
+  line-height: 1;
 }
 
 .minimap-toggle:hover{
@@ -2783,8 +2799,11 @@ html[data-theme="dark"] .section-placeholder{
   }
 
   .minimap-toggle{
-    width: 36px;
+    min-width: 36px;
     height: 36px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 11px;
   }
 
   .minimap-panel{
@@ -3230,6 +3249,7 @@ html[data-theme="dark"] .minimap-toggle .icon-img{
 html[data-theme="dark"] .minimap-toggle{
   background: rgba(22,22,24,.86);
   border-color: rgba(255,255,255,.20);
+  color: rgba(255,255,255,.88);
 }
 
 html[data-theme="dark"] .minimap-panel{
