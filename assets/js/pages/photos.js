@@ -1520,6 +1520,7 @@ window.addEventListener("pointercancel", (e) => {
 
 let viewerPseudoFullscreen = false;
 let slideshowPseudoFullscreen = false;
+const MOBILE_FULLSCREEN_CONTROLS_MS = 8000;
 
 function getFullscreenElement() {
   return (
@@ -1602,6 +1603,13 @@ function syncViewerFullscreenUI() {
 
   viewer?.classList.toggle("fullscreen", active);
   if (active) viewer?.classList.remove("show-controls");
+  if (!active) {
+    viewerControlsPinnedUntil = 0;
+    if (viewerTouchHideTimer) {
+      clearTimeout(viewerTouchHideTimer);
+      viewerTouchHideTimer = null;
+    }
+  }
 
   if (toggleViewerFullscreenIcon && toggleViewerFullscreenBtn) {
     toggleViewerFullscreenIcon.src = active
@@ -1700,6 +1708,27 @@ viewerRotate?.addEventListener("click", async () => {
 
 // Auto-hide controls en fullscreen (viewer)
 let viewerFsHoverTimer = null;
+let viewerTouchHideTimer = null;
+let viewerControlsPinnedUntil = 0;
+
+function revealViewerControlsTemporarily(ms = MOBILE_FULLSCREEN_CONTROLS_MS) {
+  if (!viewer?.classList.contains("fullscreen")) return;
+
+  viewerControlsPinnedUntil = Date.now() + ms;
+  viewer.classList.add("show-controls");
+
+  if (viewerTouchHideTimer) {
+    clearTimeout(viewerTouchHideTimer);
+    viewerTouchHideTimer = null;
+  }
+
+  viewerTouchHideTimer = setTimeout(() => {
+    viewerTouchHideTimer = null;
+    if (!viewer?.classList.contains("fullscreen")) return;
+    viewer.classList.remove("show-controls");
+    viewerControlsPinnedUntil = 0;
+  }, ms);
+}
 
 viewer?.addEventListener("mousemove", (e) => {
   if (!viewer?.classList.contains("fullscreen")) return;
@@ -1716,6 +1745,8 @@ viewer?.addEventListener("mousemove", (e) => {
       }, 1200);
     }
   } else {
+    if (Date.now() < viewerControlsPinnedUntil) return;
+
     if (viewerFsHoverTimer) {
       clearTimeout(viewerFsHoverTimer);
       viewerFsHoverTimer = null;
@@ -1725,19 +1756,11 @@ viewer?.addEventListener("mousemove", (e) => {
 });
 
 viewer?.addEventListener("touchstart", () => {
-  if (!viewer?.classList.contains("fullscreen")) return;
-
   if (viewerFsHoverTimer) {
     clearTimeout(viewerFsHoverTimer);
     viewerFsHoverTimer = null;
   }
-
-  viewer.classList.add("show-controls");
-  setTimeout(() => {
-    if (viewer?.classList.contains("fullscreen")) {
-      viewer.classList.remove("show-controls");
-    }
-  }, 2500);
+  revealViewerControlsTemporarily();
 });
 
 // Un seul fullscreenchange pour viewer + slideshow
@@ -2040,6 +2063,27 @@ function syncShuffleUI() {
 /* ---------- Fullscreen slideshow + auto-hide controls ---------- */
 
 let fsHoverTimer = null;
+let slideshowTouchHideTimer = null;
+let slideshowControlsPinnedUntil = 0;
+
+function revealSlideshowControlsTemporarily(ms = MOBILE_FULLSCREEN_CONTROLS_MS) {
+  if (!slideshow?.classList.contains("fullscreen")) return;
+
+  slideshowControlsPinnedUntil = Date.now() + ms;
+  slideshow.classList.add("show-controls");
+
+  if (slideshowTouchHideTimer) {
+    clearTimeout(slideshowTouchHideTimer);
+    slideshowTouchHideTimer = null;
+  }
+
+  slideshowTouchHideTimer = setTimeout(() => {
+    slideshowTouchHideTimer = null;
+    if (!slideshow?.classList.contains("fullscreen")) return;
+    slideshow.classList.remove("show-controls");
+    slideshowControlsPinnedUntil = 0;
+  }, ms);
+}
 
 function isSlideshowFullscreen() {
   return getFullscreenElement() === slideshow || slideshowPseudoFullscreen;
@@ -2052,6 +2096,13 @@ function syncFullscreenUI() {
 
   slideshow?.classList.toggle("fullscreen", active);
   if (active) slideshow?.classList.remove("show-controls");
+  if (!active) {
+    slideshowControlsPinnedUntil = 0;
+    if (slideshowTouchHideTimer) {
+      clearTimeout(slideshowTouchHideTimer);
+      slideshowTouchHideTimer = null;
+    }
+  }
 
   if (toggleFullscreenIcon && toggleFullscreenBtn) {
     toggleFullscreenIcon.src = active
@@ -2099,6 +2150,8 @@ slideshow?.addEventListener("mousemove", (e) => {
       }, 1200);
     }
   } else {
+    if (Date.now() < slideshowControlsPinnedUntil) return;
+
     if (fsHoverTimer) {
       clearTimeout(fsHoverTimer);
       fsHoverTimer = null;
@@ -2108,19 +2161,11 @@ slideshow?.addEventListener("mousemove", (e) => {
 });
 
 slideshow?.addEventListener("touchstart", () => {
-  if (!slideshow?.classList.contains("fullscreen")) return;
-
   if (fsHoverTimer) {
     clearTimeout(fsHoverTimer);
     fsHoverTimer = null;
   }
-
-  slideshow.classList.add("show-controls");
-  setTimeout(() => {
-    if (slideshow?.classList.contains("fullscreen")) {
-      slideshow.classList.remove("show-controls");
-    }
-  }, 2500);
+  revealSlideshowControlsTemporarily();
 });
 
 /* ---------- Queue + navigation ---------- */
