@@ -23,6 +23,8 @@ import {
 const PHOTOS_COL = "photos";
 const SECTIONS_COL = "photoSections";
 const UNASSIGNED = "__unassigned__";
+const HEART_STROKES_ICON = "../assets/img/icons/Heart%20strokes.svg";
+const HEART_FILLED_ICON = "../assets/img/icons/Heart%20filled.svg";
 
 const IS_COARSE_POINTER =
   typeof window !== "undefined" &&
@@ -97,6 +99,7 @@ let currentViewed = null;
 let arranging = false;
 let selectedPhotoIds = new Set();
 let bulkDeleteBtn = null;
+const favoriteUpdatePendingIds = new Set();
 
 // Drag photos
 let drag = null;
@@ -111,6 +114,16 @@ const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function compareFavoriteThenOrder(a, b) {
+  const af = a?.favorite ? 1 : 0;
+  const bf = b?.favorite ? 1 : 0;
+  if (af !== bf) return bf - af;
+
+  const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
+  const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
+  return ao - bo;
 }
 
 function updateGridMenuUI() {
@@ -477,11 +490,7 @@ function groupPhotos() {
   }
 
   for (const arr of grouped.values()) {
-    arr.sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : a.createdAt ?? 0;
-      const bo = typeof b.order === "number" ? b.order : b.createdAt ?? 0;
-      return ao - bo;
-    });
+    arr.sort(compareFavoriteThenOrder);
   }
 
   return grouped;
@@ -505,7 +514,57 @@ function renderPhotoCard(p) {
   img.alt = "photo";
   if (p.rotation) applyRotationThumb(img, p.rotation);
 
+  const fav = document.createElement("span");
+  fav.className = "card-favorite-toggle";
+  fav.dataset.favToggle = "1";
+
+  const favIcon = document.createElement("img");
+  favIcon.className = "card-favorite-icon";
+  favIcon.alt = "";
+  favIcon.setAttribute("aria-hidden", "true");
+  fav.appendChild(favIcon);
+
+  const syncFavUi = (isFavorite) => {
+    fav.classList.toggle("is-favorite", isFavorite);
+    fav.setAttribute("aria-pressed", isFavorite ? "true" : "false");
+    favIcon.src = isFavorite ? HEART_FILLED_ICON : HEART_STROKES_ICON;
+    const label = isFavorite ? "Retirer des favoris" : "Ajouter aux favoris";
+    fav.setAttribute("aria-label", label);
+    fav.title = label;
+  };
+  syncFavUi(!!p.favorite);
+
+  const toggleFavorite = async () => {
+    if (!p?.id) return;
+    if (favoriteUpdatePendingIds.has(p.id)) return;
+
+    const previous = !!p.favorite;
+    const next = !previous;
+
+    favoriteUpdatePendingIds.add(p.id);
+    p.favorite = next;
+    renderAll();
+
+    try {
+      await updateDoc(doc(db, PHOTOS_COL, p.id), { favorite: next });
+    } catch (e) {
+      p.favorite = previous;
+      renderAll();
+      alert("Impossible de mettre a jour le favori.");
+      console.error(e);
+    } finally {
+      favoriteUpdatePendingIds.delete(p.id);
+    }
+  };
+
+  fav.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite();
+  });
+
   card.appendChild(img);
+  card.appendChild(fav);
 
   card.addEventListener("click", () => {
     if (arranging) return;
@@ -986,6 +1045,7 @@ function placePlaceholder(gridEl, placeholderEl, x, y, draggedIdsSet) {
 function onPointerDown(e) {
   if (!arranging) return;
   if (sectionDrag) return;
+  if (e.target?.closest?.('[data-fav-toggle="1"]')) return;
 
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
@@ -2536,6 +2596,7 @@ uploadStartBtn?.addEventListener("click", async () => {
         createdAt: Date.now(),
         order: Date.now(),
         sectionId: null,
+        favorite: false,
         publicId: up.public_id,
         url: up.secure_url,
         thumbUrl: up.secure_url,
