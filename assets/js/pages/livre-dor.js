@@ -66,6 +66,7 @@ const floatingEditor = document.getElementById("floatingEditor");
 const editorOk = document.getElementById("editorOk");
 const editorCancel = document.getElementById("editorCancel");
 const minimapToggleBtn = document.getElementById("minimapToggle");
+const minimapToggleIcon = document.getElementById("minimapToggleIcon");
 const minimapToggleText = document.getElementById("minimapToggleText");
 const minimapPanel = document.getElementById("minimapPanel");
 const minimapCanvas = document.getElementById("minimapCanvas");
@@ -244,12 +245,14 @@ function updateMinimapToggleUi() {
   const expanded = !minimapCollapsed;
   const label = expanded ? "Masquer la mini-carte" : "Afficher la mini-carte";
   const buttonText = expanded ? "Masquer" : "Mini-carte";
+  const icon = expanded ? "../assets/img/icons/minus.svg" : "../assets/img/icons/grid.svg";
 
   minimapPanel.hidden = !expanded;
   minimapToggleBtn.classList.toggle("is-collapsed", !expanded);
   minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
   minimapToggleBtn.setAttribute("aria-label", label);
   minimapToggleBtn.title = label;
+  if (minimapToggleIcon) minimapToggleIcon.src = icon;
   if (minimapToggleText) minimapToggleText.textContent = buttonText;
 }
 
@@ -305,16 +308,15 @@ function drawMinimap() {
     offsetY,
   };
 
-  const dark = document.documentElement?.getAttribute("data-theme") === "dark";
-  const mapBg = dark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)";
-  const worldBg = "#ffffff";
-  const frameColor = dark ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.22)";
-  const textColor = "rgba(0,0,0,.38)";
-  const drawingColor = "rgba(0,0,0,.28)";
-  const strokeColor = "rgba(0,0,0,.46)";
-  const selectedColor = dark ? "rgba(255,146,70,.95)" : "rgba(186,88,0,.95)";
-  const viewportFill = dark ? "rgba(94,162,255,.25)" : "rgba(23,92,211,.18)";
-  const viewportStroke = dark ? "rgba(156,200,255,.95)" : "rgba(23,92,211,.9)";
+  const mapBg = "#d7d7d7";
+  const worldBg = "#f7f7f7";
+  const frameColor = "rgba(0,0,0,.22)";
+  const textColor = "rgba(94,106,126,.66)";
+  const drawingColor = "rgba(94,106,126,.72)";
+  const strokeColor = "rgba(94,106,126,.82)";
+  const selectedColor = "rgba(44,103,208,.92)";
+  const viewportFill = "rgba(181,196,224,.66)";
+  const viewportStroke = "rgba(44,103,208,.95)";
 
   minimapCtx.clearRect(0, 0, rect.width, rect.height);
   minimapCtx.fillStyle = mapBg;

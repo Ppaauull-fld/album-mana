@@ -232,12 +232,14 @@
               aria-label="Masquer la mini-carte"
               title="Mini-carte"
             >
-              <img class="icon-img" src="../assets/img/icons/grid.svg" alt="" />
+              <img id="minimapToggleIcon" class="icon-img" src="../assets/img/icons/minus.svg" alt="" />
               <span id="minimapToggleText" class="minimap-toggle-text">Masquer</span>
             </button>
 
             <div id="minimapPanel" class="minimap-panel">
-              <canvas id="minimapCanvas" class="minimap-canvas" aria-label="Mini-carte de navigation du livre d'or"></canvas>
+              <div class="minimap-stage">
+                <canvas id="minimapCanvas" class="minimap-canvas" aria-label="Mini-carte de navigation du livre d'or"></canvas>
+              </div>
             </div>
           </div>
         </div>
