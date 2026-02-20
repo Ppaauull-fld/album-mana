@@ -944,6 +944,16 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   display: block !important;
   object-fit: contain !important;
 }
+#prevSlide .icon-img,
+#nextSlide .icon-img,
+#closeShow .icon-img{
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  display: block !important;
+  object-fit: contain !important;
+}
 
 #shuffleBtn.active,
 #shuffleBtn[aria-pressed="true"]{
