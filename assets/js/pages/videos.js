@@ -23,6 +23,8 @@ import {
 const ITEMS_COL = "videos";
 const SECTIONS_COL = "videoSections";
 const UNASSIGNED = "__unassigned__";
+const FAVORITES = "__favorites__";
+const FAVORITES_TITLE = "Favorites";
 const HEART_STROKES_ICON = "../assets/img/icons/Heart%20strokes.svg";
 const HEART_FILLED_ICON = "../assets/img/icons/Heart%20filled.svg";
 
@@ -520,12 +522,15 @@ async function deleteSectionAndUnassignItems(sectionId) {
 function groupItems() {
   const grouped = new Map();
   grouped.set(UNASSIGNED, []);
+  grouped.set(FAVORITES, []);
   for (const s of sections) grouped.set(s.id, []);
 
   for (const it of items) {
     const sid = it.sectionId;
     if (!sid || !grouped.has(sid)) grouped.get(UNASSIGNED).push(it);
     else grouped.get(sid).push(it);
+
+    if (it?.favorite) grouped.get(FAVORITES).push(it);
   }
 
   for (const arr of grouped.values()) {
@@ -709,7 +714,7 @@ async function deleteSelectedItems() {
   }
 }
 
-function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
+function renderSectionCard({ id, title, editable, hideTitle, staticSection = false }, itemsInSection) {
   const card = document.createElement("div");
   card.className = "section-card";
   card.dataset.sectionCardId = id;
@@ -730,7 +735,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
   t.className = "section-title";
   t.textContent = title || "";
 
-  if (editable) {
+  if (editable && !staticSection) {
     t.contentEditable = "true";
     t.spellcheck = false;
 
@@ -753,7 +758,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
     });
   }
 
-  head.appendChild(move);
+  if (!staticSection) head.appendChild(move);
   head.appendChild(t);
 
   const actions = document.createElement("div");
@@ -778,7 +783,7 @@ function renderSectionCard({ id, title, editable, hideTitle }, itemsInSection) {
   });
   actions.appendChild(maxBtn);
 
-  if (id !== UNASSIGNED) {
+  if (!staticSection && id !== UNASSIGNED && id !== FAVORITES) {
     const delBtn = document.createElement("button");
     delBtn.type = "button";
     delBtn.className = "iconbtn danger";
@@ -820,6 +825,16 @@ function renderAll() {
   sectionsWrap.appendChild(
     renderSectionCard({ id: UNASSIGNED, title: "", editable: false, hideTitle: true }, grouped.get(UNASSIGNED) || [])
   );
+
+  const favoritesItems = grouped.get(FAVORITES) || [];
+  if (favoritesItems.length > 0) {
+    sectionsWrap.appendChild(
+      renderSectionCard(
+        { id: FAVORITES, title: FAVORITES_TITLE, editable: false, hideTitle: false, staticSection: true },
+        favoritesItems
+      )
+    );
+  }
 
   // sections
   for (const s of sections) {
@@ -982,7 +997,9 @@ function createGhostFromCard(cardEl, count = 1) {
 
 function gridFromPoint(x, y) {
   const el = document.elementFromPoint(x, y);
-  return el?.closest?.(".section-grid") || null;
+  const grid = el?.closest?.(".section-grid") || null;
+  if (grid?.dataset.sectionId === FAVORITES) return null;
+  return grid;
 }
 
 function placePlaceholder(gridEl, placeholderEl, x, y, draggedIdsSet) {
@@ -1039,6 +1056,7 @@ function onPointerDown(e) {
   const id = cardEl.dataset.id;
   const srcGrid = cardEl.closest(".section-grid");
   if (!srcGrid) return;
+  if ((srcGrid.dataset.sectionId || UNASSIGNED) === FAVORITES) return;
 
   const rect = cardEl.getBoundingClientRect();
 
@@ -1353,6 +1371,7 @@ function placeSectionPlaceholderVertical(wrap, placeholderEl, y, draggedId) {
     const sid = c.dataset.sectionCardId;
     if (!sid) return false;
     if (sid === UNASSIGNED) return false;
+    if (sid === FAVORITES) return false;
     if (sid === draggedId) return false;
     return true;
   });
@@ -1397,7 +1416,7 @@ function onSectionPointerDown(e) {
   if (!sectionEl) return;
 
   const id = sectionEl.dataset.sectionCardId;
-  if (!id || id === UNASSIGNED) return;
+  if (!id || id === UNASSIGNED || id === FAVORITES) return;
 
   e.preventDefault();
 
@@ -1473,7 +1492,7 @@ async function finalizeSectionDropAndPersist(wrap) {
 
   const orderedIds = cards
     .map((el) => el.dataset.sectionCardId)
-    .filter((sid) => sid && sid !== UNASSIGNED);
+    .filter((sid) => sid && sid !== UNASSIGNED && sid !== FAVORITES);
 
   const base = Date.now();
 

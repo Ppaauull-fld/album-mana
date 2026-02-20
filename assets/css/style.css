@@ -605,17 +605,14 @@ html[data-theme="dark"] .theme-switch__thumb{
   place-items:center;
   z-index:3;
   cursor:pointer;
-  background: rgba(255,255,255,.54);
-  border: 1px solid rgba(0,0,0,.14);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: transform .14s ease, background .14s ease, border-color .14s ease, box-shadow .14s ease;
-  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: transform .14s ease;
 }
 .card-favorite-toggle:hover{
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.68);
-  border-color: rgba(0,0,0,.20);
 }
 .card-favorite-toggle:focus-visible{
   outline: 2px solid var(--focus-ring);
@@ -628,16 +625,11 @@ html[data-theme="dark"] .theme-switch__thumb{
   min-width: 18px;
   min-height: 18px;
   object-fit: contain;
-  opacity: .5;
+  opacity: .2;
   transition: opacity .14s ease;
 }
 .card-favorite-toggle.is-favorite .card-favorite-icon{
   opacity: 1;
-}
-
-html[data-theme="dark"] .card-favorite-toggle{
-  background: rgba(255,255,255,.38);
-  border-color: rgba(255,255,255,.26);
 }
 
 .card-btn{
