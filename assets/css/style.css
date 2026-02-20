@@ -1902,6 +1902,64 @@ html[data-theme="dark"] #guestCanvas{
   background:#fff; /* on garde un canvas blanc pour écrire, même en dark */
 }
 
+.minimap-shell{
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.minimap-toggle,
+.minimap-panel{
+  pointer-events: auto;
+}
+
+.minimap-toggle{
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(255,255,255,.84);
+  box-shadow: 0 10px 26px rgba(0,0,0,.16);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.minimap-toggle:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.92);
+}
+
+.minimap-panel{
+  width: 224px;
+  height: 152px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.34);
+  background: rgba(255,255,255,.84);
+  box-shadow: 0 16px 36px rgba(0,0,0,.18);
+  overflow: hidden;
+}
+
+.minimap-canvas{
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.minimap-canvas.is-dragging{
+  cursor: grabbing;
+}
+
 .editor-shell{
   position:absolute;
   z-index: 10;
@@ -2718,6 +2776,23 @@ html[data-theme="dark"] .section-placeholder{
     background: linear-gradient(to top, rgba(255,255,255,.55), rgba(255,255,255,0));
   }
 
+  .minimap-shell{
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    gap: 6px;
+  }
+
+  .minimap-toggle{
+    width: 36px;
+    height: 36px;
+  }
+
+  .minimap-panel{
+    width: 158px;
+    height: 112px;
+    border-radius: 12px;
+  }
+
   .section-card.is-fullscreen{
     inset: 6px;
     border-radius: 14px;
@@ -3146,6 +3221,20 @@ html[data-theme="dark"] .section-placeholder{
 html[data-theme="dark"] .tool-picker-btn .icon-img,
 html[data-theme="dark"] .tool-picker-option .icon-img{
   filter: brightness(0) invert(1);
+}
+
+html[data-theme="dark"] .minimap-toggle .icon-img{
+  filter: brightness(0) invert(1);
+}
+
+html[data-theme="dark"] .minimap-toggle{
+  background: rgba(22,22,24,.86);
+  border-color: rgba(255,255,255,.20);
+}
+
+html[data-theme="dark"] .minimap-panel{
+  border-color: rgba(255,255,255,.20);
+  background: rgba(22,22,24,.82);
 }
 
 

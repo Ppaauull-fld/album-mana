@@ -221,6 +221,24 @@
               <button id="editorOk" class="btn primary" type="button">OK</button>
             </div>
           </div>
+
+          <div id="minimapShell" class="minimap-shell">
+            <button
+              id="minimapToggle"
+              class="minimap-toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="minimapPanel"
+              aria-label="Masquer la mini-carte"
+              title="Mini-carte"
+            >
+              <img class="icon-img" src="../assets/img/icons/grid.svg" alt="" />
+            </button>
+
+            <div id="minimapPanel" class="minimap-panel">
+              <canvas id="minimapCanvas" class="minimap-canvas" aria-label="Mini-carte de navigation du livre d'or"></canvas>
+            </div>
+          </div>
         </div>
 
       </div>

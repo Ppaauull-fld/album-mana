@@ -65,6 +65,10 @@ const editorShell = document.getElementById("editorShell");
 const floatingEditor = document.getElementById("floatingEditor");
 const editorOk = document.getElementById("editorOk");
 const editorCancel = document.getElementById("editorCancel");
+const minimapToggleBtn = document.getElementById("minimapToggle");
+const minimapPanel = document.getElementById("minimapPanel");
+const minimapCanvas = document.getElementById("minimapCanvas");
+const minimapCtx = minimapCanvas?.getContext?.("2d");
 
 /* =========================
    State
@@ -111,11 +115,254 @@ let camY = 0;
 let isPanning = false;
 let panStart = null;
 
+let minimapCollapsed = false;
+let minimapDrag = null;
+let minimapFrame = null;
+let minimapViewportRect = null;
+
 function screenToWorld(p) {
   return { x: p.x + camX, y: p.y + camY };
 }
 function worldToScreen(p) {
   return { x: p.x - camX, y: p.y - camY };
+}
+
+function getViewportWorldRect() {
+  const rect = getCanvasCssRect();
+  return {
+    x: camX,
+    y: camY,
+    w: Math.max(1, rect.width),
+    h: Math.max(1, rect.height),
+  };
+}
+
+function worldToMinimapPoint(x, y, frame) {
+  return {
+    x: frame.offsetX + (x - frame.minX) * frame.scale,
+    y: frame.offsetY + (y - frame.minY) * frame.scale,
+  };
+}
+
+function minimapToWorldPoint(x, y, frame) {
+  const clampedX = clamp(x, frame.offsetX, frame.offsetX + frame.drawW);
+  const clampedY = clamp(y, frame.offsetY, frame.offsetY + frame.drawH);
+  return {
+    x: frame.minX + (clampedX - frame.offsetX) / frame.scale,
+    y: frame.minY + (clampedY - frame.offsetY) / frame.scale,
+  };
+}
+
+function worldRectToMinimapRect(x, y, w, h, frame) {
+  const p0 = worldToMinimapPoint(x, y, frame);
+  const p1 = worldToMinimapPoint(x + w, y + h, frame);
+  return {
+    x: p0.x,
+    y: p0.y,
+    w: Math.max(1, p1.x - p0.x),
+    h: Math.max(1, p1.y - p0.y),
+  };
+}
+
+function pointInRect(p, r) {
+  if (!r) return false;
+  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+}
+
+function getMinimapPointerPos(e) {
+  if (!minimapCanvas) return null;
+  const rect = minimapCanvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function computeMinimapWorldBounds() {
+  const view = getViewportWorldRect();
+  let minX = view.x;
+  let minY = view.y;
+  let maxX = view.x + view.w;
+  let maxY = view.y + view.h;
+
+  const includeRect = (x, y, w, h) => {
+    if (![x, y, w, h].every((n) => typeof n === "number" && isFinite(n))) return;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  };
+
+  const includeStroke = (stroke) => {
+    if (!stroke?.points?.length) return;
+    const strokeW = Number(stroke.width || 6);
+    for (const p of stroke.points) {
+      minX = Math.min(minX, p.x - strokeW);
+      minY = Math.min(minY, p.y - strokeW);
+      maxX = Math.max(maxX, p.x + strokeW);
+      maxY = Math.max(maxY, p.y + strokeW);
+    }
+  };
+
+  includeRect(view.x, view.y, view.w, view.h);
+  for (const it of items) includeRect(it.x, it.y, it.w, it.h);
+  for (const s of strokes) includeStroke(s);
+  if (currentStroke) includeStroke(currentStroke);
+
+  const span = Math.max(maxX - minX, maxY - minY, 1);
+  const pad = Math.max(80, span * 0.08);
+
+  return {
+    minX: minX - pad,
+    minY: minY - pad,
+    maxX: maxX + pad,
+    maxY: maxY + pad,
+  };
+}
+
+function drawMinimapStroke(stroke, frame, color) {
+  if (!minimapCtx || !stroke?.points?.length) return;
+  const first = worldToMinimapPoint(stroke.points[0].x, stroke.points[0].y, frame);
+
+  minimapCtx.save();
+  minimapCtx.strokeStyle = color;
+  minimapCtx.lineCap = "round";
+  minimapCtx.lineJoin = "round";
+  minimapCtx.lineWidth = clamp(Number(stroke.width || 1) * frame.scale, 0.6, 2.8);
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(first.x, first.y);
+
+  for (let i = 1; i < stroke.points.length; i++) {
+    const p = worldToMinimapPoint(stroke.points[i].x, stroke.points[i].y, frame);
+    minimapCtx.lineTo(p.x, p.y);
+  }
+
+  minimapCtx.stroke();
+  minimapCtx.restore();
+}
+
+function updateMinimapToggleUi() {
+  if (!minimapToggleBtn || !minimapPanel) return;
+  const expanded = !minimapCollapsed;
+  const label = expanded ? "Masquer la mini-carte" : "Afficher la mini-carte";
+
+  minimapPanel.hidden = !expanded;
+  minimapToggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  minimapToggleBtn.setAttribute("aria-label", label);
+  minimapToggleBtn.title = label;
+}
+
+function setMinimapCollapsed(nextCollapsed) {
+  minimapCollapsed = !!nextCollapsed;
+  if (minimapCollapsed) {
+    minimapDrag = null;
+    minimapFrame = null;
+    minimapViewportRect = null;
+    minimapCanvas?.classList.remove("is-dragging");
+  }
+  updateMinimapToggleUi();
+  if (!minimapCollapsed) drawMinimap();
+}
+
+function drawMinimap() {
+  if (!minimapCanvas || !minimapCtx || !minimapPanel || minimapCollapsed || minimapPanel.hidden) return;
+
+  const rect = minimapCanvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const targetW = Math.max(1, Math.round(rect.width * dpr));
+  const targetH = Math.max(1, Math.round(rect.height * dpr));
+  if (minimapCanvas.width !== targetW || minimapCanvas.height !== targetH) {
+    minimapCanvas.width = targetW;
+    minimapCanvas.height = targetH;
+  }
+  minimapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const bounds = computeMinimapWorldBounds();
+  const worldW = Math.max(1, bounds.maxX - bounds.minX);
+  const worldH = Math.max(1, bounds.maxY - bounds.minY);
+
+  const inset = 6;
+  const usableW = Math.max(1, rect.width - inset * 2);
+  const usableH = Math.max(1, rect.height - inset * 2);
+  const scale = Math.min(usableW / worldW, usableH / worldH);
+  const drawW = worldW * scale;
+  const drawH = worldH * scale;
+  const offsetX = Math.round((rect.width - drawW) / 2) + 0.5;
+  const offsetY = Math.round((rect.height - drawH) / 2) + 0.5;
+
+  minimapFrame = {
+    minX: bounds.minX,
+    minY: bounds.minY,
+    maxX: bounds.maxX,
+    maxY: bounds.maxY,
+    scale,
+    drawW,
+    drawH,
+    offsetX,
+    offsetY,
+  };
+
+  const dark = document.documentElement?.getAttribute("data-theme") === "dark";
+  const mapBg = dark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)";
+  const worldBg = "#ffffff";
+  const frameColor = dark ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.22)";
+  const textColor = "rgba(0,0,0,.38)";
+  const drawingColor = "rgba(0,0,0,.28)";
+  const strokeColor = "rgba(0,0,0,.46)";
+  const selectedColor = dark ? "rgba(255,146,70,.95)" : "rgba(186,88,0,.95)";
+  const viewportFill = dark ? "rgba(94,162,255,.25)" : "rgba(23,92,211,.18)";
+  const viewportStroke = dark ? "rgba(156,200,255,.95)" : "rgba(23,92,211,.9)";
+
+  minimapCtx.clearRect(0, 0, rect.width, rect.height);
+  minimapCtx.fillStyle = mapBg;
+  minimapCtx.fillRect(0, 0, rect.width, rect.height);
+
+  minimapCtx.fillStyle = worldBg;
+  minimapCtx.fillRect(offsetX, offsetY, drawW, drawH);
+
+  minimapCtx.save();
+  minimapCtx.beginPath();
+  minimapCtx.rect(offsetX, offsetY, drawW, drawH);
+  minimapCtx.clip();
+
+  for (const it of items) {
+    if (!isFinite(it.x) || !isFinite(it.y) || !isFinite(it.w) || !isFinite(it.h)) continue;
+    const r = worldRectToMinimapRect(it.x, it.y, it.w, it.h, minimapFrame);
+    minimapCtx.fillStyle = it.kind === "drawing" ? drawingColor : textColor;
+    minimapCtx.fillRect(r.x, r.y, r.w, r.h);
+
+    if (selectedId && it.id === selectedId) {
+      minimapCtx.strokeStyle = selectedColor;
+      minimapCtx.lineWidth = 1.2;
+      minimapCtx.strokeRect(r.x + 0.5, r.y + 0.5, Math.max(0, r.w - 1), Math.max(0, r.h - 1));
+    }
+  }
+
+  for (const s of strokes) drawMinimapStroke(s, minimapFrame, strokeColor);
+  if (currentStroke) drawMinimapStroke(currentStroke, minimapFrame, strokeColor);
+  minimapCtx.restore();
+
+  minimapCtx.strokeStyle = frameColor;
+  minimapCtx.lineWidth = 1;
+  minimapCtx.strokeRect(offsetX, offsetY, drawW, drawH);
+
+  const view = getViewportWorldRect();
+  minimapViewportRect = worldRectToMinimapRect(view.x, view.y, view.w, view.h, minimapFrame);
+
+  minimapCtx.fillStyle = viewportFill;
+  minimapCtx.fillRect(
+    minimapViewportRect.x,
+    minimapViewportRect.y,
+    minimapViewportRect.w,
+    minimapViewportRect.h
+  );
+  minimapCtx.strokeStyle = viewportStroke;
+  minimapCtx.lineWidth = 1.3;
+  minimapCtx.strokeRect(
+    minimapViewportRect.x + 0.5,
+    minimapViewportRect.y + 0.5,
+    Math.max(0, minimapViewportRect.w - 1),
+    Math.max(0, minimapViewportRect.h - 1)
+  );
 }
 
 /* =========================
@@ -518,6 +765,7 @@ async function redraw() {
   const sel = getSelectedItem();
   if (sel) drawSelectionBox(sel);
 
+  drawMinimap();
   updateButtons();
 }
 
@@ -1099,10 +1347,75 @@ redoStack.length = 0;
   redraw();
 }
 
+function moveCameraFromMinimap(localPos, offset) {
+  if (!minimapFrame) return;
+  const world = minimapToWorldPoint(localPos.x, localPos.y, minimapFrame);
+  camX = world.x - offset.x;
+  camY = world.y - offset.y;
+  redraw();
+}
+
+function onMinimapPointerDown(e) {
+  if (!minimapCanvas || minimapCollapsed) return;
+  if (e.button != null && e.button !== 0) return;
+  if (!minimapFrame) drawMinimap();
+  if (!minimapFrame) return;
+
+  const localPos = getMinimapPointerPos(e);
+  if (!localPos) return;
+
+  const pointerWorld = minimapToWorldPoint(localPos.x, localPos.y, minimapFrame);
+  const view = getViewportWorldRect();
+  const insideViewport = pointInRect(localPos, minimapViewportRect);
+
+  const offset = insideViewport
+    ? { x: pointerWorld.x - camX, y: pointerWorld.y - camY }
+    : { x: view.w / 2, y: view.h / 2 };
+
+  minimapDrag = { pointerId: e.pointerId, offset };
+  minimapCanvas.classList.add("is-dragging");
+
+  e.preventDefault();
+  e.stopPropagation();
+  minimapCanvas.setPointerCapture?.(e.pointerId);
+  moveCameraFromMinimap(localPos, offset);
+}
+
+function onMinimapPointerMove(e) {
+  if (!minimapDrag || e.pointerId !== minimapDrag.pointerId) return;
+  const localPos = getMinimapPointerPos(e);
+  if (!localPos) return;
+  e.preventDefault();
+  e.stopPropagation();
+  moveCameraFromMinimap(localPos, minimapDrag.offset);
+}
+
+function onMinimapPointerUp(e) {
+  if (!minimapDrag || e.pointerId !== minimapDrag.pointerId) return;
+  e.preventDefault();
+  e.stopPropagation();
+  try {
+    minimapCanvas?.releasePointerCapture?.(e.pointerId);
+  } catch {}
+  minimapDrag = null;
+  minimapCanvas?.classList.remove("is-dragging");
+}
+
 canvas?.addEventListener("pointerdown", onPointerDown);
 canvas?.addEventListener("pointermove", onPointerMove);
 canvas?.addEventListener("pointerup", onPointerUp);
 canvas?.addEventListener("pointercancel", onPointerUp);
+
+minimapToggleBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setMinimapCollapsed(!minimapCollapsed);
+});
+
+minimapCanvas?.addEventListener("pointerdown", onMinimapPointerDown);
+minimapCanvas?.addEventListener("pointermove", onMinimapPointerMove);
+minimapCanvas?.addEventListener("pointerup", onMinimapPointerUp);
+minimapCanvas?.addEventListener("pointercancel", onMinimapPointerUp);
 
 canvas?.addEventListener("dblclick", (e) => {
   if (editorOpen()) return;
@@ -1606,6 +1919,7 @@ async function main() {
 
     syncToolPickerLayout();
     hideEditor();
+    setMinimapCollapsed(false);
 
     const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
 
