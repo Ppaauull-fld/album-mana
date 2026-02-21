@@ -27,6 +27,7 @@ const FAVORITES = "__favorites__";
 const FAVORITES_TITLE = "Favorites";
 const HEART_STROKES_ICON = "../assets/img/icons/Heart%20strokes.svg";
 const HEART_FILLED_ICON = "../assets/img/icons/Heart%20filled.svg";
+const CAMERA_ICON = "../assets/img/icons/Camera.svg";
 
 const IS_COARSE_POINTER =
   typeof window !== "undefined" &&
@@ -81,13 +82,14 @@ const compareAnimatedVideo = document.getElementById("compareAnimatedVideo");
 
 let sections = [];
 let items = []; // animated items
-let pending = []; // [{file, url, kind, originalFile}]
+let pending = []; // [{file, url, kind, originalFile, originalPreviewUrl}]
 let currentViewed = null;
 
 let arranging = false;
 let selectedItemIds = new Set();
 let bulkDeleteBtn = null;
 const favoriteUpdatePendingIds = new Set();
+const originalUpdatePendingIds = new Set();
 let currentGridCols = 2;
 let gridLayoutInitialized = false;
 const GRID_CYCLE_ORDER = [2, 3, 4, 1];
@@ -322,7 +324,7 @@ function setUploadingState(isUploading) {
   gridLayoutBtn && (gridLayoutBtn.disabled = isUploading);
 
   uploadCancelBtn.disabled = isUploading;
-  uploadStartBtn.disabled = isUploading || pending.length === 0;
+  uploadStartBtn.disabled = isUploading || !canStartUpload();
 
   setBtnLoading(uploadStartBtn, isUploading, { label: "Envoi…" });
 }
@@ -336,6 +338,59 @@ function resetProgressUI() {
   uploadProgressBar.value = 0;
   uploadProgressText.textContent = "0 / 0";
   uploadProgressDetail.textContent = "—";
+}
+
+function countPendingWithoutOriginal() {
+  return pending.reduce((acc, p) => acc + (p?.originalFile ? 0 : 1), 0);
+}
+
+function canStartUpload() {
+  return pending.length > 0 && countPendingWithoutOriginal() === 0;
+}
+
+function syncUploadStartAvailability() {
+  const missing = countPendingWithoutOriginal();
+  uploadStartBtn.disabled = !canStartUpload();
+  if (!pending.length || uploadStartBtn.disabled === false) return;
+  uploadProgressDetail.textContent =
+    missing === 1
+      ? "Associe 1 photo originale avant l'envoi."
+      : `Associe ${missing} photos originales avant l'envoi.`;
+}
+
+function pickSingleImageFile() {
+  return new Promise((resolve) => {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.hidden = true;
+
+    const cleanup = () => {
+      try { picker.remove(); } catch {}
+    };
+
+    picker.addEventListener(
+      "change",
+      () => {
+        const file = picker.files?.[0] || null;
+        cleanup();
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        if (!isStaticImage(file)) {
+          alert("Choisis une image valide (JPG, PNG, WEBP, etc.).");
+          resolve(null);
+          return;
+        }
+        resolve(file);
+      },
+      { once: true }
+    );
+
+    document.body.appendChild(picker);
+    picker.click();
+  });
 }
 
 /* =========================
@@ -368,6 +423,29 @@ function getOriginalThumb(it) {
   return it?.originalThumbUrl || it?.photoThumbUrl || getOriginalUrl(it) || "";
 }
 
+function makeOriginalPreviewUrl(file) {
+  try {
+    return file ? URL.createObjectURL(file) : "";
+  } catch {
+    return "";
+  }
+}
+
+function setPendingOriginalFile(entry, file) {
+  if (!entry) return;
+  if (entry.originalPreviewUrl) {
+    try { URL.revokeObjectURL(entry.originalPreviewUrl); } catch {}
+  }
+  entry.originalFile = file || null;
+  entry.originalPreviewUrl = file ? makeOriginalPreviewUrl(file) : "";
+}
+
+function setPendingOriginalFileAt(index, file) {
+  const entry = pending[index];
+  if (!entry) return;
+  setPendingOriginalFile(entry, file);
+}
+
 function buildPendingFromFiles(files) {
   const animatedFiles = files.filter((f) => isGif(f) || isVideo(f));
   if (!animatedFiles.length) return [];
@@ -387,25 +465,14 @@ function buildPendingFromFiles(files) {
     url: URL.createObjectURL(file),
     kind: isGif(file) ? "gif" : "video",
     originalFile: null,
+    originalPreviewUrl: "",
   }));
 
   for (const entry of result) {
     const key = fileBaseName(entry.file.name);
     const bucket = originalBuckets.get(key);
     if (!bucket?.length) continue;
-    entry.originalFile = bucket.shift();
-  }
-
-  const remainingOriginals = [];
-  for (const bucket of originalBuckets.values()) {
-    for (const file of bucket) remainingOriginals.push(file);
-  }
-
-  const unmatchedAnimated = result.filter((entry) => !entry.originalFile);
-  if (unmatchedAnimated.length === remainingOriginals.length) {
-    for (let i = 0; i < unmatchedAnimated.length; i++) {
-      unmatchedAnimated[i].originalFile = remainingOriginals[i];
-    }
+    setPendingOriginalFile(entry, bucket.shift());
   }
 
   return result;
@@ -437,6 +504,9 @@ function fallbackPosterDataUri() {
 function cleanupPendingUrls() {
   for (const p of pending) {
     try { URL.revokeObjectURL(p.url); } catch {}
+    if (p?.originalPreviewUrl) {
+      try { URL.revokeObjectURL(p.originalPreviewUrl); } catch {}
+    }
   }
 }
 
@@ -637,6 +707,36 @@ function bestThumb(it) {
   return poster || fallbackPosterDataUri();
 }
 
+async function attachOriginalToItem(it) {
+  if (!it?.id) return;
+  if (originalUpdatePendingIds.has(it.id)) return;
+
+  const file = await pickSingleImageFile();
+  if (!file) return;
+
+  originalUpdatePendingIds.add(it.id);
+  renderAll();
+
+  try {
+    const originalUpload = await uploadImage(file);
+    if (!originalUpload?.secure_url) throw new Error("Upload de la photo originale impossible.");
+
+    const payload = {
+      originalUrl: originalUpload.secure_url,
+      originalThumbUrl: originalUpload.secure_url,
+    };
+    if (originalUpload.public_id) payload.originalPublicId = originalUpload.public_id;
+
+    await updateDoc(doc(db, ITEMS_COL, it.id), payload);
+  } catch (e) {
+    console.error(e);
+    alert("Impossible d'ajouter la photo originale.");
+  } finally {
+    originalUpdatePendingIds.delete(it.id);
+    renderAll();
+  }
+}
+
 function renderItemCard(it) {
   const card = document.createElement("button");
   card.type = "button";
@@ -727,6 +827,27 @@ function renderItemCard(it) {
     originalTrigger.addEventListener("click", openOriginalFromCard);
     originalTrigger.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") openOriginalFromCard(e);
+    });
+  } else {
+    originalTrigger = document.createElement("button");
+    originalTrigger.type = "button";
+    originalTrigger.className = "card-original-add";
+    originalTrigger.dataset.originalTrigger = "1";
+    originalTrigger.setAttribute("aria-label", "Ajouter la photo originale");
+    originalTrigger.title = "Ajouter la photo originale";
+    if (originalUpdatePendingIds.has(it.id)) {
+      originalTrigger.disabled = true;
+      originalTrigger.classList.add("is-loading");
+      originalTrigger.setAttribute("aria-busy", "true");
+    }
+    originalTrigger.innerHTML = `
+      <img class="icon-img" src="${CAMERA_ICON}" alt="" aria-hidden="true" />
+    `;
+    originalTrigger.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (arranging) return;
+      await attachOriginalToItem(it);
     });
   }
 
@@ -1893,14 +2014,25 @@ function renderPending() {
   if (!pending.length) {
     const empty = document.createElement("div");
     empty.className = "upload-empty";
-    empty.textContent = "Sélectionne des animations (GIF/vidéo) et, si besoin, des photos originales.";
+    empty.textContent = "Sélectionne des animations (GIF/vidéo) et leurs photos originales.";
     uploadPreviewGrid.appendChild(empty);
     uploadStartBtn.disabled = true;
     return;
   }
 
+  const missingOriginals = countPendingWithoutOriginal();
+  if (missingOriginals > 0) {
+    const warning = document.createElement("div");
+    warning.className = "upload-missing-original";
+    warning.textContent =
+      missingOriginals === 1
+        ? "1 animation n'a pas encore de photo originale."
+        : `${missingOriginals} animations n'ont pas encore de photo originale.`;
+    uploadPreviewGrid.appendChild(warning);
+  }
+
   for (let i = 0; i < pending.length; i++) {
-    const { file, url, kind, originalFile } = pending[i];
+    const { file, url, kind, originalFile, originalPreviewUrl } = pending[i];
 
     const item = document.createElement("div");
     item.className = "upload-item";
@@ -1946,24 +2078,60 @@ function renderPending() {
     meta.appendChild(info);
     meta.appendChild(originalInfo);
 
+    if (originalPreviewUrl) {
+      const originalRow = document.createElement("div");
+      originalRow.className = "upload-original-row";
+
+      const originalThumb = document.createElement("img");
+      originalThumb.className = "upload-original-thumb";
+      originalThumb.src = originalPreviewUrl;
+      originalThumb.alt = "Aperçu de la photo originale";
+
+      originalRow.appendChild(originalThumb);
+      meta.appendChild(originalRow);
+    }
+
+    const assignOriginalBtn = document.createElement("button");
+    assignOriginalBtn.className = "upload-assign-original";
+    assignOriginalBtn.type = "button";
+    assignOriginalBtn.innerHTML = `
+      <img class="icon-img" src="${CAMERA_ICON}" alt="" aria-hidden="true" />
+      <span>${originalFile ? "Changer l'originale" : "Ajouter l'originale"}</span>
+    `;
+    assignOriginalBtn.addEventListener("click", async () => {
+      const selected = await pickSingleImageFile();
+      if (!selected) return;
+      setPendingOriginalFileAt(i, selected);
+      renderPending();
+      setUploadingState(false);
+    });
+
     const remove = document.createElement("button");
-    remove.className = "upload-remove upload-remove-compact";
+    remove.className = "upload-remove upload-remove-compact upload-remove-inline";
     remove.type = "button";
     remove.textContent = "Retirer";
     remove.addEventListener("click", () => {
       try { URL.revokeObjectURL(pending[i].url); } catch {}
+      if (pending[i]?.originalPreviewUrl) {
+        try { URL.revokeObjectURL(pending[i].originalPreviewUrl); } catch {}
+      }
       pending.splice(i, 1);
       renderPending();
       setUploadingState(false);
     });
 
+    const actions = document.createElement("div");
+    actions.className = "upload-item-actions";
+    actions.appendChild(assignOriginalBtn);
+    actions.appendChild(remove);
+
     item.appendChild(previewEl);
     item.appendChild(meta);
-    item.appendChild(remove);
+    item.appendChild(actions);
     uploadPreviewGrid.appendChild(item);
   }
 
-  uploadStartBtn.disabled = false;
+  syncUploadStartAvailability();
 }
 
 addBtn?.addEventListener("click", () => input.click());
@@ -1998,6 +2166,10 @@ uploadCancelBtn?.addEventListener("click", () => {
 
 uploadStartBtn?.addEventListener("click", async () => {
   if (!pending.length) return;
+  if (!canStartUpload()) {
+    syncUploadStartAvailability();
+    return;
+  }
 
   setUploadingState(true);
   resetProgressUI();
@@ -2032,11 +2204,11 @@ uploadStartBtn?.addEventListener("click", async () => {
           ? url
           : (cloudinaryVideoPoster(url) || url);
 
-      let originalUpload = null;
-      if (originalFile) {
-        uploadProgressDetail.textContent = `Envoi de la photo originale : ${originalFile.name}`;
-        originalUpload = await uploadImage(originalFile);
-      }
+      if (!originalFile) throw new Error("Photo originale manquante pour une animation.");
+
+      uploadProgressDetail.textContent = `Envoi de la photo originale : ${originalFile.name}`;
+      const originalUpload = await uploadImage(originalFile);
+      if (!originalUpload?.secure_url) throw new Error("Upload de la photo originale impossible.");
 
       const payload = {
         createdAt: Date.now(),
@@ -2047,13 +2219,10 @@ uploadStartBtn?.addEventListener("click", async () => {
         publicId: up.public_id,
         url,
         thumbUrl,
+        originalUrl: originalUpload.secure_url,
+        originalThumbUrl: originalUpload.secure_url,
       };
-
-      if (originalUpload?.secure_url) {
-        payload.originalUrl = originalUpload.secure_url;
-        payload.originalThumbUrl = originalUpload.secure_url;
-        if (originalUpload.public_id) payload.originalPublicId = originalUpload.public_id;
-      }
+      if (originalUpload.public_id) payload.originalPublicId = originalUpload.public_id;
 
       await addDoc(collection(db, ITEMS_COL), payload);
 
