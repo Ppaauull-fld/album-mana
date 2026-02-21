@@ -2094,6 +2094,9 @@ function renderPending() {
     const assignOriginalBtn = document.createElement("button");
     assignOriginalBtn.className = "upload-assign-original";
     assignOriginalBtn.type = "button";
+    const assignLabel = originalFile ? "Changer la photo originale" : "Ajouter la photo originale";
+    assignOriginalBtn.title = assignLabel;
+    assignOriginalBtn.setAttribute("aria-label", assignLabel);
     assignOriginalBtn.innerHTML = `
       <img class="icon-img" src="${CAMERA_ICON}" alt="" aria-hidden="true" />
       <span>${originalFile ? "Changer l'originale" : "Ajouter l'originale"}</span>
@@ -2110,6 +2113,8 @@ function renderPending() {
     remove.className = "upload-remove upload-remove-compact upload-remove-inline";
     remove.type = "button";
     remove.textContent = "Retirer";
+    remove.title = "Retirer cet element de l'import";
+    remove.setAttribute("aria-label", "Retirer cet element de l'import");
     remove.addEventListener("click", () => {
       try { URL.revokeObjectURL(pending[i].url); } catch {}
       if (pending[i]?.originalPreviewUrl) {
