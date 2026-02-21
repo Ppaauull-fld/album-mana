@@ -676,12 +676,14 @@ html[data-theme="dark"] .theme-switch__thumb{
   box-shadow: 0 14px 36px rgba(0,0,0,.28);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 .card-original-preview img{
   width:100%;
   height:100%;
   object-fit:cover;
   display:block;
+  transition: transform .2s ease, filter .2s ease;
 }
 .card-original-add{
   position:absolute;
@@ -699,6 +701,7 @@ html[data-theme="dark"] .theme-switch__thumb{
   box-shadow: 0 14px 36px rgba(0,0,0,.28);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
 }
 .card-original-add .icon-img{
   width: 17px;
@@ -729,6 +732,20 @@ body.page.arranging .card-original-preview{
 }
 body.page.arranging .card-original-add{
   opacity: .6;
+}
+
+@media (hover: hover){
+  .card-original-preview:hover,
+  .card-original-add:hover:not(:disabled){
+    transform: translateY(-1px) scale(1.04);
+    border-color: rgba(255,255,255,.52);
+    box-shadow: 0 18px 46px rgba(0,0,0,.34);
+  }
+
+  .card-original-preview:hover img{
+    transform: scale(1.06);
+    filter: saturate(1.07) contrast(1.03);
+  }
 }
 
 .card-btn{
@@ -1469,16 +1486,19 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 .upload-item-actions{
-  display:flex;
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  align-items:center;
+  align-items:stretch;
   padding: 10px 12px 12px 12px;
 }
 
 .upload-assign-original{
   flex: 1 1 auto;
   border-radius: 999px;
-  padding: 9px 12px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 14px;
   border: 1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.10);
   color: rgba(255,255,255,.95);
@@ -1492,6 +1512,9 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   transition: background .15s ease, transform .15s ease, border-color .15s ease;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+.upload-assign-original span{
+  white-space: nowrap;
 }
 .upload-assign-original:hover{
   background: rgba(255,255,255,.16);
@@ -1526,6 +1549,13 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 
 .upload-item-actions .upload-remove{
   margin: 0;
+}
+
+.upload-item-actions .upload-remove-inline{
+  height: 42px;
+  min-height: 42px;
+  padding: 0 16px;
+  min-width: 108px;
 }
 .upload-remove:hover{
   background: rgba(255,255,255,.14);
@@ -3579,10 +3609,13 @@ html[data-theme="dark"] .section-placeholder{
   .upload-item-actions{
     grid-column: 1 / -1;
     padding: 8px 0 0 0;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .upload-assign-original{
-    padding: 8px 10px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 10px;
     font-size: 11px;
     gap: 6px;
   }
@@ -3598,8 +3631,10 @@ html[data-theme="dark"] .section-placeholder{
     position: static;
     margin: 0;
     width: auto;
-    min-width: 70px;
-    padding: 8px 10px;
+    min-width: 78px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 12px;
     font-size: 11px;
     line-height: 1.1;
     background: rgba(255,96,96,.22);
