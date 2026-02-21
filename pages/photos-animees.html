@@ -55,7 +55,7 @@
       <h1 class="h1">Photos animées</h1>
 
       <div class="actions">
-        <input id="animatedInput" type="file" accept="video/*,image/gif" multiple hidden />
+        <input id="animatedInput" type="file" accept="video/*,image/*" multiple hidden />
         <button id="addAnimatedBtn" class="btn" type="button">
           <img
             class="btn-icon"
@@ -163,6 +163,79 @@
       <div class="viewer-wrap">
         <img id="viewerGif" alt="gif" style="display:none" />
         <video id="viewerVideo" controls playsinline style="display:none"></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer (photo originale) -->
+  <div id="animatedOriginalViewer" class="modal" aria-hidden="true">
+    <div class="box viewer-box">
+      <div class="top">
+        <div class="viewer-title">Photo originale</div>
+        <div class="controls">
+          <button
+            id="originalCompareBtn"
+            class="iconbtn"
+            title="Comparer avec l'animation"
+            type="button"
+            aria-label="Comparer avec l'animation"
+          >
+            <img class="icon-img" src="../assets/img/icons/compare.svg" alt="" aria-hidden="true" decoding="async" />
+          </button>
+
+          <button id="originalViewerClose" class="iconbtn" title="Fermer" type="button" aria-label="Fermer">
+            <img
+              class="icon-img"
+              src="../assets/img/icons/X.svg"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div class="viewer-wrap">
+        <img id="originalViewerImg" alt="photo originale" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer comparaison -->
+  <div id="animatedCompareViewer" class="modal" aria-hidden="true">
+    <div class="box animated-compare-box">
+      <div class="top">
+        <div class="viewer-title">Comparaison</div>
+        <div class="controls">
+          <button id="compareViewerClose" class="iconbtn" title="Fermer" type="button" aria-label="Fermer">
+            <img
+              class="icon-img"
+              src="../assets/img/icons/X.svg"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div class="animated-compare-wrap">
+        <section class="animated-compare-pane" aria-label="Photo originale">
+          <div class="animated-compare-label">
+            <img class="icon-img" src="../assets/img/icons/Image.svg" alt="" aria-hidden="true" decoding="async" />
+            <span>Photo originale</span>
+          </div>
+          <img id="compareOriginalImg" class="animated-compare-media" alt="photo originale" />
+        </section>
+
+        <section class="animated-compare-pane" aria-label="Photo animée">
+          <div class="animated-compare-label">
+            <img class="icon-img" src="../assets/img/icons/Video.svg" alt="" aria-hidden="true" decoding="async" />
+            <span>Photo animée</span>
+          </div>
+          <img id="compareAnimatedGif" class="animated-compare-media" alt="animation gif" style="display:none" />
+          <video id="compareAnimatedVideo" class="animated-compare-media" controls playsinline style="display:none"></video>
+        </section>
       </div>
     </div>
   </div>

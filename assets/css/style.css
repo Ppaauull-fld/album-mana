@@ -661,6 +661,36 @@ html[data-theme="dark"] .theme-switch__thumb{
   opacity: 1;
 }
 
+.card-original-preview{
+  position:absolute;
+  left:10px;
+  bottom:10px;
+  width:44px;
+  height:44px;
+  border-radius: 11px;
+  overflow:hidden;
+  z-index:3;
+  cursor:pointer;
+  background: rgba(6,6,8,.42);
+  border: 1px solid rgba(255,255,255,.30);
+  box-shadow: 0 14px 36px rgba(0,0,0,.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.card-original-preview img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.card-original-preview:focus-visible{
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+body.page.arranging .card-original-preview{
+  opacity: .6;
+}
+
 .card-btn{
   border: none;
   padding: 0;
@@ -1115,6 +1145,80 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   max-width: calc(100% - 12px);
   max-height: calc(100% - 12px);
   object-fit: contain;
+}
+
+#animatedOriginalViewer .viewer-wrap{
+  height: calc(100vh - 140px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+#animatedOriginalViewer .viewer-wrap img{
+  width: 100%;
+  height: 100%;
+  max-width: calc(100% - 12px);
+  max-height: calc(100% - 12px);
+  object-fit: contain;
+}
+
+.animated-compare-box{
+  width: min(1320px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+}
+
+.animated-compare-wrap{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: min(76vh, 900px);
+  background: rgba(0,0,0,.22);
+}
+
+.animated-compare-pane{
+  position:relative;
+  min-height: min(76vh, 900px);
+  background: #090a0d;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
+.animated-compare-pane + .animated-compare-pane{
+  border-left: 1px solid rgba(255,255,255,.16);
+}
+
+.animated-compare-media{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #090a0d;
+}
+
+.animated-compare-label{
+  position:absolute;
+  top:14px;
+  left:14px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  z-index:2;
+  font-size: 13px;
+  color: rgba(255,255,255,.86);
+  background: rgba(0,0,0,.32);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  padding: 6px 11px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.animated-compare-label .icon-img{
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  filter: brightness(0) invert(1);
 }
 
 /* -------------------- Viewer: vrai fullscreen (API) -------------------- */
@@ -2589,6 +2693,8 @@ html[data-theme="dark"] .section-placeholder{
 
   #photoViewer.modal,
   #animatedViewer.modal,
+  #animatedOriginalViewer.modal,
+  #animatedCompareViewer.modal,
   #videoViewer.modal{
     padding: 0;
     background: rgba(8,8,10,.94);
@@ -2598,6 +2704,8 @@ html[data-theme="dark"] .section-placeholder{
 
   #photoViewer .box,
   #animatedViewer .box,
+  #animatedOriginalViewer .box,
+  #animatedCompareViewer .box,
   #videoViewer .box{
     width: 100vw;
     height: 100vh;
@@ -2612,6 +2720,8 @@ html[data-theme="dark"] .section-placeholder{
 
   #photoViewer .top,
   #animatedViewer .top,
+  #animatedOriginalViewer .top,
+  #animatedCompareViewer .top,
   #videoViewer .top{
     padding-top: calc(8px + env(safe-area-inset-top));
     background: rgba(18,18,20,.92);
@@ -2619,6 +2729,7 @@ html[data-theme="dark"] .section-placeholder{
 
   #photoViewer .viewer-wrap,
   #animatedViewer .viewer-wrap,
+  #animatedOriginalViewer .viewer-wrap,
   #videoViewer .viewer-wrap{
     padding: 8px;
     height: calc(100vh - 74px - env(safe-area-inset-top));
@@ -2637,9 +2748,27 @@ html[data-theme="dark"] .section-placeholder{
 
   #photoViewer .viewer-wrap,
   #animatedViewer .viewer-wrap,
+  #animatedOriginalViewer .viewer-wrap,
   #videoViewer .viewer-wrap{
     height: calc(100vh - 74px - env(safe-area-inset-top));
     height: calc(100dvh - 74px - env(safe-area-inset-top));
+  }
+
+  #animatedCompareViewer .animated-compare-wrap{
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    height: calc(100vh - 74px - env(safe-area-inset-top));
+    height: calc(100dvh - 74px - env(safe-area-inset-top));
+    min-height: 0;
+  }
+
+  #animatedCompareViewer .animated-compare-pane{
+    min-height: 0;
+  }
+
+  #animatedCompareViewer .animated-compare-pane + .animated-compare-pane{
+    border-left: 0;
+    border-top: 1px solid rgba(255,255,255,.16);
   }
 
   #slideshow.modal .box{

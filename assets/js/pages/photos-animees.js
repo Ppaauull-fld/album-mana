@@ -69,10 +69,19 @@ const viewerVideo = document.getElementById("viewerVideo");
 const viewerDownload = document.getElementById("viewerDownload");
 const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
+const originalViewer = document.getElementById("animatedOriginalViewer");
+const originalViewerImg = document.getElementById("originalViewerImg");
+const originalCompareBtn = document.getElementById("originalCompareBtn");
+const originalViewerClose = document.getElementById("originalViewerClose");
+const compareViewer = document.getElementById("animatedCompareViewer");
+const compareViewerClose = document.getElementById("compareViewerClose");
+const compareOriginalImg = document.getElementById("compareOriginalImg");
+const compareAnimatedGif = document.getElementById("compareAnimatedGif");
+const compareAnimatedVideo = document.getElementById("compareAnimatedVideo");
 
 let sections = [];
 let items = []; // animated items
-let pending = []; // [{file, url, kind}]
+let pending = []; // [{file, url, kind, originalFile}]
 let currentViewed = null;
 
 let arranging = false;
@@ -337,6 +346,69 @@ function isGif(file) {
 }
 function isVideo(file) {
   return file?.type?.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || "");
+}
+function isStaticImage(file) {
+  return (file?.type?.startsWith("image/") && !isGif(file))
+    || /\.(jpe?g|png|webp|avif|bmp|heic|heif)$/i.test(file?.name || "");
+}
+
+function fileBaseName(name) {
+  return String(name || "")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getOriginalUrl(it) {
+  const raw = it?.originalUrl || it?.photoUrl || it?.sourceUrl || "";
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function getOriginalThumb(it) {
+  return it?.originalThumbUrl || it?.photoThumbUrl || getOriginalUrl(it) || "";
+}
+
+function buildPendingFromFiles(files) {
+  const animatedFiles = files.filter((f) => isGif(f) || isVideo(f));
+  if (!animatedFiles.length) return [];
+
+  const originals = files.filter((f) => isStaticImage(f));
+  const originalBuckets = new Map();
+
+  for (const file of originals) {
+    const key = fileBaseName(file.name);
+    if (!key) continue;
+    if (!originalBuckets.has(key)) originalBuckets.set(key, []);
+    originalBuckets.get(key).push(file);
+  }
+
+  const result = animatedFiles.map((file) => ({
+    file,
+    url: URL.createObjectURL(file),
+    kind: isGif(file) ? "gif" : "video",
+    originalFile: null,
+  }));
+
+  for (const entry of result) {
+    const key = fileBaseName(entry.file.name);
+    const bucket = originalBuckets.get(key);
+    if (!bucket?.length) continue;
+    entry.originalFile = bucket.shift();
+  }
+
+  const remainingOriginals = [];
+  for (const bucket of originalBuckets.values()) {
+    for (const file of bucket) remainingOriginals.push(file);
+  }
+
+  const unmatchedAnimated = result.filter((entry) => !entry.originalFile);
+  if (unmatchedAnimated.length === remainingOriginals.length) {
+    for (let i = 0; i < unmatchedAnimated.length; i++) {
+      unmatchedAnimated[i].originalFile = remainingOriginals[i];
+    }
+  }
+
+  return result;
 }
 
 /** Poster Cloudinary (frame jpg) */
@@ -629,8 +701,38 @@ function renderItemCard(it) {
     toggleFavorite();
   });
 
+  const originalUrl = getOriginalUrl(it);
+  let originalTrigger = null;
+  if (originalUrl) {
+    originalTrigger = document.createElement("span");
+    originalTrigger.className = "card-original-preview";
+    originalTrigger.setAttribute("role", "button");
+    originalTrigger.setAttribute("tabindex", "0");
+    originalTrigger.dataset.originalTrigger = "1";
+    originalTrigger.setAttribute("aria-label", "Voir la photo originale");
+    originalTrigger.title = "Voir la photo originale";
+
+    const originalImg = document.createElement("img");
+    originalImg.src = getOriginalThumb(it) || originalUrl;
+    originalImg.alt = "Photo originale";
+    originalTrigger.appendChild(originalImg);
+
+    const openOriginalFromCard = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (arranging) return;
+      openOriginalViewer(it);
+    };
+
+    originalTrigger.addEventListener("click", openOriginalFromCard);
+    originalTrigger.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") openOriginalFromCard(e);
+    });
+  }
+
   card.appendChild(img);
   card.appendChild(fav);
+  if (originalTrigger) card.appendChild(originalTrigger);
 
   if (it.kind !== "gif") card.appendChild(makePlayBadge());
 
@@ -1104,6 +1206,7 @@ function onPointerDown(e) {
   if (!arranging) return;
   if (sectionDrag) return;
   if (e.target?.closest?.('[data-fav-toggle="1"]')) return;
+  if (e.target?.closest?.('[data-original-trigger="1"]')) return;
 
   const cardEl = e.target.closest?.(".card-btn");
   if (!cardEl) return;
@@ -1638,10 +1741,7 @@ window.addEventListener("pointercancel", (e) => {
 /* =========================
    Viewer (gif ou vidéo)
    ========================= */
-function openViewer(it) {
-  currentViewed = it;
-
-  // reset
+function resetAnimatedViewerMedia() {
   viewerGif.style.display = "none";
   viewerGif.removeAttribute("src");
 
@@ -1649,6 +1749,26 @@ function openViewer(it) {
   viewerVideo.style.display = "none";
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
+}
+
+function resetCompareViewerMedia() {
+  compareOriginalImg.removeAttribute("src");
+
+  compareAnimatedGif.style.display = "none";
+  compareAnimatedGif.removeAttribute("src");
+
+  try { compareAnimatedVideo.pause(); } catch {}
+  compareAnimatedVideo.style.display = "none";
+  compareAnimatedVideo.removeAttribute("src");
+  compareAnimatedVideo.load();
+}
+
+function openViewer(it) {
+  closeOriginalViewer({ preserveCurrent: true });
+  closeCompareViewer({ preserveCurrent: true });
+  currentViewed = it;
+
+  resetAnimatedViewerMedia();
 
   if (it.kind === "gif") {
     viewerGif.src = it.url;
@@ -1671,21 +1791,76 @@ function openViewer(it) {
   openModal(viewer);
 }
 
-function closeViewer() {
-  viewerGif.style.display = "none";
-  viewerGif.removeAttribute("src");
+function closeViewer(opts = {}) {
+  const preserveCurrent = !!opts.preserveCurrent;
+  resetAnimatedViewerMedia();
+  if (viewer?.classList.contains("open")) closeModal(viewer);
+  if (!preserveCurrent) currentViewed = null;
+}
 
-  try { viewerVideo.pause(); } catch {}
-  viewerVideo.style.display = "none";
-  viewerVideo.removeAttribute("src");
-  viewerVideo.load();
+function openOriginalViewer(it) {
+  const originalUrl = getOriginalUrl(it);
+  if (!originalUrl) return;
 
-  currentViewed = null;
-  closeModal(viewer);
+  closeViewer({ preserveCurrent: true });
+  closeCompareViewer({ preserveCurrent: true });
+
+  currentViewed = it;
+  originalViewerImg.src = originalUrl;
+  originalViewerImg.alt = "photo originale";
+  openModal(originalViewer);
+}
+
+function closeOriginalViewer(opts = {}) {
+  const preserveCurrent = !!opts.preserveCurrent;
+  originalViewerImg.removeAttribute("src");
+  if (originalViewer?.classList.contains("open")) closeModal(originalViewer);
+  if (!preserveCurrent) currentViewed = null;
+}
+
+function openCompareViewer(it = currentViewed) {
+  const target = it || currentViewed;
+  if (!target) return;
+
+  const originalUrl = getOriginalUrl(target);
+  if (!originalUrl) return;
+
+  closeViewer({ preserveCurrent: true });
+  closeOriginalViewer({ preserveCurrent: true });
+
+  currentViewed = target;
+  resetCompareViewerMedia();
+  compareOriginalImg.src = originalUrl;
+
+  if (target.kind === "gif") {
+    compareAnimatedGif.src = target.url;
+    compareAnimatedGif.style.display = "block";
+  } else {
+    compareAnimatedVideo.src = target.url;
+    compareAnimatedVideo.style.display = "block";
+    compareAnimatedVideo.playsInline = true;
+    compareAnimatedVideo.controls = true;
+    compareAnimatedVideo.load();
+    setTimeout(() => { compareAnimatedVideo.play().catch(() => {}); }, 60);
+  }
+
+  openModal(compareViewer);
+}
+
+function closeCompareViewer(opts = {}) {
+  const preserveCurrent = !!opts.preserveCurrent;
+  resetCompareViewerMedia();
+  if (compareViewer?.classList.contains("open")) closeModal(compareViewer);
+  if (!preserveCurrent) currentViewed = null;
 }
 
 viewerClose?.addEventListener("click", closeViewer);
 viewer?.addEventListener("click", (e) => { if (e.target === viewer) closeViewer(); });
+originalViewerClose?.addEventListener("click", closeOriginalViewer);
+originalViewer?.addEventListener("click", (e) => { if (e.target === originalViewer) closeOriginalViewer(); });
+originalCompareBtn?.addEventListener("click", () => openCompareViewer(currentViewed));
+compareViewerClose?.addEventListener("click", closeCompareViewer);
+compareViewer?.addEventListener("click", (e) => { if (e.target === compareViewer) closeCompareViewer(); });
 
 viewerDelete?.addEventListener("click", async () => {
   if (!currentViewed) return;
@@ -1718,14 +1893,14 @@ function renderPending() {
   if (!pending.length) {
     const empty = document.createElement("div");
     empty.className = "upload-empty";
-    empty.textContent = "Sélectionne des fichiers (GIF/vidéos) pour les prévisualiser ici.";
+    empty.textContent = "Sélectionne des animations (GIF/vidéo) et, si besoin, des photos originales.";
     uploadPreviewGrid.appendChild(empty);
     uploadStartBtn.disabled = true;
     return;
   }
 
   for (let i = 0; i < pending.length; i++) {
-    const { file, url, kind } = pending[i];
+    const { file, url, kind, originalFile } = pending[i];
 
     const item = document.createElement("div");
     item.className = "upload-item";
@@ -1761,8 +1936,15 @@ function renderPending() {
     info.className = "upload-info";
     info.textContent = `${Math.round(file.size / 1024)} Ko`;
 
+    const originalInfo = document.createElement("div");
+    originalInfo.className = "upload-info";
+    originalInfo.textContent = originalFile
+      ? `Photo originale : ${originalFile.name}`
+      : "Photo originale : non associée";
+
     meta.appendChild(name);
     meta.appendChild(info);
+    meta.appendChild(originalInfo);
 
     const remove = document.createElement("button");
     remove.className = "upload-remove upload-remove-compact";
@@ -1793,13 +1975,11 @@ input?.addEventListener("change", () => {
 
   cleanupPendingUrls();
 
-  pending = files
-    .filter((f) => isGif(f) || isVideo(f))
-    .map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      kind: isGif(file) ? "gif" : "video",
-    }));
+  pending = buildPendingFromFiles(files);
+  if (!pending.length) {
+    alert("Sélectionne au moins un fichier GIF ou vidéo.");
+    return;
+  }
 
   resetProgressUI();
   renderPending();
@@ -1835,7 +2015,7 @@ uploadStartBtn?.addEventListener("click", async () => {
   };
 
   try {
-    for (const { file, kind } of pending) {
+    for (const { file, kind, originalFile } of pending) {
       updateOverall(0, file.name);
 
       let up;
@@ -1852,7 +2032,13 @@ uploadStartBtn?.addEventListener("click", async () => {
           ? url
           : (cloudinaryVideoPoster(url) || url);
 
-      await addDoc(collection(db, ITEMS_COL), {
+      let originalUpload = null;
+      if (originalFile) {
+        uploadProgressDetail.textContent = `Envoi de la photo originale : ${originalFile.name}`;
+        originalUpload = await uploadImage(originalFile);
+      }
+
+      const payload = {
         createdAt: Date.now(),
         order: Date.now(),
         sectionId: null,
@@ -1861,7 +2047,15 @@ uploadStartBtn?.addEventListener("click", async () => {
         publicId: up.public_id,
         url,
         thumbUrl,
-      });
+      };
+
+      if (originalUpload?.secure_url) {
+        payload.originalUrl = originalUpload.secure_url;
+        payload.originalThumbUrl = originalUpload.secure_url;
+        if (originalUpload.public_id) payload.originalPublicId = originalUpload.public_id;
+      }
+
+      await addDoc(collection(db, ITEMS_COL), payload);
 
       done++;
       uploadProgressText.textContent = `${done} / ${total}`;
@@ -1908,6 +2102,14 @@ addSectionBtn?.addEventListener("click", async () => {
    Keyboard
    ========================= */
 document.addEventListener("keydown", (e) => {
+  if (compareViewer?.classList.contains("open")) {
+    if (e.key === "Escape") closeCompareViewer();
+    return;
+  }
+  if (originalViewer?.classList.contains("open")) {
+    if (e.key === "Escape") closeOriginalViewer();
+    return;
+  }
   if (viewer?.classList.contains("open")) {
     if (e.key === "Escape") closeViewer();
     return;
