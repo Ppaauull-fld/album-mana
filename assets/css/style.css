@@ -4362,15 +4362,15 @@ html.auth-checking body{
 }
 
 .auth-card{
-  width: min(520px, calc(100vw - 24px));
-  max-height: calc(100svh - 185px);
-  min-height: 344px;
+  width: min(520px, calc(100vw - 40px));
+  max-height: calc(100svh - 205px);
+  min-height: 298px;
   overflow: auto;
-  padding: 28px 24px 16px;
+  padding: 26px 24px 18px;
   color: rgba(255,255,255,.94);
   display: grid;
-  grid-template-rows: auto 1fr;
-  row-gap: 18px;
+  grid-template-rows: auto auto;
+  row-gap: 16px;
 }
 
 .auth-title{
@@ -4389,12 +4389,12 @@ html.auth-checking body{
 
 .auth-form--mono{
   width: 100%;
-  min-height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .auth-field--single{
@@ -4470,11 +4470,14 @@ html.auth-checking body{
 }
 
 .auth-feedback{
-  min-height: 22px;
+  min-height: 0;
   font-size: 12px;
   line-height: 1.35;
   color: rgba(255,255,255,.70);
   text-align: center;
+}
+.auth-feedback:empty{
+  display: none;
 }
 .auth-feedback__row{
   display: inline-flex;
@@ -4498,10 +4501,21 @@ html.auth-checking body{
 }
 
 .auth-actions--center{
+  position: relative;
+  width: min(360px, 100%);
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 62px;
+  min-height: 58px;
+}
+
+.auth-actions--center .auth-feedback{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(320px, calc(100% - 14px));
+  pointer-events: none;
 }
 
 .auth-arrow-btn{
@@ -4568,7 +4582,7 @@ html.auth-checking body{
   }
 
   .auth-page .hero .auth-center{
-    padding: 0 10px;
+    padding: 0 14px;
   }
 
   .auth-logo{
@@ -4579,9 +4593,11 @@ html.auth-checking body{
   }
 
   .auth-card{
-    max-height: calc(100svh - 155px);
-    min-height: 304px;
-    padding: 20px 14px 12px;
+    width: min(460px, calc(100vw - 52px));
+    max-height: calc(100svh - 192px);
+    min-height: 252px;
+    padding: 20px 16px 16px;
+    row-gap: 14px;
   }
 
   .auth-title{
@@ -4590,11 +4606,15 @@ html.auth-checking body{
   }
 
   .auth-field--single{
-    width: min(320px, 100%);
+    width: min(330px, 100%);
   }
 
   .auth-single-input{
     min-height: 46px;
+  }
+
+  .auth-actions--center{
+    min-height: 54px;
   }
 
   .auth-single-input.is-pin{
