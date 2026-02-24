@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadVideo, uploadImage } from "../cloudinary.js";
+import { createMediaInteractionPanel } from "../media-interactions.js";
 import {
   setBtnLoading,
   initSectionJumpButton,
@@ -79,6 +80,10 @@ const compareViewerClose = document.getElementById("compareViewerClose");
 const compareOriginalImg = document.getElementById("compareOriginalImg");
 const compareAnimatedGif = document.getElementById("compareAnimatedGif");
 const compareAnimatedVideo = document.getElementById("compareAnimatedVideo");
+const viewerInteractions = createMediaInteractionPanel({
+  modalEl: viewer,
+  mediaType: "animated",
+});
 
 let sections = [];
 let items = []; // animated items
@@ -1910,12 +1915,14 @@ function openViewer(it) {
   }
 
   openModal(viewer);
+  void viewerInteractions.openForMedia(currentViewed);
 }
 
 function closeViewer(opts = {}) {
   const preserveCurrent = !!opts.preserveCurrent;
   resetAnimatedViewerMedia();
   if (viewer?.classList.contains("open")) closeModal(viewer);
+  viewerInteractions.close();
   if (!preserveCurrent) currentViewed = null;
 }
 

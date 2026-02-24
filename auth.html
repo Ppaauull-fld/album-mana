@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connexion - album-mana</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script defer src="assets/js/theme.js"></script>
+</head>
+
+<body class="page page-home auth-page">
+  <main class="hero auth-hero">
+    <div class="strips" aria-hidden="true">
+      <div class="strip"></div>
+      <div class="strip"></div>
+      <div class="strip"></div>
+      <div class="strip"></div>
+    </div>
+
+    <div class="center auth-center">
+      <div class="logo auth-logo">
+        <img src="assets/img/logo.svg" alt="album mana" />
+      </div>
+
+      <section class="auth-card glass-strong" aria-labelledby="authCardTitle">
+        <h1 id="authCardTitle" class="auth-title">Se connecter</h1>
+
+        <form id="authForm" class="auth-form auth-form--mono" novalidate>
+          <div class="auth-field auth-field--single">
+            <label class="sr-only" for="authSingleInput">Identifiant</label>
+            <input
+              id="authSingleInput"
+              class="auth-single-input"
+              type="text"
+              maxlength="50"
+              autocomplete="nickname"
+              placeholder="Nom d'utilisateur"
+              required
+            />
+
+            <button
+              id="authTogglePinBtn"
+              class="auth-pin-toggle"
+              type="button"
+              aria-label="Afficher le code PIN"
+              hidden
+            >
+              <img
+                id="authTogglePinIcon"
+                class="icon-img"
+                src="assets/img/icons/Eye.svg"
+                alt=""
+                aria-hidden="true"
+                decoding="async"
+              />
+            </button>
+          </div>
+
+          <button id="authBackBtn" class="auth-back-link" type="button" hidden>Changer le prenom</button>
+
+          <div id="authFeedback" class="auth-feedback" aria-live="polite"></div>
+
+          <div class="auth-actions auth-actions--center">
+            <button id="authSubmitBtn" class="auth-arrow-btn" type="submit" aria-label="Continuer" disabled>
+              <img class="icon-img" src="assets/img/icons/Arrow right.svg" alt="" aria-hidden="true" decoding="async" />
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="assets/js/auth-page.js"></script>
+</body>
+</html>
