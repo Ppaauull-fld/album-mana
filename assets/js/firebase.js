@@ -89,6 +89,12 @@ function familyPasswordFromPin(pin) {
   return `${FAMILY_PASSWORD_PREFIX}${normalized}`;
 }
 
+function isValidSessionUser(user) {
+  if (!user || user.isAnonymous) return false;
+  const email = String(user.email || "").trim();
+  return Boolean(email);
+}
+
 export function getUserInitials(seed) {
   const src = cleanName(seed);
   if (!src) return "U";
@@ -114,6 +120,18 @@ function waitForAuthState() {
       resolve(user || null);
     });
   });
+}
+
+async function sanitizeCachedUser(user) {
+  if (!user) return null;
+  if (isValidSessionUser(user)) return user;
+
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.warn("[auth] impossible de vider une session invalide", err);
+  }
+  return null;
 }
 
 export function getAuthPageUrl(nextPath = "") {
@@ -143,8 +161,9 @@ export function normalizeNextPath(rawNext) {
 
 export async function getCurrentUser() {
   await ensurePersistence();
-  if (auth.currentUser) return auth.currentUser;
-  return waitForAuthState();
+  if (auth.currentUser) return sanitizeCachedUser(auth.currentUser);
+  const user = await waitForAuthState();
+  return sanitizeCachedUser(user);
 }
 
 export async function requireAuth(options = {}) {
