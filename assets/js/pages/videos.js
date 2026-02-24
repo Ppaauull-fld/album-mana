@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadVideo } from "../cloudinary.js";
+import { createMediaInteractionPanel } from "../media-interactions.js";
 import {
   setBtnLoading,
   initSectionJumpButton,
@@ -68,6 +69,10 @@ const viewerVideo = document.getElementById("viewerVideo");
 const viewerDownload = document.getElementById("viewerDownload");
 const viewerDelete = document.getElementById("viewerDelete");
 const viewerClose = document.getElementById("viewerClose");
+const viewerInteractions = createMediaInteractionPanel({
+  modalEl: viewer,
+  mediaType: "video",
+});
 
 let sections = [];
 let items = []; // videos
@@ -1710,6 +1715,7 @@ function openViewer(v) {
   viewerDownload.setAttribute("download", `video-${v.id}.mp4`);
 
   openModal(viewer);
+  void viewerInteractions.openForMedia(currentViewed);
 
   setTimeout(() => {
     viewerVideo.play().catch(() => {});
@@ -1721,6 +1727,7 @@ function closeViewer() {
   viewerVideo.removeAttribute("src");
   viewerVideo.load();
 
+  viewerInteractions.close();
   currentViewed = null;
   closeModal(viewer);
 }

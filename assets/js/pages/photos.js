@@ -1,5 +1,6 @@
 import { ensureAnonAuth, db } from "../firebase.js";
 import { uploadImage } from "../cloudinary.js";
+import { createMediaInteractionPanel } from "../media-interactions.js";
 import {
   setBtnLoading,
   initSectionJumpButton,
@@ -71,6 +72,10 @@ const viewerClose = document.getElementById("viewerClose");
 const viewerRotate = document.getElementById("viewerRotate");
 const toggleViewerFullscreenBtn = document.getElementById("toggleViewerFullscreen");
 const toggleViewerFullscreenIcon = document.getElementById("toggleViewerFullscreenIcon");
+const viewerInteractions = createMediaInteractionPanel({
+  modalEl: viewer,
+  mediaType: "photo",
+});
 
 const slideshow = document.getElementById("slideshow");
 const slideImg = document.getElementById("slideImg");
@@ -1834,6 +1839,7 @@ function openViewer(photo) {
 
   viewer?.classList.add("open");
   viewer?.setAttribute("aria-hidden", "false");
+  void viewerInteractions.openForMedia(currentViewed);
 
   document.documentElement.classList.add("noscroll");
   document.body.classList.add("noscroll");
@@ -1847,6 +1853,7 @@ function closeViewer() {
 
   viewer?.classList.remove("open");
   viewer?.setAttribute("aria-hidden", "true");
+  viewerInteractions.close();
   currentViewed = null;
 
   document.documentElement.classList.remove("noscroll");
