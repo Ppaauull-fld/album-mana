@@ -3276,6 +3276,88 @@ html[data-theme="dark"] .section-placeholder{
     background: rgba(18,18,20,.92);
   }
 
+  #photoViewer .top,
+  #animatedViewer .top,
+  #animatedOriginalViewer .top,
+  #videoViewer .top{
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+  }
+
+  #photoViewer .viewer-title,
+  #animatedViewer .viewer-title,
+  #animatedOriginalViewer .viewer-title,
+  #videoViewer .viewer-title{
+    min-width: 0;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #photoViewer .top .controls,
+  #animatedViewer .top .controls,
+  #animatedOriginalViewer .top .controls,
+  #videoViewer .top .controls{
+    min-width: 0;
+    max-width: 100%;
+    justify-self: end;
+    gap: 3px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  #photoViewer .top .controls::-webkit-scrollbar,
+  #animatedViewer .top .controls::-webkit-scrollbar,
+  #animatedOriginalViewer .top .controls::-webkit-scrollbar,
+  #videoViewer .top .controls::-webkit-scrollbar{
+    display: none;
+  }
+
+  #photoViewer .top .iconbtn,
+  #animatedViewer .top .iconbtn,
+  #animatedOriginalViewer .top .iconbtn,
+  #videoViewer .top .iconbtn{
+    width: clamp(30px, 8.6vw, 34px);
+    min-width: clamp(30px, 8.6vw, 34px);
+    height: clamp(30px, 8.6vw, 34px);
+    border-radius: 10px;
+  }
+
+  #photoViewer .top .iconbtn::before,
+  #animatedViewer .top .iconbtn::before,
+  #animatedOriginalViewer .top .iconbtn::before,
+  #videoViewer .top .iconbtn::before{
+    inset: 2px;
+    border-radius: 8px;
+  }
+
+  #photoViewer .top .iconbtn .icon-img,
+  #animatedViewer .top .iconbtn .icon-img,
+  #animatedOriginalViewer .top .iconbtn .icon-img,
+  #videoViewer .top .iconbtn .icon-img{
+    width: clamp(13px, 3.8vw, 15px);
+    height: clamp(13px, 3.8vw, 15px);
+    min-width: clamp(13px, 3.8vw, 15px);
+    min-height: clamp(13px, 3.8vw, 15px);
+  }
+
+  #photoViewer .media-social-toggle-btn.has-count::after,
+  #animatedViewer .media-social-toggle-btn.has-count::after,
+  #videoViewer .media-social-toggle-btn.has-count::after{
+    top: 0;
+    right: 0;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 2px;
+    font-size: 8px;
+  }
+
   #photoViewer .viewer-wrap,
   #animatedViewer .viewer-wrap,
   #animatedOriginalViewer .viewer-wrap,
@@ -3336,7 +3418,57 @@ html[data-theme="dark"] .section-placeholder{
   .media-reaction-tray{
     left: auto;
     right: 0;
-    max-width: calc(100vw - 26px);
+    max-width: min(calc(100vw - 14px - env(safe-area-inset-right)), 100%);
+    padding: 5px 6px;
+    gap: 2px;
+    border-radius: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 4px;
+  }
+
+  .media-reaction-tray__btn{
+    min-width: 28px;
+    height: 28px;
+    font-size: 21px;
+  }
+
+  .media-reaction-tray__btn--plus{
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+
+  .media-reaction-tray__btn--plus .icon-img{
+    width: 11px;
+    height: 11px;
+    min-width: 11px;
+    min-height: 11px;
+  }
+
+  .media-reaction-tray__custom{
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    padding-top: 5px;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,.16);
+    justify-content: flex-end;
+  }
+
+  .media-reaction-tray__custom-input{
+    width: 56px;
+    height: 28px;
+    font-size: 16px;
+    padding: 0 8px;
+  }
+
+  .media-reaction-tray__custom-send{
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 9px;
   }
 
   .media-reaction-summary-wrap{

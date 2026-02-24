@@ -16,6 +16,7 @@ const QUICK_REACTION_EMOJIS = ["❤️", "😍", "😂", "😭", "😡", "🔥"]
 const MAX_COMMENT_LENGTH = 280;
 const REACTION_ICON_URL = new URL("../img/icons/Add reaction.svg", import.meta.url).href;
 const SEND_ICON_URL = new URL("../img/icons/Send.svg", import.meta.url).href;
+const COMMENT_TOPBAR_ICON_URL = new URL("../img/icons/Message square.svg", import.meta.url).href;
 const PLUS_ICON_URL = new URL("../img/icons/Plus.svg", import.meta.url).href;
 const CLOSE_ICON_URL = new URL("../img/icons/X.svg", import.meta.url).href;
 const DELETE_ICON_URL = new URL("../img/icons/delete.svg", import.meta.url).href;
@@ -213,7 +214,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   commentToggleBtn.setAttribute("aria-label", "Commentaires");
   commentToggleBtn.setAttribute("aria-pressed", "false");
   commentToggleBtn.innerHTML = `
-    <img class="icon-img" src="${SEND_ICON_URL}" alt="" aria-hidden="true" decoding="async" />
+    <img class="icon-img" src="${COMMENT_TOPBAR_ICON_URL}" alt="" aria-hidden="true" decoding="async" />
   `;
 
   const reactionToggleBtn = document.createElement("button");
