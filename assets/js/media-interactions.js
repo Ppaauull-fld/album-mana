@@ -108,6 +108,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   if (!viewerBox || !viewerWrap || !topControls) return emptyController();
 
   viewerBox.classList.add("viewer-box--social");
+  viewerBox.style.setProperty("--media-keyboard-offset", "0px");
 
   // Layout wrapper: media zone + optional comments drawer.
   const layout = document.createElement("div");
@@ -243,6 +244,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   const customPlusBtn = reactionTray.querySelector('[data-action="custom"]');
   const customReactionWrap = reactionTray.querySelector(".media-reaction-tray__custom");
   const customReactionInput = reactionTray.querySelector(".media-reaction-tray__custom-input");
+  const visualViewportApi = window.visualViewport || null;
 
   let currentMediaId = "";
   let currentMediaKey = "";
@@ -258,6 +260,36 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   let reactionTrayOpen = false;
   let summaryPopoverOpen = false;
   let customReactionOpen = false;
+
+  function setKeyboardOffset(px = 0) {
+    const value = Math.max(0, Math.round(Number(px) || 0));
+    viewerBox.style.setProperty("--media-keyboard-offset", `${value}px`);
+  }
+
+  function readKeyboardOffset() {
+    if (!visualViewportApi) return 0;
+    const baseHeight =
+      window.innerHeight ||
+      document.documentElement?.clientHeight ||
+      visualViewportApi.height ||
+      0;
+    const visible = (visualViewportApi.height || 0) + (visualViewportApi.offsetTop || 0);
+    return Math.max(0, baseHeight - visible);
+  }
+
+  function syncKeyboardOffset() {
+    const active = document.activeElement;
+    const keyboardContextOpen =
+      commentsOpen ||
+      customReactionOpen ||
+      active === commentInput ||
+      active === customReactionInput;
+    if (!keyboardContextOpen) {
+      setKeyboardOffset(0);
+      return;
+    }
+    setKeyboardOffset(readKeyboardOffset());
+  }
 
   function setButtonCountBadge(btn, count) {
     if (!btn) return;
@@ -294,6 +326,8 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     if (commentsOpen && focusInput) {
       setTimeout(() => commentInput?.focus({ preventScroll: true }), 0);
     }
+    syncKeyboardOffset();
+    if (commentsOpen) setTimeout(syncKeyboardOffset, 140);
   }
 
   function setReactionTrayOpen(open) {
@@ -302,6 +336,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     reactionToggleBtn.classList.toggle("is-active", reactionTrayOpen);
     reactionToggleBtn.setAttribute("aria-pressed", reactionTrayOpen ? "true" : "false");
     if (!reactionTrayOpen) setCustomReactionOpen(false);
+    syncKeyboardOffset();
   }
 
   function setSummaryPopoverOpen(open) {
@@ -318,12 +353,15 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
     if (!customReactionOpen) {
       if (customReactionInput) customReactionInput.value = "";
+      syncKeyboardOffset();
       return;
     }
 
     if (focusInput) {
       setTimeout(() => customReactionInput?.focus({ preventScroll: true }), 0);
     }
+    syncKeyboardOffset();
+    setTimeout(syncKeyboardOffset, 140);
   }
 
   function stopRealtime() {
@@ -668,6 +706,22 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     }
   });
 
+  customReactionInput?.addEventListener("focus", () => {
+    syncKeyboardOffset();
+    setTimeout(syncKeyboardOffset, 120);
+  });
+  customReactionInput?.addEventListener("blur", () => {
+    setTimeout(syncKeyboardOffset, 120);
+  });
+
+  commentInput?.addEventListener("focus", () => {
+    syncKeyboardOffset();
+    setTimeout(syncKeyboardOffset, 120);
+  });
+  commentInput?.addEventListener("blur", () => {
+    setTimeout(syncKeyboardOffset, 120);
+  });
+
   commentForm?.addEventListener("submit", (e) => {
     e.preventDefault();
     void submitComment();
@@ -682,7 +736,9 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     void deleteComment(commentId);
   });
 
-  commentToggleBtn?.addEventListener("click", () => {
+  commentToggleBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const next = !commentsOpen;
     setCommentsOpen(next, { focusInput: next });
     if (next) {
@@ -695,7 +751,9 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     setCommentsOpen(false);
   });
 
-  reactionToggleBtn?.addEventListener("click", () => {
+  reactionToggleBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const next = !reactionTrayOpen;
     setReactionTrayOpen(next);
     if (next) setSummaryPopoverOpen(false);
@@ -728,6 +786,11 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     }
   });
 
+  if (visualViewportApi) {
+    visualViewportApi.addEventListener("resize", syncKeyboardOffset);
+    visualViewportApi.addEventListener("scroll", syncKeyboardOffset);
+  }
+
   return {
     async openForMedia(item) {
       const mediaId = safeString(item?.id);
@@ -743,6 +806,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       setCommentsOpen(false);
       setReactionTrayOpen(false);
       setSummaryPopoverOpen(false);
+      setKeyboardOffset(0);
 
       reactions = [];
       comments = [];
@@ -767,6 +831,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       setReactionTrayOpen(false);
       setSummaryPopoverOpen(false);
       reactionSummaryWrap.hidden = true;
+      setKeyboardOffset(0);
     },
   };
 }

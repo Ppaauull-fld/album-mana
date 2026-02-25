@@ -140,6 +140,25 @@ function ensureActionModal() {
   return modal;
 }
 
+function ensureTopbarActionsHost(themeToggle, host) {
+  if (!host) return null;
+  if (!themeToggle) return host;
+  if (host.classList?.contains("topbar-actions")) return host;
+
+  const directChildren = Array.from(host.children || []);
+  const existing = directChildren.find((el) => el.classList?.contains("topbar-actions"));
+  if (existing) {
+    if (!existing.contains(themeToggle)) existing.prepend(themeToggle);
+    return existing;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "topbar-actions";
+  themeToggle.insertAdjacentElement("afterend", wrapper);
+  wrapper.appendChild(themeToggle);
+  return wrapper;
+}
+
 async function mountProfileMenu() {
   const user = await getCurrentUser();
   if (!user) return;
@@ -150,11 +169,12 @@ async function mountProfileMenu() {
     document.querySelector(".auth-corner-controls") ||
     document.querySelector(".topbar .inner");
   if (!host) return;
+  const mountHost = ensureTopbarActionsHost(themeToggle, host) || host;
 
   const root = document.createElement("div");
   root.className = "profile-menu-root";
   root.innerHTML = buildMarkup();
-  host.appendChild(root);
+  mountHost.appendChild(root);
   const modal = ensureActionModal();
   if (!modal) return;
 
