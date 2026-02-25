@@ -99,6 +99,13 @@ function isEmojiLike(value) {
   return /\p{Extended_Pictographic}/u.test(text);
 }
 
+function extractFirstEmoji(value) {
+  const text = safeString(value);
+  if (!text) return "";
+  const match = text.match(/\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/u);
+  return safeString(match?.[0]);
+}
+
 export function createMediaInteractionPanel({ modalEl, mediaType }) {
   if (!modalEl || !mediaType) return emptyController();
 
@@ -186,24 +193,18 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     <button class="media-reaction-tray__btn media-reaction-tray__btn--plus iconbtn" type="button" data-action="custom" aria-label="Ajouter une reaction" title="Ajouter une reaction">
       <img class="icon-img" src="${PLUS_ICON_URL}" alt="" aria-hidden="true" decoding="async" />
     </button>
-    <div class="media-reaction-tray__custom" hidden>
-      <input
-        class="media-reaction-tray__custom-input"
-        type="text"
-        maxlength="8"
-        placeholder="🙂"
-        aria-label="Emoji personnalise"
-      />
-      <button
-        class="media-reaction-tray__custom-send iconbtn"
-        type="button"
-        data-action="custom-send"
-        aria-label="Valider l'emoji personnalise"
-        title="Valider"
-      >
-        <img class="icon-img" src="${SEND_ICON_URL}" alt="" aria-hidden="true" decoding="async" />
-      </button>
-    </div>
+    <input
+      class="media-reaction-tray__emoji-capture"
+      type="text"
+      inputmode="text"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      maxlength="16"
+      enterkeyhint="done"
+      aria-label="Emoji personnalise"
+    />
   `;
   topControls.appendChild(reactionTray);
 
@@ -242,8 +243,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   const reactionSummaryCount = reactionSummaryWrap.querySelector(".media-reaction-summary-btn__count");
   const reactionSummaryPopover = reactionSummaryWrap.querySelector(".media-reaction-summary-popover");
   const customPlusBtn = reactionTray.querySelector('[data-action="custom"]');
-  const customReactionWrap = reactionTray.querySelector(".media-reaction-tray__custom");
-  const customReactionInput = reactionTray.querySelector(".media-reaction-tray__custom-input");
+  const customReactionInput = reactionTray.querySelector(".media-reaction-tray__emoji-capture");
   const visualViewportApi = window.visualViewport || null;
 
   let currentMediaId = "";
@@ -348,7 +348,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   function setCustomReactionOpen(open, options = {}) {
     const { focusInput = false } = options;
     customReactionOpen = !!open;
-    if (customReactionWrap) customReactionWrap.hidden = !customReactionOpen;
     customPlusBtn?.classList.toggle("is-active", customReactionOpen);
 
     if (!customReactionOpen) {
@@ -358,7 +357,11 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     }
 
     if (focusInput) {
-      setTimeout(() => customReactionInput?.focus({ preventScroll: true }), 0);
+      try {
+        customReactionInput?.focus({ preventScroll: true });
+      } catch {
+        customReactionInput?.focus();
+      }
     }
     syncKeyboardOffset();
     setTimeout(syncKeyboardOffset, 140);
@@ -664,22 +667,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       return;
     }
 
-    if (customAction === "custom-send") {
-      const input = safeString(customReactionInput?.value);
-      if (!input) {
-        setStatus("Ajoute un emoji.", "error");
-        return;
-      }
-      if (!isEmojiLike(input)) {
-        setStatus("Emoji personnalisé invalide.", "error");
-        return;
-      }
-      void toggleReaction(input);
-      setCustomReactionOpen(false);
-      setReactionTrayOpen(false);
-      return;
-    }
-
     const emoji = safeString(btn.dataset.emoji);
     if (!emoji) return;
     void toggleReaction(emoji);
@@ -688,22 +675,27 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   });
 
   customReactionInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const input = safeString(customReactionInput.value);
-      if (!input) return;
-      if (!isEmojiLike(input)) {
-        setStatus("Emoji personnalisé invalide.", "error");
-        return;
-      }
-      void toggleReaction(input);
-      setCustomReactionOpen(false);
-      setReactionTrayOpen(false);
-    }
     if (e.key === "Escape") {
       e.preventDefault();
       setCustomReactionOpen(false);
     }
+  });
+
+  customReactionInput?.addEventListener("input", () => {
+    const raw = safeString(customReactionInput.value);
+    if (!raw) return;
+
+    const emoji = extractFirstEmoji(raw) || raw;
+    if (!isEmojiLike(emoji)) {
+      setStatus("Emoji personnalisé invalide.", "error");
+      customReactionInput.value = "";
+      return;
+    }
+
+    void toggleReaction(emoji);
+    customReactionInput.value = "";
+    setCustomReactionOpen(false);
+    setReactionTrayOpen(false);
   });
 
   customReactionInput?.addEventListener("focus", () => {
@@ -711,6 +703,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     setTimeout(syncKeyboardOffset, 120);
   });
   customReactionInput?.addEventListener("blur", () => {
+    setCustomReactionOpen(false);
     setTimeout(syncKeyboardOffset, 120);
   });
 
