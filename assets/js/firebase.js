@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  updateEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
@@ -249,17 +250,29 @@ export async function signOutCurrentUser() {
   await signOut(auth);
 }
 
-export async function updateCurrentUserFamilyName({ newFirstName }) {
+export async function updateCurrentUserFamilyName({ newFirstName, currentPin }) {
   const user = auth.currentUser || (await getCurrentUser());
   if (!user?.email) throw new Error("Session invalide.");
 
   const displayName = cleanName(newFirstName);
   if (!displayName) throw new Error("Prenom invalide.");
 
+  const currentEmail = String(user.email || "").trim();
+  if (!currentEmail) throw new Error("Session invalide.");
+
+  const nextEmail = familyEmailFromFirstName(displayName);
+  const currentPassword = familyPasswordFromPin(currentPin);
+  const credential = EmailAuthProvider.credential(currentEmail, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+
+  if (nextEmail !== currentEmail) {
+    await updateEmail(user, nextEmail);
+  }
+
   await updateProfile(user, { displayName });
   await upsertUserProfile(user.uid, {
     firstName: displayName,
-    email: user.email,
+    email: String(user.email || nextEmail),
   });
 
   return displayName;

@@ -81,6 +81,7 @@ function mapErr(err) {
   if (code === "auth/weak-password") return "Code PIN invalide.";
   if (code === "auth/requires-recent-login") return "Reconnecte-toi puis recommence.";
   if (code === "auth/email-already-in-use") return "Ce prenom est deja utilise.";
+  if (code === "auth/invalid-email") return "Nom utilisateur invalide.";
   if (code === "permission-denied") return "Action refusee par les regles Firestore.";
   return err?.message || "Erreur inattendue.";
 }
@@ -107,6 +108,9 @@ function renderModalForAction(modalEl, action) {
     body.innerHTML = `
       <label class="profile-field-label" for="profileActionRenameInput">Nouveau nom utilisateur</label>
       <input id="profileActionRenameInput" class="profile-field-input" type="text" maxlength="50" />
+
+      <label class="profile-field-label" for="profileActionCurrentPin">Code PIN actuel</label>
+      <input id="profileActionCurrentPin" class="profile-field-input" type="password" inputmode="numeric" maxlength="2" autocomplete="current-password" />
     `;
     return;
   }
@@ -290,8 +294,13 @@ async function mountProfileMenu() {
 
     if (currentAction === "rename") {
       const nextName = readValue(modal, "profileActionRenameInput");
+      const currentPin = readValue(modal, "profileActionCurrentPin");
       if (nextName.length < 2) {
         setModalFeedback(modal, "Le nom utilisateur doit contenir au moins 2 caracteres.", "error");
+        return;
+      }
+      if (!/^\d{2}$/.test(currentPin)) {
+        setModalFeedback(modal, "Le code PIN actuel doit contenir exactement 2 chiffres.", "error");
         return;
       }
 
@@ -299,6 +308,7 @@ async function mountProfileMenu() {
       try {
         const updated = await updateCurrentUserFamilyName({
           newFirstName: nextName,
+          currentPin,
         });
         firstName = updated;
         syncProfileUi();
