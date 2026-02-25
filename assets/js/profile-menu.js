@@ -24,7 +24,7 @@ function buildMarkup() {
       <div class="profile-popover__actions">
         <button type="button" class="profile-action-btn" data-action="rename">Changer le nom utilisateur</button>
         <button type="button" class="profile-action-btn" data-action="pin">Changer le code PIN</button>
-        <button type="button" class="profile-action-btn" data-action="logout">Se deconnecter</button>
+        <button type="button" class="profile-action-btn danger" data-action="logout">Se deconnecter</button>
       </div>
     </div>
   `;
