@@ -245,7 +245,9 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   const customPlusBtn = reactionTray.querySelector('[data-action="custom"]');
   const customReactionInput = reactionTray.querySelector(".media-reaction-tray__emoji-capture");
   const visualViewportApi = window.visualViewport || null;
-  let keyboardViewportBase = 0;
+  const IOS_BROWSER_UI_MAX_OFFSET = 96;
+  let keyboardSyncRaf = 0;
+  let lastKeyboardOffset = -1;
 
   let currentMediaId = "";
   let currentMediaKey = "";
@@ -262,50 +264,58 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   let summaryPopoverOpen = false;
   let customReactionOpen = false;
 
-  function setKeyboardOffset(px = 0) {
+  function setKeyboardOffset(px = 0, options = {}) {
+    const { force = false } = options;
     const value = Math.max(0, Math.round(Number(px) || 0));
+    if (!force && lastKeyboardOffset >= 0 && Math.abs(value - lastKeyboardOffset) < 2) return;
+    lastKeyboardOffset = value;
     viewerBox.style.setProperty("--media-keyboard-offset", `${value}px`);
   }
 
-  function readViewportBaseline() {
-    const visualHeight = visualViewportApi
-      ? (visualViewportApi.height || 0) + (visualViewportApi.offsetTop || 0)
-      : 0;
-    return Math.max(
+  function readViewportObstruction() {
+    if (!visualViewportApi) return 0;
+    const layoutHeight = Math.max(
       0,
       window.innerHeight || 0,
-      document.documentElement?.clientHeight || 0,
-      visualHeight
+      document.documentElement?.clientHeight || 0
     );
+    const visibleBottom = (visualViewportApi.height || 0) + (visualViewportApi.offsetTop || 0);
+    return Math.max(0, Math.round(layoutHeight - visibleBottom));
   }
 
-  function captureViewportBaseline(force = false) {
-    const next = Math.round(readViewportBaseline());
-    if (force || keyboardViewportBase <= 0 || next > keyboardViewportBase) {
-      keyboardViewportBase = next;
-    }
-  }
-
-  function readKeyboardOffset() {
-    if (!visualViewportApi) return 0;
-    captureViewportBaseline();
-    const visible = (visualViewportApi.height || 0) + (visualViewportApi.offsetTop || 0);
-    return Math.max(0, keyboardViewportBase - visible);
-  }
-
-  function syncKeyboardOffset() {
+  function computePanelOffset() {
     const active = document.activeElement;
     const keyboardContextOpen =
-      commentsOpen ||
       customReactionOpen ||
       active === commentInput ||
       active === customReactionInput;
-    if (!keyboardContextOpen) {
-      captureViewportBaseline(true);
-      setKeyboardOffset(0);
-      return;
+    const panelVisible = commentsOpen || keyboardContextOpen;
+
+    if (!panelVisible) return 0;
+
+    const obstruction = readViewportObstruction();
+    if (keyboardContextOpen) return obstruction;
+    return Math.min(obstruction, IOS_BROWSER_UI_MAX_OFFSET);
+  }
+
+  function syncKeyboardOffsetNow() {
+    setKeyboardOffset(computePanelOffset());
+  }
+
+  function syncKeyboardOffset() {
+    if (keyboardSyncRaf) return;
+    keyboardSyncRaf = window.requestAnimationFrame(() => {
+      keyboardSyncRaf = 0;
+      syncKeyboardOffsetNow();
+    });
+  }
+
+  function resetKeyboardOffset() {
+    if (keyboardSyncRaf) {
+      window.cancelAnimationFrame(keyboardSyncRaf);
+      keyboardSyncRaf = 0;
     }
-    setKeyboardOffset(readKeyboardOffset());
+    setKeyboardOffset(0, { force: true });
   }
 
   function setButtonCountBadge(btn, count) {
@@ -716,7 +726,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   });
 
   customReactionInput?.addEventListener("focus", () => {
-    captureViewportBaseline(true);
     syncKeyboardOffset();
     setTimeout(syncKeyboardOffset, 120);
   });
@@ -726,7 +735,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   });
 
   commentInput?.addEventListener("focus", () => {
-    captureViewportBaseline(true);
     syncKeyboardOffset();
     setTimeout(syncKeyboardOffset, 120);
   });
@@ -799,7 +807,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   });
 
   if (visualViewportApi) {
-    captureViewportBaseline(true);
     visualViewportApi.addEventListener("resize", syncKeyboardOffset);
     visualViewportApi.addEventListener("scroll", syncKeyboardOffset);
   }
@@ -821,8 +828,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       setCommentsOpen(false);
       setReactionTrayOpen(false);
       setSummaryPopoverOpen(false);
-      setKeyboardOffset(0);
-      captureViewportBaseline(true);
+      resetKeyboardOffset();
 
       reactions = [];
       comments = [];
@@ -847,7 +853,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       setReactionTrayOpen(false);
       setSummaryPopoverOpen(false);
       reactionSummaryWrap.hidden = true;
-      setKeyboardOffset(0);
+      resetKeyboardOffset();
       document.documentElement.classList.remove("viewer-social-open");
       document.body.classList.remove("viewer-social-open");
     },
