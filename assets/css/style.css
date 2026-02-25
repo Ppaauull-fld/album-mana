@@ -1297,10 +1297,12 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   min-width: 300px;
   max-width: calc(100% - 70px);
   min-height: 0;
-  border-left: 1px solid rgba(255,255,255,.14);
-  background: rgba(12,12,16,.56);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  border-left: 1px solid rgba(255,255,255,.18);
+  background:
+    linear-gradient(180deg, rgba(14,15,19,.94), rgba(10,11,15,.92)),
+    radial-gradient(420px 220px at 10% -45%, rgba(255,210,150,.10), transparent 70%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 10px;
   flex-direction: column;
   gap: 10px;
@@ -1415,18 +1417,18 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   width: 100%;
   min-height: 38px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,255,255,.14);
   color: rgba(255,255,255,.92);
   padding: 0 12px;
   outline: none;
 }
 .media-social-comments__input::placeholder{
-  color: rgba(255,255,255,.58);
+  color: rgba(255,255,255,.62);
 }
 .media-social-comments__input:focus{
-  border-color: rgba(255,255,255,.32);
-  background: rgba(255,255,255,.14);
+  border-color: rgba(255,255,255,.38);
+  background: rgba(255,255,255,.18);
 }
 
 .media-social-comments__send{
@@ -3330,7 +3332,7 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
   #animatedCompareViewer.modal,
   #videoViewer.modal{
     padding: 0;
-    background: rgba(8,8,10,.94);
+    background: #09090c;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -3343,8 +3345,10 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
     width: 100vw;
     height: 100vh;
     height: 100dvh;
+    height: 100lvh;
     max-height: 100vh;
     max-height: 100dvh;
+    max-height: 100lvh;
     margin: 0;
     border-radius: 0;
     border: none;
@@ -3357,7 +3361,7 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
   #animatedCompareViewer .top,
   #videoViewer .top{
     padding-top: calc(8px + env(safe-area-inset-top));
-    background: rgba(18,18,20,.92);
+    background: rgba(18,18,20,.98);
   }
 
   #photoViewer .top,
@@ -3438,6 +3442,7 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
     padding: 8px;
     height: calc(100vh - 74px - env(safe-area-inset-top));
     height: calc(100dvh - 74px - env(safe-area-inset-top));
+    height: calc(100lvh - 74px - env(safe-area-inset-top));
     background: #0f0f10;
   }
 
@@ -3456,12 +3461,15 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
   #videoViewer .viewer-wrap{
     height: calc(100vh - 74px - env(safe-area-inset-top));
     height: calc(100dvh - 74px - env(safe-area-inset-top));
+    height: calc(100lvh - 74px - env(safe-area-inset-top));
   }
 
   #photoViewer .viewer-box--comments-open .media-social-layout,
   #animatedViewer .viewer-box--comments-open .media-social-layout,
   #videoViewer .viewer-box--comments-open .media-social-layout{
-    display: block;
+    display: flex;
+    flex: 1;
+    min-height: 0;
   }
 
   #photoViewer .viewer-box--comments-open .viewer-wrap,
@@ -3469,6 +3477,7 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
   #videoViewer .viewer-box--comments-open .viewer-wrap{
     height: calc(100vh - 74px - env(safe-area-inset-top));
     height: calc(100dvh - 74px - env(safe-area-inset-top));
+    height: calc(100lvh - 74px - env(safe-area-inset-top));
     min-height: 0;
   }
 
@@ -3480,12 +3489,15 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
     right: 0;
     top: auto;
     bottom: 0;
-    max-height: min(62dvh, 430px);
+    height: clamp(250px, 62lvh, 430px);
+    max-height: clamp(250px, 62lvh, 430px);
     border-radius: 18px 18px 0 0;
     border-left: none;
     border-top: 1px solid rgba(255,255,255,.14);
     box-shadow: 0 -20px 50px rgba(0,0,0,.30);
-    background: rgba(12,12,16,.88);
+    background:
+      linear-gradient(180deg, rgba(14,15,19,.97), rgba(10,11,15,.96)),
+      radial-gradient(420px 220px at 10% -45%, rgba(255,210,150,.10), transparent 70%);
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   }
 
@@ -5180,7 +5192,15 @@ body.viewer-social-open{
 }
 
 .viewer-box--social .media-social-layout{
+  display: flex;
+  flex: 1;
+  min-height: 0;
   background: #0f0f10;
+}
+
+.viewer-box--social .viewer-wrap{
+  flex: 1;
+  min-height: 0;
 }
 
 .viewer-box--social .media-comments-panel{
@@ -5190,22 +5210,24 @@ body.viewer-social-open{
 /* Profile menu + profile modals aligned with delete-confirm visual language */
 .profile-popover{
   border-radius: 20px;
-  border: 1px solid rgba(255,255,255,.56);
+  border: 1px solid rgba(255,255,255,.72);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.90), rgba(246,241,234,.84)),
-    radial-gradient(440px 220px at 10% -45%, rgba(255,210,150,.24), transparent 70%);
+    linear-gradient(180deg, rgba(252,251,248,.97), rgba(246,241,234,.95)),
+    radial-gradient(440px 220px at 10% -45%, rgba(255,210,150,.16), transparent 70%);
   color: rgba(20,20,24,.95);
-  box-shadow: 0 30px 84px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.70);
+  box-shadow: 0 30px 84px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 14px;
 }
 
 html[data-theme="dark"] .profile-popover{
-  border-color: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.24);
   background:
-    linear-gradient(180deg, rgba(18,18,22,.94), rgba(12,12,16,.90)),
-    radial-gradient(450px 220px at 10% -40%, rgba(255,205,130,.14), transparent 70%);
+    linear-gradient(180deg, rgba(18,18,22,.98), rgba(12,12,16,.96)),
+    radial-gradient(450px 220px at 10% -40%, rgba(255,205,130,.10), transparent 70%);
   color: rgba(245,245,247,.95);
-  box-shadow: 0 34px 100px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.08);
+  box-shadow: 0 34px 100px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.10);
 }
 
 .profile-popover__head{
@@ -5219,8 +5241,9 @@ html[data-theme="dark"] .profile-popover{
 .profile-action-btn{
   min-height: 52px;
   border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.56);
+  border: 1px solid rgba(0,0,0,.14);
+  background: rgba(255,255,255,.88);
+  color: rgba(20,20,24,.95);
   padding: 0 18px;
   display: inline-flex;
   align-items: center;
@@ -5231,7 +5254,7 @@ html[data-theme="dark"] .profile-popover{
 
 .profile-action-btn:hover{
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.96);
   border-color: rgba(0,0,0,.16);
 }
 
@@ -5239,17 +5262,18 @@ html[data-theme="dark"] .profile-popover{
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
   transform: translateY(var(--lift));
-  background: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.96);
 }
 
 html[data-theme="dark"] .profile-action-btn{
-  border-color: rgba(255,255,255,.16);
-  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.20);
+  background: rgba(255,255,255,.18);
+  color: rgba(245,245,247,.95);
 }
 
 html[data-theme="dark"] .profile-action-btn:hover,
 html[data-theme="dark"] .profile-action-btn:focus-visible{
-  background: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.24);
   border-color: rgba(255,255,255,.28);
 }
 
