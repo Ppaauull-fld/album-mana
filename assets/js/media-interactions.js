@@ -423,6 +423,25 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     return user;
   }
 
+  function isOwnComment(comment) {
+    const commentUserId = safeString(comment?.userId);
+    const myUserId = safeString(currentUser?.uid);
+    return !!commentUserId && !!myUserId && commentUserId === myUserId;
+  }
+
+  async function hydrateCurrentUserContext(expectedMediaKey = "") {
+    try {
+      await ensureUser();
+    } catch {
+      currentUser = null;
+      currentUserName = "Membre";
+    } finally {
+      if (expectedMediaKey && expectedMediaKey !== currentMediaKey) return;
+      renderReactions();
+      renderComments();
+    }
+  }
+
   function currentUserReaction() {
     if (!currentUser?.uid) return "";
     const mine = reactions.find((r) => r.userId === currentUser.uid);
@@ -534,7 +553,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
       row.className = "media-social-comment";
       row.dataset.commentId = c.id;
 
-      const canDelete = !!currentUser?.uid && c.userId === currentUser.uid;
+      const canDelete = isOwnComment(c);
       row.innerHTML = `
         <div class="media-social-comment__head">
           <strong class="media-social-comment__name">${safeString(c.userName) || "Membre"}</strong>
@@ -671,6 +690,22 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
   async function deleteComment(commentId) {
     if (!commentId || !currentMediaKey) return;
+
+    if (!currentUser?.uid) {
+      try {
+        await ensureUser();
+      } catch (err) {
+        setStatus(err?.message || "Utilisateur non connecte.", "error");
+        return;
+      }
+    }
+
+    const targetComment = comments.find((c) => safeString(c?.id) === safeString(commentId));
+    if (!isOwnComment(targetComment)) {
+      setStatus("Seul l'auteur peut supprimer ce commentaire.", "error");
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, INTERACTIONS_COL, currentMediaKey, "comments", commentId));
     } catch (err) {
@@ -762,6 +797,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     const next = !commentsOpen;
     setCommentsOpen(next, { focusInput: next });
     if (next) {
+      void hydrateCurrentUserContext(currentMediaKey);
       setReactionTrayOpen(false);
       setSummaryPopoverOpen(false);
     }
@@ -837,6 +873,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
       stopRealtime();
       bindRealtime();
+      void hydrateCurrentUserContext(currentMediaKey);
     },
 
     close() {
