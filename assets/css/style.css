@@ -3238,9 +3238,9 @@ html[data-theme="dark"] .ui-input::placeholder{ color: rgba(245,245,247,.58); }
   }
 
   .topbar .profile-chip__avatar{
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
+    width: 100%;
+    height: 100%;
+    font-size: 15px;
   }
 
   .section{
@@ -4563,14 +4563,18 @@ html.auth-checking body{
 }
 
 .page-home .profile-chip{
-  color: rgba(255,255,255,.92);
-  background: rgba(255,255,255,.16);
-  border-color: rgba(255,255,255,.25);
-  box-shadow: 0 18px 52px rgba(0,0,0,.24);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 .page-home .profile-chip:hover{
-  background: rgba(255,255,255,.22);
-  border-color: rgba(255,255,255,.34);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.page-home .profile-chip__avatar{
+  background: rgba(214,210,201,.76);
 }
 
 /* -------------------- Auth page -------------------- */
@@ -4872,67 +4876,64 @@ html.auth-checking body{
 }
 
 .profile-chip{
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   padding: 0;
   cursor: pointer;
-  color: var(--headerbtn-ink);
-  background: var(--headerbtn-bg);
-  border: 1px solid var(--headerbtn-border);
-  box-shadow: 0 18px 50px rgba(0,0,0,.10);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  color: rgba(12,12,14,.95);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: transform .15s ease;
 }
 html[data-theme="dark"] .profile-chip{
-  background: var(--headerbtn-bg);
-  border-color: var(--headerbtn-border);
+  background: transparent;
+  border: 0;
 }
 .profile-chip:hover{
   transform: translateY(var(--lift));
-  background: var(--headerbtn-bg-hover);
-  border-color: var(--headerbtn-border-hover);
-  box-shadow: 0 22px 60px rgba(0,0,0,.12);
 }
 html[data-theme="dark"] .profile-chip:hover{
-  background: var(--headerbtn-bg-hover);
-  border-color: var(--headerbtn-border-hover);
+  background: transparent;
+  border: 0;
 }
 .profile-chip:focus-visible{
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 .profile-chip[aria-expanded="true"]{
-  background: var(--headerbtn-bg-hover);
-  border-color: var(--headerbtn-border-hover);
+  background: transparent;
+  border: 0;
 }
 html[data-theme="dark"] .profile-chip[aria-expanded="true"]{
-  background: var(--headerbtn-bg-hover);
-  border-color: var(--headerbtn-border-hover);
+  background: transparent;
+  border: 0;
 }
 
 .profile-chip__avatar{
-  width: 30px;
-  height: 30px;
+  width: 100%;
+  height: 100%;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1;
-  font-weight: 760;
-  letter-spacing: .2px;
-  color: rgba(18,18,22,.95);
-  background: rgba(252,252,253,.98);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: rgba(16,16,20,.96);
+  background: rgba(214,210,201,.96);
   border: none;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+  box-shadow: none;
 }
 html[data-theme="dark"] .profile-chip__avatar{
   color: rgba(16,16,20,.96);
-  background: rgba(250,250,252,.98);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+  background: rgba(214,210,201,.96);
+  box-shadow: none;
 }
 
 .profile-popover{
@@ -5188,14 +5189,14 @@ body.profile-action-open{
   }
 
   .profile-chip{
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
   }
 
   .profile-chip__avatar{
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    width: 100%;
+    height: 100%;
+    font-size: 15px;
   }
 
   .profile-popover{
