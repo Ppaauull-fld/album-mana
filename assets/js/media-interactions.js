@@ -20,6 +20,10 @@ const COMMENT_TOPBAR_ICON_URL = new URL("../img/icons/Message square.svg", impor
 const PLUS_ICON_URL = new URL("../img/icons/Plus.svg", import.meta.url).href;
 const CLOSE_ICON_URL = new URL("../img/icons/X.svg", import.meta.url).href;
 const DELETE_ICON_URL = new URL("../img/icons/delete.svg", import.meta.url).href;
+const IS_COARSE_POINTER =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
 
 function safeString(value) {
   return String(value || "").trim();
@@ -263,6 +267,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   let reactionTrayOpen = false;
   let summaryPopoverOpen = false;
   let customReactionOpen = false;
+  let nativeEmojiPicker = null;
 
   function setKeyboardOffset(px = 0, options = {}) {
     const { force = false } = options;
@@ -340,6 +345,26 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     statusEl.textContent = message || "";
     statusEl.classList.remove("is-error", "is-success");
     if (type) statusEl.classList.add(type === "error" ? "is-error" : "is-success");
+  }
+
+  async function pickDesktopCustomEmoji() {
+    const EmojiPickerCtor =
+      typeof window !== "undefined" ? window.EmojiPicker : null;
+
+    if (typeof EmojiPickerCtor === "function") {
+      try {
+        if (!nativeEmojiPicker) nativeEmojiPicker = new EmojiPickerCtor();
+        const picked = await nativeEmojiPicker.pick();
+        const fromPicker = safeString(picked?.unicode || picked?.emoji);
+        if (fromPicker) return fromPicker;
+      } catch {
+        // User cancellation or unsupported environment.
+      }
+    }
+
+    const raw = window.prompt("Choisis un emoji (ou colle-le ici) :");
+    const emoji = extractFirstEmoji(raw) || safeString(raw);
+    return safeString(emoji);
   }
 
   function setCommentsOpen(open, options = {}) {
@@ -742,6 +767,23 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
     const customAction = safeString(btn.dataset.action);
     if (customAction === "custom") {
+      if (!IS_COARSE_POINTER) {
+        void (async () => {
+          const emoji = await pickDesktopCustomEmoji();
+          if (!emoji) return;
+
+          if (!isEmojiLike(emoji)) {
+            setStatus("Emoji personnalise invalide.", "error");
+            return;
+          }
+
+          void toggleReaction(emoji);
+          setCustomReactionOpen(false);
+          setReactionTrayOpen(false);
+        })();
+        return;
+      }
+
       setCustomReactionOpen(true, { focusInput: true });
       return;
     }
