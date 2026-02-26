@@ -188,7 +188,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
   reactionTray.innerHTML = `
     ${QUICK_REACTION_EMOJIS.map(
       (emoji) =>
-        `<button class="media-reaction-tray__btn" type="button" data-emoji="${emoji}" aria-label="Reagir ${emoji}" title="Reagir ${emoji}">${emoji}</button>`
+        `<button class="media-reaction-tray__btn" type="button" data-emoji="${emoji}" data-default-emoji="${emoji}" aria-label="Reagir ${emoji}" title="Reagir ${emoji}">${emoji}</button>`
     ).join("")}
     <button class="media-reaction-tray__btn media-reaction-tray__btn--plus iconbtn" type="button" data-action="custom" aria-label="Ajouter une reaction" title="Ajouter une reaction">
       <img class="icon-img" src="${PLUS_ICON_URL}" alt="" aria-hidden="true" decoding="async" />
@@ -520,27 +520,36 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
   function renderReactionTrayState() {
     const mine = currentUserReaction();
-    const plusBtn = reactionTray.querySelector('[data-action="custom"]');
-    const existingMineBtn = reactionTray.querySelector(".media-reaction-tray__btn--mine");
-    if (existingMineBtn) existingMineBtn.remove();
-
-    let mineIsQuick = false;
-    for (const btn of reactionTray.querySelectorAll("[data-emoji]")) {
-      const emoji = safeString(btn.getAttribute("data-emoji"));
-      const isMine = !!emoji && isSameReactionEmoji(emoji, mine);
-      if (isMine) mineIsQuick = true;
-      btn.classList.toggle("is-active", isMine);
+    const quickButtons = [...reactionTray.querySelectorAll("[data-default-emoji]")];
+    for (const btn of quickButtons) {
+      const defaultEmoji = safeString(btn.getAttribute("data-default-emoji"));
+      btn.dataset.emoji = defaultEmoji;
+      btn.textContent = defaultEmoji;
+      btn.classList.remove("is-active", "media-reaction-tray__btn--custom-slot");
+      btn.setAttribute("aria-label", `Reagir ${defaultEmoji}`);
+      btn.setAttribute("title", `Reagir ${defaultEmoji}`);
     }
 
-    if (mine && !mineIsQuick && !isQuickReactionEmoji(mine)) {
-      const mineBtn = document.createElement("button");
-      mineBtn.type = "button";
-      mineBtn.className = "media-reaction-tray__btn media-reaction-tray__btn--mine is-active";
-      mineBtn.dataset.emoji = mine;
-      mineBtn.setAttribute("aria-label", `Retirer ta reaction ${mine}`);
-      mineBtn.setAttribute("title", "Retirer ta reaction");
-      mineBtn.textContent = mine;
-      reactionTray.insertBefore(mineBtn, plusBtn || null);
+    if (!mine) return;
+
+    if (isQuickReactionEmoji(mine)) {
+      for (const btn of quickButtons) {
+        const emoji = safeString(btn.getAttribute("data-emoji"));
+        if (!!emoji && isSameReactionEmoji(emoji, mine)) {
+          btn.classList.add("is-active");
+          return;
+        }
+      }
+      return;
+    }
+
+    const customSlotBtn = quickButtons[quickButtons.length - 1];
+    if (customSlotBtn) {
+      customSlotBtn.dataset.emoji = mine;
+      customSlotBtn.textContent = mine;
+      customSlotBtn.classList.add("is-active", "media-reaction-tray__btn--custom-slot");
+      customSlotBtn.setAttribute("aria-label", `Retirer ta reaction ${mine}`);
+      customSlotBtn.setAttribute("title", "Retirer ta reaction");
     }
   }
 
@@ -733,8 +742,7 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
 
     const customAction = safeString(btn.dataset.action);
     if (customAction === "custom") {
-      const next = !customReactionOpen;
-      setCustomReactionOpen(next, { focusInput: next });
+      setCustomReactionOpen(true, { focusInput: true });
       return;
     }
 

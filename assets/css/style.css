@@ -1574,11 +1574,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 .media-reaction-tray__emoji-capture{
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  width: 1px;
-  height: 1px;
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 0;
+  height: 0;
   opacity: 0;
   pointer-events: none;
   border: 0;
@@ -1586,6 +1586,7 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   margin: 0;
   background: transparent;
   color: transparent;
+  caret-color: transparent;
 }
 
 .media-reaction-summary-wrap{
