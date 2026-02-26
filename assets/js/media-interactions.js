@@ -409,6 +409,10 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     const { focusInput = false } = options;
     customReactionOpen = !!open;
     customPlusBtn?.classList.toggle("is-active", customReactionOpen);
+    reactionTray.classList.toggle(
+      "media-reaction-tray--custom-open",
+      customReactionOpen && !IS_COARSE_POINTER
+    );
 
     if (!customReactionOpen) {
       if (customReactionInput) customReactionInput.value = "";
@@ -771,10 +775,8 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
           const result = await pickDesktopCustomEmoji();
           const emoji = safeString(result?.emoji);
           if (!result?.supported) {
-            setCustomReactionOpen(true, { focusInput: true });
-            setStatus(
-              "Astuce: Win + . (Windows) ou Ctrl + Cmd + Espace (Mac) pour choisir un emoji."
-            );
+            const next = !customReactionOpen;
+            setCustomReactionOpen(next, { focusInput: next });
             return;
           }
 
