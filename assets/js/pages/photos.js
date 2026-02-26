@@ -1739,7 +1739,10 @@ window.addEventListener("pointercancel", (e) => {
 
 let viewerPseudoFullscreen = false;
 let slideshowPseudoFullscreen = false;
-const MOBILE_FULLSCREEN_CONTROLS_MS = 8000;
+const MOBILE_FULLSCREEN_CONTROLS_MS = 7000;
+let viewerFsHistoryPushed = false;
+let viewerFsIgnoreNextPopstate = false;
+let viewerLastTouchToggleAt = 0;
 
 function getFullscreenElement() {
   return (
@@ -1800,19 +1803,64 @@ function isViewerFullscreen() {
   return getFullscreenElement() === viewer || viewerPseudoFullscreen;
 }
 
+function pushViewerFullscreenHistoryEntry() {
+  if (!IS_COARSE_POINTER || viewerFsHistoryPushed) return;
+  if (!window.history || typeof window.history.pushState !== "function") return;
+
+  try {
+    const prevState = window.history.state;
+    const nextState =
+      prevState && typeof prevState === "object"
+        ? { ...prevState, __photoViewerFullscreen: true }
+        : { __photoViewerFullscreen: true };
+    window.history.pushState(nextState, "");
+    viewerFsHistoryPushed = true;
+  } catch {}
+}
+
+function clearViewerFullscreenHistoryEntry({ useBack = true } = {}) {
+  if (!viewerFsHistoryPushed) {
+    viewerFsHistoryPushed = false;
+    return;
+  }
+
+  if (
+    !useBack ||
+    !IS_COARSE_POINTER ||
+    !window.history ||
+    typeof window.history.back !== "function"
+  ) {
+    viewerFsHistoryPushed = false;
+    return;
+  }
+
+  viewerFsIgnoreNextPopstate = true;
+  viewerFsHistoryPushed = false;
+  try {
+    window.history.back();
+  } catch {
+    viewerFsIgnoreNextPopstate = false;
+  }
+}
+
 async function enterViewerFullscreen() {
   if (!viewer) return;
   const ok = await requestNativeFullscreen(viewer);
   viewerPseudoFullscreen = !ok;
   syncViewerFullscreenUI();
+  if (isViewerFullscreen()) {
+    pushViewerFullscreenHistoryEntry();
+    if (IS_COARSE_POINTER) revealViewerControlsTemporarily(MOBILE_FULLSCREEN_CONTROLS_MS);
+  }
 }
 
-async function exitViewerFullscreen() {
+async function exitViewerFullscreen({ skipHistoryBack = false } = {}) {
   if (getFullscreenElement()) {
     await exitNativeFullscreen();
   }
   viewerPseudoFullscreen = false;
   syncViewerFullscreenUI();
+  clearViewerFullscreenHistoryEntry({ useBack: !skipHistoryBack });
 }
 
 function syncViewerFullscreenUI() {
@@ -1883,7 +1931,7 @@ function closeViewer() {
 
 viewerClose?.addEventListener("click", closeViewer);
 viewer?.addEventListener("click", (e) => {
-  if (e.target === viewer) closeViewer();
+  if (e.target === viewer && !viewer?.classList.contains("fullscreen")) closeViewer();
 });
 
 toggleViewerFullscreenBtn?.addEventListener("click", () => {
@@ -1955,32 +2003,14 @@ function revealViewerControlsTemporarily(ms = MOBILE_FULLSCREEN_CONTROLS_MS) {
 
 viewer?.addEventListener("mousemove", (e) => {
   if (!viewer?.classList.contains("fullscreen")) return;
-
-  const inTopZone = e.clientY <= 72;
-
-  if (inTopZone) {
-    if (viewer.classList.contains("show-controls")) return;
-
-    if (!viewerFsHoverTimer) {
-      viewerFsHoverTimer = setTimeout(() => {
-        viewer.classList.add("show-controls");
-        viewerFsHoverTimer = null;
-      }, 1200);
-    }
-  } else {
-    if (Date.now() < viewerControlsPinnedUntil) return;
-
-    if (viewerFsHoverTimer) {
-      clearTimeout(viewerFsHoverTimer);
-      viewerFsHoverTimer = null;
-    }
-    viewer.classList.remove("show-controls");
-  }
+  if (e.target?.closest?.(".top")) return;
+  revealViewerControlsTemporarily(MOBILE_FULLSCREEN_CONTROLS_MS);
 });
 
 viewer?.addEventListener("touchstart", (e) => {
   if (!viewer?.classList.contains("fullscreen")) return;
   if (e.target?.closest?.(".top")) return;
+  viewerLastTouchToggleAt = Date.now();
 
   if (viewerFsHoverTimer) {
     clearTimeout(viewerFsHoverTimer);
@@ -2000,6 +2030,25 @@ viewer?.addEventListener("touchstart", (e) => {
   revealViewerControlsTemporarily();
 });
 
+viewer?.addEventListener("click", (e) => {
+  if (!IS_COARSE_POINTER) return;
+  if (!viewer?.classList.contains("fullscreen")) return;
+  if (e.target?.closest?.(".top")) return;
+  if (Date.now() - viewerLastTouchToggleAt < 420) return;
+
+  if (viewer.classList.contains("show-controls")) {
+    if (viewerTouchHideTimer) {
+      clearTimeout(viewerTouchHideTimer);
+      viewerTouchHideTimer = null;
+    }
+    viewerControlsPinnedUntil = 0;
+    viewer.classList.remove("show-controls");
+    return;
+  }
+
+  revealViewerControlsTemporarily(MOBILE_FULLSCREEN_CONTROLS_MS);
+});
+
 // Un seul fullscreenchange pour viewer + slideshow
 function onAnyFullscreenChange() {
   syncViewerFullscreenUI();
@@ -2009,6 +2058,25 @@ document.addEventListener("fullscreenchange", onAnyFullscreenChange);
 document.addEventListener("webkitfullscreenchange", onAnyFullscreenChange);
 document.addEventListener("mozfullscreenchange", onAnyFullscreenChange);
 document.addEventListener("MSFullscreenChange", onAnyFullscreenChange);
+
+window.addEventListener("popstate", () => {
+  if (!IS_COARSE_POINTER) return;
+
+  if (viewerFsIgnoreNextPopstate) {
+    viewerFsIgnoreNextPopstate = false;
+    return;
+  }
+
+  if (viewerFsHistoryPushed && isViewerFullscreen()) {
+    viewerFsHistoryPushed = false;
+    void exitViewerFullscreen({ skipHistoryBack: true });
+    return;
+  }
+
+  if (viewerFsHistoryPushed) {
+    viewerFsHistoryPushed = false;
+  }
+});
 
 syncViewerFullscreenUI();
 

@@ -7164,3 +7164,293 @@ html[data-theme="light"] .modal .top .media-reaction-tray__btn--plus:hover .icon
 html[data-theme="dark"] .modal .top .media-reaction-tray__btn--plus:hover .icon-img{
   opacity: 1 !important;
 }
+
+/* Upload modal: minimalist and sober refinement */
+#uploadModal{
+  --upload-ink: rgba(30,26,22,.94);
+  --upload-muted: rgba(30,26,22,.58);
+  --upload-panel: rgba(249,247,243,.98);
+  --upload-panel-shadow: 0 12px 30px rgba(16,12,9,.12);
+  --upload-surface: rgba(255,255,255,.82);
+  --upload-surface-strong: rgba(255,255,255,.92);
+  --upload-border: rgba(28,22,18,.12);
+  --upload-border-strong: rgba(28,22,18,.20);
+  --upload-thumb-bg: rgba(24,20,16,.08);
+  --upload-progress-track: rgba(20,16,13,.12);
+  --upload-progress-fill: #25211d;
+  --upload-danger-bg: rgba(178,56,56,.08);
+  --upload-danger-bg-hover: rgba(178,56,56,.12);
+  --upload-danger-border: rgba(148,44,44,.28);
+  --upload-danger-ink: rgba(120,34,34,.94);
+  --upload-action-bg: #1c1916;
+  --upload-action-bg-hover: #14110f;
+  --upload-action-border: #1c1916;
+  --upload-action-ink: rgba(248,244,238,.96);
+}
+
+html[data-theme="dark"] #uploadModal{
+  --upload-ink: rgba(246,241,236,.94);
+  --upload-muted: rgba(246,241,236,.66);
+  --upload-panel: rgba(22,20,27,.98);
+  --upload-panel-shadow: 0 18px 40px rgba(0,0,0,.44);
+  --upload-surface: rgba(255,255,255,.05);
+  --upload-surface-strong: rgba(255,255,255,.08);
+  --upload-border: rgba(255,255,255,.14);
+  --upload-border-strong: rgba(255,255,255,.24);
+  --upload-thumb-bg: rgba(6,6,8,.72);
+  --upload-progress-track: rgba(255,255,255,.14);
+  --upload-progress-fill: #d8d1c8;
+  --upload-danger-bg: rgba(228,92,92,.16);
+  --upload-danger-bg-hover: rgba(228,92,92,.22);
+  --upload-danger-border: rgba(255,146,146,.36);
+  --upload-danger-ink: rgba(255,236,236,.95);
+  --upload-action-bg: rgba(245,241,236,.94);
+  --upload-action-bg-hover: rgba(255,252,248,.98);
+  --upload-action-border: rgba(255,255,255,.22);
+  --upload-action-ink: rgba(27,23,20,.96);
+}
+
+#uploadModal.modal{
+  background: rgba(8,8,10,.52) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+#uploadModal .box{
+  background: var(--upload-panel) !important;
+  border: 1px solid var(--upload-border) !important;
+  box-shadow: var(--upload-panel-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#uploadModal .top{
+  background: transparent !important;
+  border-bottom: 1px solid var(--upload-border) !important;
+}
+
+#uploadModal .upload-body{
+  color: var(--upload-ink) !important;
+}
+
+#uploadModal .upload-title strong,
+#uploadModal .upload-name{
+  color: var(--upload-ink) !important;
+}
+
+#uploadModal .upload-sub,
+#uploadModal .upload-info,
+#uploadModal .upload-progress-text,
+#uploadModal .upload-progress-detail{
+  color: var(--upload-muted) !important;
+}
+
+#uploadModal .upload-grid{
+  scrollbar-color: rgba(110,102,94,.42) rgba(0,0,0,.08);
+}
+
+html[data-theme="dark"] #uploadModal .upload-grid{
+  scrollbar-color: rgba(255,255,255,.34) rgba(255,255,255,.08);
+}
+
+#uploadModal .upload-grid::-webkit-scrollbar-track{
+  background: rgba(0,0,0,.08) !important;
+}
+
+html[data-theme="dark"] #uploadModal .upload-grid::-webkit-scrollbar-track{
+  background: rgba(255,255,255,.08) !important;
+}
+
+#uploadModal .upload-grid::-webkit-scrollbar-thumb{
+  background: rgba(110,102,94,.46) !important;
+  border: 2px solid rgba(255,255,255,.20) !important;
+}
+
+html[data-theme="dark"] #uploadModal .upload-grid::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.34) !important;
+  border-color: rgba(0,0,0,.24) !important;
+}
+
+#uploadModal .upload-item{
+  background: var(--upload-surface) !important;
+  border: 1px solid var(--upload-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+
+#uploadModal .upload-item::before{
+  display: none !important;
+}
+
+#uploadModal .upload-item:hover{
+  background: var(--upload-surface-strong) !important;
+  border-color: var(--upload-border-strong) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#uploadModal .upload-thumb{
+  background: var(--upload-thumb-bg) !important;
+  border-bottom: 1px solid var(--upload-border) !important;
+}
+
+#uploadModal .upload-empty{
+  border-color: var(--upload-border) !important;
+  background: var(--upload-surface) !important;
+  color: var(--upload-muted) !important;
+}
+
+#uploadModal .upload-missing-original{
+  border: 1px solid var(--upload-border) !important;
+  background: var(--upload-surface) !important;
+  color: var(--upload-muted) !important;
+}
+
+#uploadModal .upload-assign-original{
+  border: 1px solid var(--upload-border) !important;
+  background: transparent !important;
+  color: var(--upload-ink) !important;
+  box-shadow: none !important;
+}
+
+#uploadModal .upload-assign-original:hover{
+  background: var(--upload-surface-strong) !important;
+  border-color: var(--upload-border-strong) !important;
+  transform: none !important;
+}
+
+#uploadModal .upload-assign-original .icon-img{
+  opacity: .66 !important;
+  filter: brightness(0) saturate(100%) !important;
+}
+
+html[data-theme="dark"] #uploadModal .upload-assign-original .icon-img{
+  filter: brightness(0) invert(1) !important;
+}
+
+#uploadModal .upload-remove,
+#uploadModal .upload-remove-inline.upload-remove-compact{
+  border: 1px solid var(--upload-danger-border) !important;
+  background: var(--upload-danger-bg) !important;
+  color: var(--upload-danger-ink) !important;
+  box-shadow: none !important;
+}
+
+#uploadModal .upload-remove:hover,
+#uploadModal .upload-remove-inline.upload-remove-compact:hover{
+  background: var(--upload-danger-bg-hover) !important;
+  border-color: var(--upload-danger-border) !important;
+  transform: none !important;
+}
+
+#uploadModal .upload-remove:disabled,
+#uploadModal .upload-assign-original:disabled{
+  opacity: .56 !important;
+  transform: none !important;
+  cursor: not-allowed !important;
+}
+
+#uploadModal .upload-progress{
+  border-top: 1px solid var(--upload-border) !important;
+}
+
+#uploadModal .upload-progress-row progress{
+  background: var(--upload-progress-track) !important;
+  box-shadow: none !important;
+}
+
+#uploadModal .upload-progress-row progress::-webkit-progress-bar{
+  background: var(--upload-progress-track) !important;
+}
+
+#uploadModal .upload-progress-row progress::-webkit-progress-value{
+  background: var(--upload-progress-fill) !important;
+  box-shadow: none !important;
+}
+
+#uploadModal .upload-progress-row progress::-moz-progress-bar{
+  background: var(--upload-progress-fill) !important;
+}
+
+#uploadModal .upload-actions{
+  background: transparent !important;
+}
+
+#uploadModal .upload-actions .btn.primary{
+  width: auto;
+  min-width: 172px;
+  justify-content: center;
+  padding-inline: 28px;
+  border: 1px solid var(--upload-action-border) !important;
+  background: var(--upload-action-bg) !important;
+  color: var(--upload-action-ink) !important;
+  box-shadow: none !important;
+}
+
+#uploadModal .upload-actions .btn.primary:hover{
+  background: var(--upload-action-bg-hover) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#uploadModal .upload-actions .btn.primary:disabled{
+  opacity: .56 !important;
+}
+
+@media (max-width: 900px){
+  #uploadModal .upload-actions{
+    background: var(--upload-panel) !important;
+  }
+}
+
+/* Fullscreen viewer/slideshow: keep top icons visible on dark background */
+#photoViewer.fullscreen .top .iconbtn .icon-img,
+#photoViewer.fullscreen .top .media-social-toggle-btn .icon-img,
+#slideshow.fullscreen .top .iconbtn .icon-img{
+  filter: brightness(0) invert(1) !important;
+  opacity: .9 !important;
+}
+
+#photoViewer.fullscreen .top .iconbtn:hover .icon-img,
+#photoViewer.fullscreen .top .iconbtn:focus-visible .icon-img,
+#photoViewer.fullscreen .top .iconbtn.is-active .icon-img,
+#photoViewer.fullscreen .top .media-social-toggle-btn.is-active .icon-img,
+#slideshow.fullscreen .top .iconbtn:hover .icon-img,
+#slideshow.fullscreen .top .iconbtn:focus-visible .icon-img,
+#slideshow.fullscreen .top .iconbtn.is-active .icon-img{
+  opacity: 1 !important;
+}
+
+/* Fullscreen hard reset: remove modal frame/border bleed */
+#photoViewer.fullscreen.modal,
+#slideshow.fullscreen.modal{
+  padding: 0 !important;
+  background: #000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#photoViewer.fullscreen .box,
+#slideshow.fullscreen .box{
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100svh !important;
+  height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100svh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#photoViewer.fullscreen .box::before,
+#slideshow.fullscreen .box::before{
+  display: none !important;
+}
