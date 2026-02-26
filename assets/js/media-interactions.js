@@ -349,6 +349,10 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     viewerBox.classList.toggle("viewer-box--comments-open", commentsOpen);
     commentToggleBtn.classList.toggle("is-active", commentsOpen);
     commentToggleBtn.setAttribute("aria-pressed", commentsOpen ? "true" : "false");
+    if (commentsOpen) {
+      setReactionTrayOpen(false);
+      setSummaryPopoverOpen(false);
+    }
 
     if (commentsOpen && focusInput) {
       setTimeout(() => commentInput?.focus({ preventScroll: true }), 0);
@@ -362,7 +366,12 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     reactionTray.hidden = !reactionTrayOpen;
     reactionToggleBtn.classList.toggle("is-active", reactionTrayOpen);
     reactionToggleBtn.setAttribute("aria-pressed", reactionTrayOpen ? "true" : "false");
-    if (!reactionTrayOpen) setCustomReactionOpen(false);
+    if (reactionTrayOpen) {
+      setCommentsOpen(false);
+      setSummaryPopoverOpen(false);
+    } else {
+      setCustomReactionOpen(false);
+    }
     syncKeyboardOffset();
   }
 
@@ -798,8 +807,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     setCommentsOpen(next, { focusInput: next });
     if (next) {
       void hydrateCurrentUserContext(currentMediaKey);
-      setReactionTrayOpen(false);
-      setSummaryPopoverOpen(false);
     }
   });
 
@@ -812,7 +819,6 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     e.stopPropagation();
     const next = !reactionTrayOpen;
     setReactionTrayOpen(next);
-    if (next) setSummaryPopoverOpen(false);
   });
 
   reactionSummaryBtn?.addEventListener("click", () => {
