@@ -118,7 +118,7 @@ let camY = 0;
 let isPanning = false;
 let panStart = null;
 
-let minimapCollapsed = false;
+let minimapCollapsed = true;
 let minimapDrag = null;
 let minimapFrame = null;
 let minimapViewportRect = null;
@@ -1943,7 +1943,7 @@ async function main() {
 
     syncToolPickerLayout();
     hideEditor();
-    setMinimapCollapsed(false);
+    setMinimapCollapsed(true);
 
     const q = query(collection(db, "guestbook"), orderBy("createdAt", "asc"));
 

@@ -224,18 +224,19 @@
             </div>
           </div>
 
-          <div id="minimapShell" class="minimap-shell">
-            <div id="minimapPanel" class="minimap-panel">
+          <div id="minimapShell" class="minimap-shell is-collapsed">
+            <div id="minimapPanel" class="minimap-panel" hidden>
               <div class="minimap-head">
                 <span class="minimap-title">Mini-carte</span>
                 <button
                   id="minimapToggle"
                   class="minimap-toggle"
                   type="button"
-                  aria-expanded="true"
+                  aria-expanded="false"
                   aria-controls="minimapPanel"
                   aria-label="Masquer la mini-carte"
                   title="Masquer la mini-carte"
+                  hidden
                 >
                   <img id="minimapToggleIcon" class="icon-img" src="../assets/img/icons/Chevron down.svg" alt="" />
                 </button>
@@ -250,9 +251,9 @@
               class="minimap-expand"
               type="button"
               aria-controls="minimapPanel"
+              aria-expanded="false"
               aria-label="Afficher la mini-carte"
               title="Afficher la mini-carte"
-              hidden
             >
               <img class="icon-img" src="../assets/img/icons/Chevron up.svg" alt="" />
               <span>Mini-carte</span>
