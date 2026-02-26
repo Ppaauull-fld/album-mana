@@ -78,6 +78,8 @@ let sections = [];
 let items = []; // videos
 let pending = []; // [{file, url}]
 let currentViewed = null;
+let viewerScrollY = 0;
+let hasViewerScrollSnapshot = false;
 
 let arranging = false;
 let selectedItemIds = new Set();
@@ -89,6 +91,23 @@ const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function snapshotViewerScroll() {
+  viewerScrollY = Math.max(
+    0,
+    window.scrollY || window.pageYOffset || document.documentElement?.scrollTop || 0
+  );
+  hasViewerScrollSnapshot = true;
+}
+
+function restoreViewerScroll() {
+  if (!hasViewerScrollSnapshot) return;
+  const target = Math.max(0, viewerScrollY || 0);
+  hasViewerScrollSnapshot = false;
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: target, behavior: "auto" });
+  });
 }
 
 function edgeAutoScrollSpeed(coord, size, edge, maxSpeed) {
@@ -1700,6 +1719,7 @@ window.addEventListener("pointercancel", (e) => {
    Viewer
    ========================= */
 function openViewer(v) {
+  snapshotViewerScroll();
   currentViewed = v;
 
   try { viewerVideo.pause(); } catch {}
@@ -1730,6 +1750,7 @@ function closeViewer() {
   viewerInteractions.close();
   currentViewed = null;
   closeModal(viewer);
+  restoreViewerScroll();
 }
 
 viewerClose?.addEventListener("click", closeViewer);

@@ -110,6 +110,8 @@ let baseQueue = [];
 
 let pending = [];
 let currentViewed = null;
+let viewerScrollY = 0;
+let hasViewerScrollSnapshot = false;
 
 let arranging = false;
 let selectedPhotoIds = new Set();
@@ -129,6 +131,23 @@ const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function snapshotViewerScroll() {
+  viewerScrollY = Math.max(
+    0,
+    window.scrollY || window.pageYOffset || document.documentElement?.scrollTop || 0
+  );
+  hasViewerScrollSnapshot = true;
+}
+
+function restoreViewerScroll() {
+  if (!hasViewerScrollSnapshot) return;
+  const target = Math.max(0, viewerScrollY || 0);
+  hasViewerScrollSnapshot = false;
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: target, behavior: "auto" });
+  });
 }
 
 function edgeAutoScrollSpeed(coord, size, edge, maxSpeed) {
@@ -1823,6 +1842,7 @@ function syncViewerFullscreenUI() {
 }
 
 function openViewer(photo) {
+  snapshotViewerScroll();
   currentViewed = { ...photo };
 
   if (viewerTitle) viewerTitle.textContent = "Photo";
@@ -1858,6 +1878,7 @@ function closeViewer() {
 
   document.documentElement.classList.remove("noscroll");
   document.body.classList.remove("noscroll");
+  restoreViewerScroll();
 }
 
 viewerClose?.addEventListener("click", closeViewer);

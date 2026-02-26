@@ -1098,9 +1098,12 @@ html[data-theme="dark"] .drop-placeholder{
 .page-jump-btn.iconbtn{
   border: 1px solid rgba(0,0,0,.14);
   background: rgba(255,255,255,.84);
-  box-shadow: 0 14px 36px rgba(0,0,0,.22);
+  box-shadow: 0 6px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  background-clip: padding-box;
+  isolation: isolate;
 }
 .page-jump-btn.is-visible{
   opacity: 1;
@@ -1118,7 +1121,7 @@ html[data-theme="dark"] .drop-placeholder{
 html[data-theme="dark"] .page-jump-btn.iconbtn{
   border-color: rgba(255,255,255,.22);
   background: rgba(18,18,24,.82);
-  box-shadow: 0 16px 42px rgba(0,0,0,.40);
+  box-shadow: 0 8px 20px rgba(0,0,0,.34), 0 1px 3px rgba(0,0,0,.40);
 }
 html[data-theme="dark"] .page-jump-btn .icon-img{
   filter: brightness(0) invert(1);
@@ -1128,8 +1131,16 @@ html[data-theme="dark"] .page-jump-btn .icon-img{
   .page-jump-btn{
     width: 48px;
     height: 48px;
-    right: 10px;
+    right: calc(12px + env(safe-area-inset-right, 0px));
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .page-jump-btn.iconbtn{
+    box-shadow: 0 3px 10px rgba(0,0,0,.16);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  html[data-theme="dark"] .page-jump-btn.iconbtn{
+    box-shadow: 0 4px 12px rgba(0,0,0,.36);
   }
   .page-jump-btn .icon-img{
     width: 20px;

@@ -89,6 +89,8 @@ let sections = [];
 let items = []; // animated items
 let pending = []; // [{file, url, kind, originalFile, originalPreviewUrl}]
 let currentViewed = null;
+let viewerScrollY = 0;
+let hasViewerScrollSnapshot = false;
 
 let arranging = false;
 let selectedItemIds = new Set();
@@ -101,6 +103,23 @@ const GRID_CYCLE_ORDER = [2, 3, 4, 1];
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+function snapshotViewerScroll() {
+  viewerScrollY = Math.max(
+    0,
+    window.scrollY || window.pageYOffset || document.documentElement?.scrollTop || 0
+  );
+  hasViewerScrollSnapshot = true;
+}
+
+function restoreViewerScroll() {
+  if (!hasViewerScrollSnapshot) return;
+  const target = Math.max(0, viewerScrollY || 0);
+  hasViewerScrollSnapshot = false;
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: target, behavior: "auto" });
+  });
 }
 
 function edgeAutoScrollSpeed(coord, size, edge, maxSpeed) {
@@ -1890,6 +1909,7 @@ function resetCompareViewerMedia() {
 }
 
 function openViewer(it) {
+  snapshotViewerScroll();
   closeOriginalViewer({ preserveCurrent: true });
   closeCompareViewer({ preserveCurrent: true });
   currentViewed = it;
@@ -1924,6 +1944,7 @@ function closeViewer(opts = {}) {
   if (viewer?.classList.contains("open")) closeModal(viewer);
   viewerInteractions.close();
   if (!preserveCurrent) currentViewed = null;
+  if (!preserveCurrent) restoreViewerScroll();
 }
 
 function openOriginalViewer(it) {
