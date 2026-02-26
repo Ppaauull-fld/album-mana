@@ -7119,3 +7119,48 @@ html[data-theme="dark"] .tool-picker-option:hover,
 html[data-theme="dark"] .tool-picker-option.active{
   background: rgba(255,255,255,.14) !important;
 }
+/* Final icon-button opacity policy (idle 50%, full only on hover) */
+.iconbtn .icon-img,
+.back .icon-img,
+.theme-switch__icon,
+.btn .btn-icon,
+.seg-btn .icon-img,
+.tool-picker-btn .icon-img,
+.tool-picker-option .icon-img,
+.minimap-toggle .icon-img,
+.minimap-expand .icon-img,
+html[data-theme="light"] .modal .top .iconbtn .icon-img,
+html[data-theme="dark"] .modal .top .iconbtn .icon-img,
+html[data-theme="light"] .media-social-comments__send .icon-img,
+html[data-theme="dark"] .media-social-comments__send .icon-img,
+html[data-theme="light"] .modal .top .media-reaction-tray__btn--plus .icon-img,
+html[data-theme="dark"] .modal .top .media-reaction-tray__btn--plus .icon-img{
+  opacity: .5 !important;
+  transition: opacity .14s ease;
+}
+
+/* Keep active/expanded states at idle opacity; hover alone reveals full opacity */
+.iconbtn.is-active .icon-img,
+.seg-btn.active .icon-img,
+.tool-picker-option.active .icon-img,
+.tool-picker-btn[aria-expanded="true"] .icon-img,
+.media-social-toggle-btn.is-active .icon-img{
+  opacity: .5 !important;
+}
+
+.iconbtn:hover .icon-img,
+.modal .top .iconbtn:hover .icon-img,
+.back:hover .icon-img,
+.theme-switch:hover .theme-switch__icon,
+.btn:hover .btn-icon,
+.seg-btn:hover .icon-img,
+.tool-picker-btn:hover .icon-img,
+.tool-picker-option:hover .icon-img,
+.minimap-toggle:hover .icon-img,
+.minimap-expand:hover .icon-img,
+html[data-theme="light"] .media-social-comments__send:hover .icon-img,
+html[data-theme="dark"] .media-social-comments__send:hover .icon-img,
+html[data-theme="light"] .modal .top .media-reaction-tray__btn--plus:hover .icon-img,
+html[data-theme="dark"] .modal .top .media-reaction-tray__btn--plus:hover .icon-img{
+  opacity: 1 !important;
+}
