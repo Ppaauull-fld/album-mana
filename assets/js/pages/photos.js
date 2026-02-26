@@ -2151,6 +2151,15 @@ function updateShowPickerSub() {
     total === 0 ? "0 sélectionnée" : `${total} sélectionnée${total > 1 ? "s" : ""}`;
 }
 
+function syncShowPickerItemSelectionState() {
+  if (!showPickerList) return;
+  for (const row of showPickerList.querySelectorAll(".show-picker-item")) {
+    const cb = row.querySelector('input[type="checkbox"]');
+    const selected = cb instanceof HTMLInputElement ? !!cb.checked : false;
+    row.classList.toggle("selected", selected);
+  }
+}
+
 function renderShowPickerList() {
   if (!showPickerList) return;
 
@@ -2166,7 +2175,7 @@ function renderShowPickerList() {
 
   if (galleryAvailable) {
     const gItem = document.createElement("label");
-    gItem.className = "show-picker-item";
+    gItem.className = `show-picker-item${slideshowSelection.includeGallery ? " selected" : ""}`;
     gItem.innerHTML = `
       <input type="checkbox" data-kind="gallery" ${slideshowSelection.includeGallery ? "checked" : ""} />
       <div class="label">
@@ -2181,7 +2190,7 @@ function renderShowPickerList() {
 
   if (canShowAllSections) {
     const allItem = document.createElement("label");
-    allItem.className = "show-picker-item";
+    allItem.className = `show-picker-item${includeAll ? " selected" : ""}`;
     allItem.innerHTML = `
       <input type="checkbox" data-kind="allSections" ${includeAll ? "checked" : ""} />
       <div class="label">
@@ -2198,7 +2207,7 @@ function renderShowPickerList() {
     const checked = includeAll ? true : (slideshowSelection.sectionIds || []).includes(s.id);
 
     const item = document.createElement("label");
-    item.className = "show-picker-item";
+    item.className = `show-picker-item${checked ? " selected" : ""}`;
     item.style.opacity = includeAll ? "0.6" : "1";
     item.style.pointerEvents = includeAll ? "none" : "auto";
 
@@ -2220,6 +2229,7 @@ function renderShowPickerList() {
 
     if (kind === "gallery") {
       slideshowSelection.includeGallery = cb.checked;
+      syncShowPickerItemSelectionState();
       updateShowPickerSub();
       return;
     }
@@ -2242,11 +2252,13 @@ function renderShowPickerList() {
       else set.delete(sid);
       slideshowSelection.sectionIds = [...set];
 
+      syncShowPickerItemSelectionState();
       updateShowPickerSub();
       return;
     }
   };
 
+  syncShowPickerItemSelectionState();
   updateShowPickerSub();
 }
 
