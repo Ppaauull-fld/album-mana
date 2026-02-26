@@ -110,24 +110,92 @@ const redoStack = [];
 let editorState = null;
 
 /* =========================
-   Camera (pan)
+   Camera (pan + zoom)
    ========================= */
+const MIN_CAM_SCALE = 0.45;
+const MAX_CAM_SCALE = 4;
+const WHEEL_ZOOM_SENSITIVITY = 0.0018;
+const PINCH_MIN_DIST = 8;
+
 let camX = 0;
 let camY = 0;
+let camScale = 1;
 
 let isPanning = false;
 let panStart = null;
+const touchPointers = new Map();
+let pinchState = null;
 
 let minimapCollapsed = true;
 let minimapDrag = null;
 let minimapFrame = null;
 let minimapViewportRect = null;
 
-function screenToWorld(p) {
-  return { x: p.x + camX, y: p.y + camY };
+function getCanvasCenterScreenPoint() {
+  const rect = getCanvasCssRect();
+  return { x: rect.width / 2, y: rect.height / 2 };
 }
-function worldToScreen(p) {
-  return { x: p.x - camX, y: p.y - camY };
+
+function screenToWorld(p, scale = camScale, offX = camX, offY = camY) {
+  return { x: offX + p.x / scale, y: offY + p.y / scale };
+}
+function worldToScreen(p, scale = camScale, offX = camX, offY = camY) {
+  return { x: (p.x - offX) * scale, y: (p.y - offY) * scale };
+}
+
+function setCameraView(scale, anchorScreen = null, anchorWorld = null) {
+  const nextScale = clamp(Number(scale) || 1, MIN_CAM_SCALE, MAX_CAM_SCALE);
+  const screenAnchor = anchorScreen || getCanvasCenterScreenPoint();
+  const worldAnchor =
+    anchorWorld || screenToWorld(screenAnchor, camScale, camX, camY);
+
+  camScale = nextScale;
+  camX = worldAnchor.x - screenAnchor.x / camScale;
+  camY = worldAnchor.y - screenAnchor.y / camScale;
+}
+
+function getTouchDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function getTouchMidpoint(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function startPinchGesture() {
+  const entries = [...touchPointers.entries()];
+  if (entries.length < 2) return false;
+
+  const [first, second] = entries;
+  const [idA, pA] = first;
+  const [idB, pB] = second;
+  const dist = getTouchDistance(pA, pB);
+  if (!isFinite(dist) || dist < PINCH_MIN_DIST) return false;
+
+  const mid = getTouchMidpoint(pA, pB);
+  pinchState = {
+    pointerIds: [idA, idB],
+    startDist: dist,
+    startScale: camScale,
+    anchorWorld: screenToWorld(mid),
+  };
+  return true;
+}
+
+function applyPinchGesture() {
+  if (!pinchState) return false;
+  const [idA, idB] = pinchState.pointerIds;
+  const pA = touchPointers.get(idA);
+  const pB = touchPointers.get(idB);
+  if (!pA || !pB) return false;
+
+  const dist = getTouchDistance(pA, pB);
+  if (!isFinite(dist) || dist < PINCH_MIN_DIST) return false;
+
+  const nextScale = pinchState.startScale * (dist / pinchState.startDist);
+  const mid = getTouchMidpoint(pA, pB);
+  setCameraView(nextScale, mid, pinchState.anchorWorld);
+  return true;
 }
 
 function getViewportWorldRect() {
@@ -135,8 +203,8 @@ function getViewportWorldRect() {
   return {
     x: camX,
     y: camY,
-    w: Math.max(1, rect.width),
-    h: Math.max(1, rect.height),
+    w: Math.max(1, rect.width / camScale),
+    h: Math.max(1, rect.height / camScale),
   };
 }
 
@@ -553,6 +621,8 @@ function setMode(next) {
   // nettoyage des états transitoires
   isPanning = false;
   panStart = null;
+  touchPointers.clear();
+  pinchState = null;
 
   if (mode !== "draw") {
     isDrawing = false;
@@ -563,7 +633,7 @@ function setMode(next) {
     mode === "cursor"
       ? "Curseur : Sélectionner, déplacer, redimensionner"
       : mode === "move"
-      ? "Déplacement : Glisse pour te déplacer dans la page"
+      ? "Déplacement : glisse pour te déplacer. Zoom : pince ou Ctrl/Cmd + molette"
       : mode === "text"
       ? "Texte : Clique pour ajouter, double clic pour éditer"
       : "Dessin : Dessine. Publier pour ajouter"
@@ -606,18 +676,20 @@ function drawStroke(s, camOffX = camX, camOffY = camY) {
   if (!ctx || !s?.points?.length) return;
 
   ctx.save();
+  ctx.translate(-camOffX * camScale, -camOffY * camScale);
+  ctx.scale(camScale, camScale);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = s.color;
   ctx.lineWidth = s.width;
 
-  const p0 = { x: s.points[0].x - camOffX, y: s.points[0].y - camOffY };
+  const p0 = { x: s.points[0].x, y: s.points[0].y };
   ctx.beginPath();
   ctx.moveTo(p0.x, p0.y);
 
   for (let i = 1; i < s.points.length; i++) {
     const p = s.points[i];
-    ctx.lineTo(p.x - camOffX, p.y - camOffY);
+    ctx.lineTo(p.x, p.y);
   }
   ctx.stroke();
   ctx.restore();
@@ -626,8 +698,8 @@ function drawStroke(s, camOffX = camX, camOffY = camY) {
 function drawText(it, camOffX = camX, camOffY = camY) {
   if (!ctx) return;
 
-  const sx = it.x - camOffX;
-  const sy = it.y - camOffY;
+  const sx = it.x;
+  const sy = it.y;
 
   const lines = String(it.text || "").split("\n");
   const size = Number(it.size || 32);
@@ -636,6 +708,8 @@ function drawText(it, camOffX = camX, camOffY = camY) {
   const align = it.align || "left";
 
   ctx.save();
+  ctx.translate(-camOffX * camScale, -camOffY * camScale);
+  ctx.scale(camScale, camScale);
   ctx.fillStyle = it.color || "#111";
   ctx.font = buildFontCss(it);
   ctx.textBaseline = "top";
@@ -727,7 +801,11 @@ async function drawDrawing(it, camOffX = camX, camOffY = camY) {
   if (!ctx || !it.imageUrl) return;
   try {
     const img = await getImage(it.imageUrl);
-    ctx.drawImage(img, it.x - camOffX, it.y - camOffY, it.w, it.h);
+    ctx.save();
+    ctx.translate(-camOffX * camScale, -camOffY * camScale);
+    ctx.scale(camScale, camScale);
+    ctx.drawImage(img, it.x, it.y, it.w, it.h);
+    ctx.restore();
   } catch {}
 }
 
@@ -737,19 +815,21 @@ function drawSelectionBox(it) {
   const p = worldToScreen({ x: it.x, y: it.y });
   const x = p.x;
   const y = p.y;
+  const w = Math.max(1, it.w * camScale);
+  const h = Math.max(1, it.h * camScale);
 
   ctx.save();
   ctx.strokeStyle = "rgba(0,0,0,.35)";
   ctx.lineWidth = 1;
   ctx.setLineDash([6, 5]);
-  ctx.strokeRect(x, y, it.w, it.h);
+  ctx.strokeRect(x, y, w, h);
   ctx.setLineDash([]);
 
   const hs = [
     ["nw", x, y],
-    ["ne", x + it.w, y],
-    ["se", x + it.w, y + it.h],
-    ["sw", x, y + it.h],
+    ["ne", x + w, y],
+    ["se", x + w, y + h],
+    ["sw", x, y + h],
   ];
 
   for (const [, hx, hy] of hs) {
@@ -786,6 +866,7 @@ async function redraw() {
    Hit testing (coords monde)
    ========================= */
 function handleHit(it, x, y) {
+  const hitRadiusWorld = HANDLE_RADIUS / Math.max(0.0001, camScale);
   const corners = [
     ["nw", it.x, it.y],
     ["ne", it.x + it.w, it.y],
@@ -795,7 +876,7 @@ function handleHit(it, x, y) {
   for (const [k, cx, cy] of corners) {
     const dx = x - cx;
     const dy = y - cy;
-    if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_RADIUS) return k;
+    if (Math.sqrt(dx * dx + dy * dy) <= hitRadiusWorld) return k;
   }
   return null;
 }
@@ -814,8 +895,9 @@ function itemHit(x, y) {
 function showEditor(screenX, screenY, initial, state) {
   if (!editorShell || !floatingEditor || !canvas) return;
 
-  const wx = typeof state.worldX === "number" ? state.worldX : screenX + camX;
-  const wy = typeof state.worldY === "number" ? state.worldY : screenY + camY;
+  const fallback = screenToWorld({ x: screenX, y: screenY });
+  const wx = typeof state.worldX === "number" ? state.worldX : fallback.x;
+  const wy = typeof state.worldY === "number" ? state.worldY : fallback.y;
 
   editorState = { ...state, x: wx, y: wy };
 
@@ -1074,7 +1156,10 @@ async function onPointerDown(e) {
   if (editorOpen()) return;
   if (e.button != null && e.button !== 0) return;
 
-  if ((e.pointerType || "") === "touch") {
+  const isTouch = (e.pointerType || "") === "touch";
+  const sp0 = posFromEvent(e);
+
+  if (isTouch) {
     const rect = getCanvasCssRect();
     const localX = e.clientX - rect.left;
     const gutter = 18;
@@ -1083,13 +1168,37 @@ async function onPointerDown(e) {
       // Laisse le geste à la page pour faciliter le scroll vertical mobile.
       return;
     }
+
+    touchPointers.set(e.pointerId, sp0);
+    if (touchPointers.size >= 2) {
+      // Priorité au pinch: on annule les états 1 doigt en cours.
+      isPanning = false;
+      panStart = null;
+      drag = null;
+      isDrawing = false;
+      currentStroke = null;
+
+      if (startPinchGesture()) {
+        canvas.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        redraw();
+        return;
+      }
+    }
+  }
+
+  if (pinchState) {
+    if (isTouch) {
+      canvas.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    }
+    return;
   }
 
   // MOVE tool => pan uniquement
   if (mode === "move") {
     isPanning = true;
-    const sp0 = posFromEvent(e);
-    panStart = { sx: sp0.x, sy: sp0.y, camX, camY };
+    panStart = { sx: sp0.x, sy: sp0.y, camX, camY, camScale };
     canvas.setPointerCapture?.(e.pointerId);
     redraw();
     return;
@@ -1097,8 +1206,7 @@ async function onPointerDown(e) {
 
   canvas.setPointerCapture?.(e.pointerId);
 
-  const sp = posFromEvent(e);
-  const wp = screenToWorld(sp);
+  const wp = screenToWorld(sp0);
   const x = wp.x;
   const y = wp.y;
 
@@ -1108,7 +1216,7 @@ async function onPointerDown(e) {
     if (mode === "text" && hit.kind !== "text") {
       selectedId = null;
       redraw();
-      showEditor(sp.x, sp.y, "", { mode: "create", worldX: x, worldY: y });
+      showEditor(sp0.x, sp0.y, "", { mode: "create", worldX: x, worldY: y });
       return;
     }
 
@@ -1130,7 +1238,7 @@ async function onPointerDown(e) {
   if (mode === "cursor") return;
 
   if (mode === "text") {
-    showEditor(sp.x, sp.y, "", { mode: "create", worldX: x, worldY: y });
+    showEditor(sp0.x, sp0.y, "", { mode: "create", worldX: x, worldY: y });
     return;
   }
 
@@ -1150,10 +1258,23 @@ async function onPointerMove(e) {
   if (editorOpen()) return;
 
   const sp = posFromEvent(e);
+  const isTouch = (e.pointerType || "") === "touch";
+  if (isTouch && touchPointers.has(e.pointerId)) {
+    touchPointers.set(e.pointerId, sp);
+  }
+
+  if (pinchState) {
+    if (applyPinchGesture()) {
+      e.preventDefault();
+      redraw();
+    }
+    return;
+  }
 
   if (isPanning && panStart) {
-    camX = panStart.camX + (panStart.sx - sp.x);
-    camY = panStart.camY + (panStart.sy - sp.y);
+    const panScale = panStart.camScale || camScale || 1;
+    camX = panStart.camX + (panStart.sx - sp.x) / panScale;
+    camY = panStart.camY + (panStart.sy - sp.y) / panScale;
     redraw();
     return;
   }
@@ -1179,88 +1300,87 @@ async function onPointerMove(e) {
   if (drag.type === "move") {
     it.x = drag.orig.x + dx;
     it.y = drag.orig.y + dy;
-} else {
-  // RESIZE
-  const orig = drag.orig;
+  } else {
+    // RESIZE
+    const orig = drag.orig;
 
-  let nx = orig.x,
-    ny = orig.y,
-    nw = orig.w,
-    nh = orig.h;
+    let nx = orig.x,
+      ny = orig.y,
+      nw = orig.w,
+      nh = orig.h;
 
-  if (drag.handle.includes("e")) nw = orig.w + dx;
-  if (drag.handle.includes("s")) nh = orig.h + dy;
+    if (drag.handle.includes("e")) nw = orig.w + dx;
+    if (drag.handle.includes("s")) nh = orig.h + dy;
 
-  if (drag.handle.includes("w")) {
-    nw = orig.w - dx;
-    nx = orig.x + dx;
-  }
-  if (drag.handle.includes("n")) {
-    nh = orig.h - dy;
-    ny = orig.y + dy;
-  }
+    if (drag.handle.includes("w")) {
+      nw = orig.w - dx;
+      nx = orig.x + dx;
+    }
+    if (drag.handle.includes("n")) {
+      nh = orig.h - dy;
+      ny = orig.y + dy;
+    }
 
-  nw = clamp(nw, MIN_W, 5000);
-  nh = clamp(nh, MIN_H, 5000);
+    nw = clamp(nw, MIN_W, 5000);
+    nh = clamp(nh, MIN_H, 5000);
 
-  // CAS DESSIN : on garde le resize w/h classique
-  if (it.kind === "drawing") {
+    // CAS DESSIN : on garde le resize w/h classique
+    if (it.kind === "drawing") {
+      it.x = nx;
+      it.y = ny;
+      it.w = nw;
+      it.h = nh;
+      redraw();
+      return;
+    }
+
+    // CAS TEXTE : on scale la police (sinon "ça ne fait rien" visuellement)
+    if (it.kind === "text") {
+      const ow = Math.max(1, orig.w);
+      const oh = Math.max(1, orig.h);
+
+      // scale "au ressenti" (le plus grand des 2)
+      const scale = Math.max(nw / ow, nh / oh);
+
+      const newSize = clamp(Math.round(Number(orig.size || 32) * scale), 10, 220);
+      it.size = newSize;
+
+      // on recalcule la vraie boîte selon le texte + police
+      const box = measureTextBox(it);
+
+      // On fixe l'ancrage selon le coin manipulé (opposé reste "fixe")
+      const handle = drag.handle; // "nw" | "ne" | "se" | "sw"
+      if (handle === "se") {
+        it.x = orig.x;
+        it.y = orig.y;
+      } else if (handle === "nw") {
+        it.x = orig.x + orig.w - box.w;
+        it.y = orig.y + orig.h - box.h;
+      } else if (handle === "ne") {
+        it.x = orig.x;
+        it.y = orig.y + orig.h - box.h;
+      } else if (handle === "sw") {
+        it.x = orig.x + orig.w - box.w;
+        it.y = orig.y;
+      } else {
+        // fallback
+        it.x = nx;
+        it.y = ny;
+      }
+
+      it.w = box.w;
+      it.h = box.h;
+
+      redraw();
+      return;
+    }
+
+    // fallback générique
     it.x = nx;
     it.y = ny;
     it.w = nw;
     it.h = nh;
-    redraw();
-    return;
   }
-
-  // CAS TEXTE : on scale la police (sinon "ça ne fait rien" visuellement)
-  if (it.kind === "text") {
-    const ow = Math.max(1, orig.w);
-    const oh = Math.max(1, orig.h);
-
-    // scale "au ressenti" (le plus grand des 2)
-    const scale = Math.max(nw / ow, nh / oh);
-
-    const newSize = clamp(Math.round((Number(orig.size || 32) * scale)), 10, 220);
-    it.size = newSize;
-
-    // on recalcule la vraie boîte selon le texte + police
-    const box = measureTextBox(it);
-
-    // On fixe l'ancrage selon le coin manipulé (opposé reste "fixe")
-    const handle = drag.handle; // "nw" | "ne" | "se" | "sw"
-    if (handle === "se") {
-      it.x = orig.x;
-      it.y = orig.y;
-    } else if (handle === "nw") {
-      it.x = orig.x + orig.w - box.w;
-      it.y = orig.y + orig.h - box.h;
-    } else if (handle === "ne") {
-      it.x = orig.x;
-      it.y = orig.y + orig.h - box.h;
-    } else if (handle === "sw") {
-      it.x = orig.x + orig.w - box.w;
-      it.y = orig.y;
-    } else {
-      // fallback
-      it.x = nx;
-      it.y = ny;
-    }
-
-    it.w = box.w;
-    it.h = box.h;
-
-    redraw();
-    return;
-  }
-
-  // fallback générique
-  it.x = nx;
-  it.y = ny;
-  it.w = nw;
-  it.h = nh;
-}
-
 
   redraw();
 }
@@ -1306,6 +1426,23 @@ async function onPointerUp(e) {
     canvas.releasePointerCapture?.(e.pointerId);
   } catch {}
 
+  if ((e.pointerType || "") === "touch") {
+    touchPointers.delete(e.pointerId);
+    if (pinchState) {
+      const [idA, idB] = pinchState.pointerIds;
+      if (!touchPointers.has(idA) || !touchPointers.has(idB)) {
+        pinchState = null;
+      }
+      isPanning = false;
+      panStart = null;
+      drag = null;
+      isDrawing = false;
+      currentStroke = null;
+      redraw();
+      return;
+    }
+  }
+
   if (isPanning) {
     isPanning = false;
     panStart = null;
@@ -1340,19 +1477,19 @@ async function onPointerUp(e) {
 
   try {
     const ref = doc(db, "guestbook", it.id);
-const before = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
-const after = { x: it.x, y: it.y, w: it.w, h: it.h };
+    const before = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
+    const after = { x: it.x, y: it.y, w: it.w, h: it.h };
 
-// Si texte : on sauvegarde aussi la taille de police si elle a changé
-if (it.kind === "text") {
-  before.size = Number(orig.size || 32);
-  after.size = Number(it.size || 32);
-}
+    // Si texte : on sauvegarde aussi la taille de police si elle a changé
+    if (it.kind === "text") {
+      before.size = Number(orig.size || 32);
+      after.size = Number(it.size || 32);
+    }
 
-await updateDoc(ref, after);
+    await updateDoc(ref, after);
 
-undoStack.push({ type: "update", id: it.id, before, after });
-redoStack.length = 0;
+    undoStack.push({ type: "update", id: it.id, before, after });
+    redoStack.length = 0;
   } catch (e2) {
     alert("Impossible de déplacer/redimensionner : " + (e2?.message || e2));
   }
@@ -1447,13 +1584,24 @@ canvas?.addEventListener("dblclick", (e) => {
   openTextEditorForItem(hit);
 });
 
-// Pan au scroll (trackpad / molette) => seulement en mode move
+// Wheel: pan en mode déplacement, zoom avec Ctrl/Cmd (inclut pinch trackpad)
 canvas?.addEventListener(
   "wheel",
   (e) => {
+    const wantsZoom = !!(e.ctrlKey || e.metaKey);
+    if (wantsZoom) {
+      const sp = posFromEvent(e);
+      const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_SENSITIVITY);
+      setCameraView(camScale * factor, sp);
+      e.preventDefault();
+      redraw();
+      return;
+    }
+
     if (mode !== "move") return;
-    camX += e.deltaX;
-    camY += e.deltaY;
+
+    camX += e.deltaX / Math.max(0.0001, camScale);
+    camY += e.deltaY / Math.max(0.0001, camScale);
     e.preventDefault();
     redraw();
   },
