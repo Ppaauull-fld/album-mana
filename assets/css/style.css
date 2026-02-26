@@ -1574,11 +1574,11 @@ html.noscroll, body.noscroll{ overflow:hidden; }
 }
 
 .media-reaction-tray__emoji-capture{
-  position: fixed;
-  left: -9999px;
-  top: 0;
-  width: 0;
-  height: 0;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
   border: 0;
@@ -1587,6 +1587,15 @@ html.noscroll, body.noscroll{ overflow:hidden; }
   background: transparent;
   color: transparent;
   caret-color: transparent;
+}
+@media (pointer: coarse){
+  .media-reaction-tray__emoji-capture{
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 0;
+    height: 0;
+  }
 }
 
 .media-reaction-summary-wrap{

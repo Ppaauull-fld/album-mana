@@ -351,20 +351,19 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     const EmojiPickerCtor =
       typeof window !== "undefined" ? window.EmojiPicker : null;
 
-    if (typeof EmojiPickerCtor === "function") {
-      try {
-        if (!nativeEmojiPicker) nativeEmojiPicker = new EmojiPickerCtor();
-        const picked = await nativeEmojiPicker.pick();
-        const fromPicker = safeString(picked?.unicode || picked?.emoji);
-        if (fromPicker) return fromPicker;
-      } catch {
-        // User cancellation or unsupported environment.
-      }
+    if (typeof EmojiPickerCtor !== "function") {
+      return { supported: false, emoji: "" };
     }
 
-    const raw = window.prompt("Choisis un emoji (ou colle-le ici) :");
-    const emoji = extractFirstEmoji(raw) || safeString(raw);
-    return safeString(emoji);
+    try {
+      if (!nativeEmojiPicker) nativeEmojiPicker = new EmojiPickerCtor();
+      const picked = await nativeEmojiPicker.pick();
+      const fromPicker = safeString(picked?.unicode || picked?.emoji);
+      return { supported: true, emoji: fromPicker };
+    } catch {
+      // User cancellation or unsupported environment.
+      return { supported: true, emoji: "" };
+    }
   }
 
   function setCommentsOpen(open, options = {}) {
@@ -769,7 +768,16 @@ export function createMediaInteractionPanel({ modalEl, mediaType }) {
     if (customAction === "custom") {
       if (!IS_COARSE_POINTER) {
         void (async () => {
-          const emoji = await pickDesktopCustomEmoji();
+          const result = await pickDesktopCustomEmoji();
+          const emoji = safeString(result?.emoji);
+          if (!result?.supported) {
+            setCustomReactionOpen(true, { focusInput: true });
+            setStatus(
+              "Astuce: Win + . (Windows) ou Ctrl + Cmd + Espace (Mac) pour choisir un emoji."
+            );
+            return;
+          }
+
           if (!emoji) return;
 
           if (!isEmojiLike(emoji)) {
