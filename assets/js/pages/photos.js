@@ -1743,6 +1743,7 @@ const MOBILE_FULLSCREEN_CONTROLS_MS = 7000;
 let viewerFsHistoryPushed = false;
 let viewerFsIgnoreNextPopstate = false;
 let viewerLastTouchToggleAt = 0;
+let viewerSuppressCoarseClickUntil = 0;
 
 function getFullscreenElement() {
   return (
@@ -2011,6 +2012,12 @@ viewer?.addEventListener("touchstart", (e) => {
   if (!viewer?.classList.contains("fullscreen")) return;
   if (e.target?.closest?.(".top")) return;
   viewerLastTouchToggleAt = Date.now();
+  viewerSuppressCoarseClickUntil = viewerLastTouchToggleAt + 1200;
+
+  if (IS_COARSE_POINTER) {
+    // Prevent delayed synthetic click from re-toggling controls on touch release.
+    e.preventDefault();
+  }
 
   if (viewerFsHoverTimer) {
     clearTimeout(viewerFsHoverTimer);
@@ -2028,13 +2035,13 @@ viewer?.addEventListener("touchstart", (e) => {
   }
 
   revealViewerControlsTemporarily();
-});
+}, { passive: false });
 
 viewer?.addEventListener("click", (e) => {
   if (!IS_COARSE_POINTER) return;
   if (!viewer?.classList.contains("fullscreen")) return;
   if (e.target?.closest?.(".top")) return;
-  if (Date.now() - viewerLastTouchToggleAt < 420) return;
+  if (Date.now() < viewerSuppressCoarseClickUntil) return;
 
   if (viewer.classList.contains("show-controls")) {
     if (viewerTouchHideTimer) {
