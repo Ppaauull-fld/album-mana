@@ -95,6 +95,11 @@ let hasViewerScrollSnapshot = false;
 let arranging = false;
 let selectedItemIds = new Set();
 let bulkDeleteBtn = null;
+let arrangeContextBar = null;
+let arrangeContextLabel = null;
+let arrangeContextActions = null;
+let arrangeContextDeleteBtn = null;
+let arrangeContextDoneBtn = null;
 const favoriteUpdatePendingIds = new Set();
 const originalUpdatePendingIds = new Set();
 let currentGridCols = 2;
@@ -588,6 +593,7 @@ function setArranging(on) {
   }
 
   syncBulkDeleteBtn();
+  syncArrangeContextBar();
 }
 
 arrangeBtn?.addEventListener("click", () => setArranging(!arranging));
@@ -893,6 +899,89 @@ function selectedCount() {
   return selectedItemIds.size;
 }
 
+function ensureArrangeContextBar() {
+  if (arrangeContextBar) return arrangeContextBar;
+
+  const bar = document.createElement("div");
+  bar.className = "arrange-context-bar";
+  bar.setAttribute("role", "region");
+  bar.setAttribute("aria-label", "Actions du mode arrangement");
+  bar.setAttribute("aria-hidden", "true");
+
+  const label = document.createElement("div");
+  label.className = "arrange-context-label";
+  label.setAttribute("aria-live", "polite");
+
+  const actions = document.createElement("div");
+  actions.className = "arrange-context-actions";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "btn danger arrange-context-delete";
+  deleteBtn.style.display = "none";
+  deleteBtn.addEventListener("click", () => {
+    if (deleteBtn.disabled) return;
+    void deleteSelectedItems();
+  });
+
+  const doneBtn = document.createElement("button");
+  doneBtn.type = "button";
+  doneBtn.className = "btn primary arrange-context-done";
+  doneBtn.textContent = "Terminer";
+  doneBtn.addEventListener("click", () => setArranging(false));
+
+  actions.appendChild(deleteBtn);
+  actions.appendChild(doneBtn);
+  bar.appendChild(label);
+  bar.appendChild(actions);
+  document.body.appendChild(bar);
+
+  arrangeContextBar = bar;
+  arrangeContextLabel = label;
+  arrangeContextActions = actions;
+  arrangeContextDeleteBtn = deleteBtn;
+  arrangeContextDoneBtn = doneBtn;
+  return arrangeContextBar;
+}
+
+function syncArrangeContextBar() {
+  if (!arranging && !arrangeContextBar) {
+    document.body.classList.remove("arrange-context-open");
+    return;
+  }
+
+  const bar = ensureArrangeContextBar();
+  if (!bar) return;
+
+  const n = selectedCount();
+  const visible = arranging;
+  const hasSelection = n > 0;
+
+  bar.classList.toggle("open", visible);
+  bar.setAttribute("aria-hidden", visible ? "false" : "true");
+  document.body.classList.toggle("arrange-context-open", visible);
+
+  if (arrangeContextLabel) {
+    arrangeContextLabel.textContent =
+      n <= 0 ? "Mode arrangement actif" : n === 1 ? "1 element selectionne" : `${n} elements selectionnes`;
+  }
+
+  if (arrangeContextActions) {
+    arrangeContextActions.classList.toggle("has-selection", hasSelection);
+  }
+
+  if (arrangeContextDeleteBtn) {
+    arrangeContextDeleteBtn.style.display = hasSelection ? "inline-flex" : "none";
+    arrangeContextDeleteBtn.disabled = !hasSelection;
+    arrangeContextDeleteBtn.textContent =
+      n <= 1 ? "Supprimer la selection" : `Supprimer ${n} elements`;
+  }
+
+  if (arrangeContextDoneBtn) {
+    arrangeContextDoneBtn.disabled = !visible;
+  }
+}
+
 function ensureBulkDeleteBtn() {
   if (bulkDeleteBtn) return bulkDeleteBtn;
   if (!actionsBar) return null;
@@ -908,12 +997,16 @@ function ensureBulkDeleteBtn() {
 
 function syncBulkDeleteBtn() {
   const btn = ensureBulkDeleteBtn();
-  if (!btn) return;
+  if (!btn) {
+    syncArrangeContextBar();
+    return;
+  }
   const n = selectedCount();
   const visible = arranging && n > 0;
   btn.style.display = visible ? "inline-flex" : "none";
   btn.disabled = !visible;
   btn.textContent = n <= 1 ? "Supprimer la selection" : `Supprimer ${n} elements`;
+  syncArrangeContextBar();
 }
 
 function syncSelectedCardsUi() {
