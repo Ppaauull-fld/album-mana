@@ -7454,3 +7454,28 @@ html[data-theme="dark"] #uploadModal .upload-assign-original .icon-img{
 #slideshow.fullscreen .box::before{
   display: none !important;
 }
+
+/* Fullscreen media viewers: hide all reaction emojis UI */
+#photoViewer.fullscreen .media-reaction-summary-wrap,
+#photoViewer.fullscreen .media-reaction-tray,
+#photoViewer.fullscreen .media-reaction-summary-popover,
+#photoViewer.fullscreen .media-social-toggle-btn--reactions{
+  display: none !important;
+}
+
+@media (max-width: 900px){
+  #photoViewer.modal .media-reaction-summary-wrap,
+  #animatedViewer.modal .media-reaction-summary-wrap,
+  #videoViewer.modal .media-reaction-summary-wrap,
+  #photoViewer.modal .media-reaction-tray,
+  #animatedViewer.modal .media-reaction-tray,
+  #videoViewer.modal .media-reaction-tray,
+  #photoViewer.modal .media-reaction-summary-popover,
+  #animatedViewer.modal .media-reaction-summary-popover,
+  #videoViewer.modal .media-reaction-summary-popover,
+  #photoViewer.modal .media-social-toggle-btn--reactions,
+  #animatedViewer.modal .media-social-toggle-btn--reactions,
+  #videoViewer.modal .media-social-toggle-btn--reactions{
+    display: none !important;
+  }
+}
