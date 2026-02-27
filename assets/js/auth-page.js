@@ -17,11 +17,17 @@ const EYE_ICON = "assets/img/icons/Eye.svg";
 const EYE_OFF_ICON = "assets/img/icons/Eye off.svg";
 const SUCCESS_ICON = "assets/img/icons/Check circle green.svg";
 const ERROR_ICON = "assets/img/icons/Slash.svg";
+const BIOMETRIC_STORAGE_KEY = "albumMana.biometric.credentials.v1";
+const WEBAUTHN_TIMEOUT_MS = 60000;
+const WEBAUTHN_RP_NAME = "album-mana";
 
 let currentStep = STEP_NAME;
 let firstName = "";
 let pinVisible = false;
 let submitting = false;
+let biometricSupported = false;
+let isAutoSigningIn = false;
+let hasAttemptedAutoSignIn = false;
 
 function cleanName(value) {
   return String(value || "")
@@ -32,6 +38,147 @@ function cleanName(value) {
 
 function onlyPinDigits(value) {
   return String(value || "").replace(/\D+/g, "").slice(0, 2);
+}
+
+function isBiometricCapableEnvironment() {
+  return Boolean(
+    window.isSecureContext &&
+      window.crypto?.getRandomValues &&
+      window.PublicKeyCredential &&
+      navigator.credentials
+  );
+}
+
+function toBase64Url(bytes) {
+  const bin = String.fromCharCode(...bytes);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(src) {
+  const normalized = String(src || "").replace(/-/g, "+").replace(/_/g, "/");
+  if (!normalized) return null;
+  const padLen = normalized.length % 4 === 0 ? 0 : 4 - (normalized.length % 4);
+  const padded = normalized + "=".repeat(padLen);
+  const bin = atob(padded);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function randomBytes(size = 32) {
+  const out = new Uint8Array(size);
+  window.crypto.getRandomValues(out);
+  return out;
+}
+
+function readBiometricStore() {
+  try {
+    const raw = localStorage.getItem(BIOMETRIC_STORAGE_KEY);
+    if (!raw) return { version: 1, credentials: [] };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return { version: 1, credentials: [] };
+    const list = Array.isArray(parsed.credentials) ? parsed.credentials : [];
+    return { version: 1, credentials: list };
+  } catch {
+    return { version: 1, credentials: [] };
+  }
+}
+
+function writeBiometricStore(credentials) {
+  const safe = (Array.isArray(credentials) ? credentials : [])
+    .filter((item) => item && typeof item === "object")
+    .filter((item) => typeof item.credentialId === "string" && item.credentialId.trim())
+    .slice(0, 12);
+
+  try {
+    localStorage.setItem(
+      BIOMETRIC_STORAGE_KEY,
+      JSON.stringify({ version: 1, credentials: safe })
+    );
+  } catch {}
+}
+
+function getStoredBiometricCredentials() {
+  const store = readBiometricStore();
+  return store.credentials
+    .map((item) => ({
+      credentialId: String(item.credentialId || "").trim(),
+      firstName: cleanName(item.firstName || ""),
+      pin: onlyPinDigits(item.pin || ""),
+      createdAt: Number(item.createdAt || 0),
+      lastUsedAt: Number(item.lastUsedAt || 0),
+    }))
+    .filter((item) => item.credentialId && item.firstName && /^\d{2}$/.test(item.pin));
+}
+
+function upsertStoredBiometricCredential(entry) {
+  const current = getStoredBiometricCredentials();
+  const next = [entry, ...current.filter((item) => item.credentialId !== entry.credentialId)];
+  writeBiometricStore(next);
+}
+
+function touchStoredBiometricCredential(credentialId) {
+  const current = getStoredBiometricCredentials();
+  const next = current.map((item) =>
+    item.credentialId === credentialId ? { ...item, lastUsedAt: Date.now() } : item
+  );
+  writeBiometricStore(next);
+}
+
+function isPasswordCredentialSupported() {
+  return Boolean(
+    window.PasswordCredential &&
+      navigator.credentials &&
+      typeof navigator.credentials.get === "function" &&
+      typeof navigator.credentials.store === "function"
+  );
+}
+
+async function storeBrowserCredential({ firstName, pin }) {
+  if (!isPasswordCredentialSupported()) return;
+
+  const normalizedName = cleanName(firstName);
+  const normalizedPin = onlyPinDigits(pin);
+  if (!normalizedName || !/^\d{2}$/.test(normalizedPin)) return;
+
+  try {
+    const credential = new PasswordCredential({
+      id: normalizedName,
+      name: normalizedName,
+      password: normalizedPin,
+    });
+    await navigator.credentials.store(credential);
+  } catch {}
+}
+
+async function trySignInWithBrowserCredential() {
+  if (!isPasswordCredentialSupported()) return false;
+
+  let credential = null;
+  try {
+    credential = await navigator.credentials.get({
+      password: true,
+      mediation: "optional",
+    });
+  } catch {
+    return false;
+  }
+
+  if (!(credential instanceof PasswordCredential)) return false;
+
+  const resolvedName = cleanName(credential.id || credential.name || "");
+  const resolvedPin = onlyPinDigits(credential.password || "");
+  if (!resolvedName || !/^\d{2}$/.test(resolvedPin)) return false;
+
+  try {
+    await signInWithFamilyPin({ firstName: resolvedName, pin: resolvedPin });
+    await maybeOfferBiometricEnrollment({ firstName: resolvedName, pin: resolvedPin });
+    await wait(500);
+    window.location.replace(nextPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function setFeedback(message = "", type = "", iconSrc = "") {
@@ -72,6 +219,108 @@ function mapAuthError(err) {
   return err?.message || "Erreur de connexion.";
 }
 
+function mapBiometricError(err) {
+  const name = String(err?.name || "");
+  if (name === "NotAllowedError") return "Verification biométrique annulée ou refusée.";
+  if (name === "InvalidStateError") return "Aucun profil biométrique valide sur cet appareil.";
+  if (name === "NotSupportedError") return "Biométrie non disponible sur cet appareil.";
+  if (name === "SecurityError") return "Biométrie indisponible hors contexte sécurisé (HTTPS).";
+  return err?.message || "Connexion biométrique impossible.";
+}
+
+async function detectBiometricSupport() {
+  if (!isBiometricCapableEnvironment()) return false;
+
+  const checker = window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable;
+  if (typeof checker !== "function") return true;
+
+  try {
+    return Boolean(await checker.call(window.PublicKeyCredential));
+  } catch {
+    return false;
+  }
+}
+
+async function registerBiometricCredential({ firstName, pin }) {
+  const normalizedName = cleanName(firstName);
+  const normalizedPin = onlyPinDigits(pin);
+  if (!normalizedName || !/^\d{2}$/.test(normalizedPin)) return false;
+  if (!biometricSupported) return false;
+
+  const publicKey = {
+    challenge: randomBytes(32),
+    rp: { name: WEBAUTHN_RP_NAME },
+    user: {
+      id: randomBytes(16),
+      name: `album-mana-${Date.now()}`,
+      displayName: normalizedName,
+    },
+    pubKeyCredParams: [
+      { type: "public-key", alg: -7 }, // ES256
+      { type: "public-key", alg: -257 }, // RS256
+    ],
+    authenticatorSelection: {
+      authenticatorAttachment: "platform",
+      residentKey: "preferred",
+      userVerification: "required",
+    },
+    timeout: WEBAUTHN_TIMEOUT_MS,
+    attestation: "none",
+  };
+
+  const credential = await navigator.credentials.create({ publicKey });
+  if (!(credential instanceof PublicKeyCredential) || !credential.rawId) {
+    throw new Error("Enrolement biométrique invalide.");
+  }
+
+  const credentialId = toBase64Url(new Uint8Array(credential.rawId));
+  upsertStoredBiometricCredential({
+    credentialId,
+    firstName: normalizedName,
+    pin: normalizedPin,
+    createdAt: Date.now(),
+    lastUsedAt: Date.now(),
+  });
+  return true;
+}
+
+async function signInWithBiometrics() {
+  if (!biometricSupported) throw new Error("Biométrie non disponible.");
+
+  const stored = getStoredBiometricCredentials();
+  if (!stored.length) throw new Error("Aucun profil biométrique enregistré sur cet appareil.");
+
+  const allowCredentials = stored
+    .map((item) => {
+      const id = fromBase64Url(item.credentialId);
+      if (!id) return null;
+      return { type: "public-key", id };
+    })
+    .filter(Boolean);
+
+  if (!allowCredentials.length) throw new Error("Profil biométrique invalide.");
+
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: randomBytes(32),
+      allowCredentials,
+      userVerification: "required",
+      timeout: WEBAUTHN_TIMEOUT_MS,
+    },
+  });
+
+  if (!(assertion instanceof PublicKeyCredential) || !assertion.rawId) {
+    throw new Error("Verification biométrique invalide.");
+  }
+
+  const usedCredentialId = toBase64Url(new Uint8Array(assertion.rawId));
+  const matched = stored.find((item) => item.credentialId === usedCredentialId);
+  if (!matched) throw new Error("Profil biométrique inconnu.");
+
+  await signInWithFamilyPin({ firstName: matched.firstName, pin: matched.pin });
+  touchStoredBiometricCredential(usedCredentialId);
+}
+
 function syncPinToggleIcon() {
   if (!pinToggleBtn || !pinToggleIcon) return;
   pinToggleIcon.src = pinVisible ? EYE_OFF_ICON : EYE_ICON;
@@ -84,7 +333,7 @@ function syncPinToggleIcon() {
 function setSubmitState(enabled) {
   if (!submitBtn) return;
   submitBtn.classList.toggle("is-ready", Boolean(enabled));
-  submitBtn.disabled = !enabled || submitting;
+  submitBtn.disabled = !enabled || submitting || isAutoSigningIn;
 }
 
 function isValidCurrentInput() {
@@ -125,7 +374,8 @@ function renderStep(step) {
     singleInput.type = "text";
     singleInput.inputMode = "text";
     singleInput.maxLength = 50;
-    singleInput.autocomplete = "nickname";
+    singleInput.autocomplete = "username";
+    singleInput.name = "username";
     singleInput.placeholder = "Nom d'utilisateur";
     singleInput.classList.remove("is-pin");
     singleInput.value = firstName || "";
@@ -145,6 +395,7 @@ function renderStep(step) {
   singleInput.inputMode = "numeric";
   singleInput.maxLength = 2;
   singleInput.autocomplete = "current-password";
+  singleInput.name = "password";
   singleInput.placeholder = "_____     _____";
   singleInput.classList.add("is-pin");
 
@@ -158,7 +409,7 @@ function renderStep(step) {
 
 async function handleSubmit(e) {
   e.preventDefault();
-  if (!singleInput || submitting) return;
+  if (!singleInput || submitting || isAutoSigningIn) return;
 
   setFeedback("");
 
@@ -196,6 +447,8 @@ async function handleSubmit(e) {
     if (singleInput) singleInput.disabled = true;
     if (pinToggleBtn) pinToggleBtn.disabled = true;
     if (backBtn) backBtn.disabled = true;
+    await storeBrowserCredential({ firstName, pin });
+    await maybeOfferBiometricEnrollment({ firstName, pin });
     await wait(700);
     window.location.replace(nextPath);
   } catch (err) {
@@ -211,6 +464,65 @@ async function handleSubmit(e) {
     if (!isSuccess) {
       validateAndSyncInput();
     }
+  }
+}
+
+async function maybeOfferBiometricEnrollment({ firstName, pin }) {
+  if (!biometricSupported) return;
+
+  const normalizedName = cleanName(firstName);
+  const normalizedPin = onlyPinDigits(pin);
+  if (!normalizedName || !/^\d{2}$/.test(normalizedPin)) return;
+
+  const existing = getStoredBiometricCredentials();
+  const alreadyLinked = existing.some(
+    (item) => item.firstName === normalizedName && item.pin === normalizedPin
+  );
+  if (alreadyLinked) return;
+
+  const shouldEnroll = window.confirm(
+    "Activer la connexion Face ID / empreinte sur cet appareil ?"
+  );
+  if (!shouldEnroll) return;
+
+  try {
+    await registerBiometricCredential({ firstName: normalizedName, pin: normalizedPin });
+    setFeedback("Connexion biométrique activée sur cet appareil.", "success", SUCCESS_ICON);
+    await wait(500);
+  } catch (err) {
+    setFeedback(mapBiometricError(err), "error", ERROR_ICON);
+    await wait(1100);
+    setFeedback("Connexion reussie", "success", SUCCESS_ICON);
+  }
+}
+
+async function tryAutomaticSignIn() {
+  if (hasAttemptedAutoSignIn || submitting || isAutoSigningIn) return;
+  hasAttemptedAutoSignIn = true;
+  isAutoSigningIn = true;
+  submitBtn?.classList.remove("is-ready");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const usedBrowserCredential = await trySignInWithBrowserCredential();
+    if (usedBrowserCredential) return;
+
+    if (biometricSupported && getStoredBiometricCredentials().length > 0) {
+      try {
+        await signInWithBiometrics();
+        setFeedback("Connexion biométrique reussie", "success", SUCCESS_ICON);
+        await wait(600);
+        window.location.replace(nextPath);
+        return;
+      } catch (err) {
+        if (String(err?.name || "") !== "NotAllowedError") {
+          console.error("[auth-biometric-auto]", err);
+        }
+      }
+    }
+  } finally {
+    isAutoSigningIn = false;
+    validateAndSyncInput();
   }
 }
 
@@ -253,6 +565,8 @@ async function init() {
     return;
   }
 
+  biometricSupported = await detectBiometricSupport();
+
   authForm?.addEventListener("submit", handleSubmit);
   singleInput?.addEventListener("input", handleInput);
   singleInput?.addEventListener("keydown", handleKeyDown);
@@ -260,6 +574,7 @@ async function init() {
   pinToggleBtn?.addEventListener("click", handleTogglePin);
 
   renderStep(STEP_NAME);
+  void tryAutomaticSignIn();
 }
 
 init();
